@@ -1,0 +1,74 @@
+use super::ParseError;
+use super::Parser;
+use krama_core::ast::expression::Expression;
+use krama_core::ast::expression::ExpressionKind;
+use krama_core::error::Error;
+use krama_core::error::ErrorKind;
+use krama_core::token::Token;
+use krama_core::token::TokenKind;
+
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'a: 'ast,
+{
+  pub(super) fn parse_import_expression(&mut self) -> ParseError<'ast> {
+    let start_span = self.current_token.as_ref().unwrap().span;
+    self.advance();
+    if !self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::Import)
+    {
+      return Err(Error {
+        span: start_span,
+        kind: ErrorKind::ParserError("Expected 'import' after '@'"),
+      });
+    }
+    self.advance();
+
+    if !self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::LParen)
+    {
+      return Err(Error {
+        span: start_span,
+        kind: ErrorKind::ParserError("Expected '(' after '@import'"),
+      });
+    }
+    self.advance();
+
+    let path = match self.current_token.as_ref() {
+      Some(Token {
+        kind: TokenKind::String(path),
+        ..
+      }) => self.arena.alloc_str(path),
+      _ => {
+        return Err(Error {
+          span: start_span,
+          kind: ErrorKind::ParserError(
+            "Expected a string literal for the import path",
+          ),
+        })
+      }
+    };
+    self.advance();
+
+    if !self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::RParen)
+    {
+      return Err(Error {
+        span: start_span,
+        kind: ErrorKind::ParserError("Expected ')' after import path"),
+      });
+    }
+    self.advance();
+
+    Ok(Expression {
+      kind: ExpressionKind::Import { path, items: None },
+      span: start_span,
+    })
+  }
+}

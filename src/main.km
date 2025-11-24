@@ -1,0 +1,6 @@
+fn hello(count) {
+  print("Hello", "World!", count)
+}
+
+hello(1)
+hello(2)

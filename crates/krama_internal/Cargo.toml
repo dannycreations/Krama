@@ -1,0 +1,17 @@
+[package]
+name = "krama_internal"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+futures.workspace = true
+krama_core = { path = "../krama_core" }
+krama_lexer = { path = "../krama_lexer" }
+krama_parser = { path = "../krama_parser" }
+krama_runtime = { path = "../krama_runtime" }

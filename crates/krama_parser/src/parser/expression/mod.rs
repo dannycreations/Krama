@@ -1,0 +1,100 @@
+pub(super) mod binary;
+pub(super) mod call;
+pub(super) mod collection;
+pub(super) mod control;
+pub(super) mod function;
+pub(super) mod group;
+pub(super) mod import;
+pub(super) mod literal;
+pub(super) mod member;
+pub(super) mod unary;
+
+use super::precedence::Precedence;
+use super::ParseError;
+use super::Parser;
+use krama_core::ast::expression::Expression;
+use krama_core::ast::expression::ExpressionKind;
+use krama_core::ast::statement::Statement;
+use krama_core::ast::statement::StatementKind;
+use krama_core::error::Error;
+use krama_core::token::TokenKind;
+
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'a: 'ast,
+{
+  pub(super) fn parse_expression_statement(
+    &mut self,
+  ) -> Result<Statement<'ast>, Error> {
+    let expression = self.parse_expression(Precedence::Lowest)?;
+    let span = expression.span;
+    Ok(Statement {
+      kind: StatementKind::Expression { expression },
+      span,
+    })
+  }
+
+  pub(super) fn parse_expression(
+    &mut self,
+    precedence: Precedence,
+  ) -> ParseError<'ast> {
+    let mut left = self.parse_prefix_expression()?;
+
+    while precedence < self.current_precedence()
+      && self
+        .current_token
+        .as_ref()
+        .is_some_and(|t| t.kind != TokenKind::Newline)
+    {
+      left = match self.current_token.as_ref().unwrap().kind {
+        TokenKind::LParen => self.parse_call_expression(left)?,
+        TokenKind::Dot => self.parse_member_expression(left)?,
+        TokenKind::PlusPlus | TokenKind::MinusMinus => {
+          self.parse_postfix_expression(left)?
+        }
+        _ => self.parse_infix_expression(left)?,
+      };
+    }
+
+    Ok(left)
+  }
+
+  fn parse_prefix_expression(&mut self) -> ParseError<'ast> {
+    let token = *self.current_token.as_ref().unwrap();
+    match token.kind {
+      TokenKind::Identifier(_) => self.parse_identifier(),
+      TokenKind::Integer(_) => self.parse_integer(),
+      TokenKind::Float(_) => self.parse_float(),
+      TokenKind::String(_) => self.parse_string(),
+      TokenKind::True | TokenKind::False => self.parse_boolean(),
+      TokenKind::Null => self.parse_null(),
+      TokenKind::Bang
+      | TokenKind::Minus
+      | TokenKind::Tilde
+      | TokenKind::Plus => self.parse_unary_expression(),
+      TokenKind::PlusPlus | TokenKind::MinusMinus => {
+        self.parse_prefix_update_expression()
+      }
+      TokenKind::LParen => self.parse_paren_expression(),
+      TokenKind::LBracket => self.parse_collection_expression(),
+      TokenKind::At => self.parse_import_expression(),
+      TokenKind::If => self.parse_if_expression(),
+      TokenKind::Match => self.parse_match_expression(),
+      TokenKind::Fn => self.parse_fn_expression(),
+      TokenKind::LBrace => {
+        let block = self.parse_block_statement()?;
+        let span = block.span;
+        Ok(Expression {
+          kind: ExpressionKind::Block(block),
+          span,
+        })
+      }
+      _ => Err(Error {
+        span: token.span,
+        kind: krama_core::error::ErrorKind::ParserError(
+          "Unexpected token for prefix expression",
+        ),
+      }),
+    }
+  }
+}

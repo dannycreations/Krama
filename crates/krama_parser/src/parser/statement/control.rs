@@ -1,0 +1,29 @@
+use super::Parser;
+use krama_core::ast::statement::{Statement, StatementKind};
+use krama_core::error::Error;
+use krama_core::token::TokenKind;
+
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'a: 'ast,
+{
+  pub(super) fn parse_while_statement(
+    &mut self,
+  ) -> Result<Statement<'ast>, Error> {
+    let start_span = self.current_token.as_ref().unwrap().span;
+    self.advance();
+
+    self.consume_token(TokenKind::LParen)?;
+
+    let condition =
+      self.parse_expression(super::super::precedence::Precedence::Lowest)?;
+
+    self.consume_token(TokenKind::RParen)?;
+    let body = self.parse_block_statement()?;
+
+    Ok(Statement {
+      kind: StatementKind::While { condition, body },
+      span: start_span,
+    })
+  }
+}

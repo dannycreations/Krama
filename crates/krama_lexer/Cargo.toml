@@ -1,0 +1,18 @@
+[package]
+name = "krama_lexer"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+krama_core = { path = "../krama_core" }
+once_cell.workspace = true
+phf.workspace = true
+
+[dev-dependencies]
+krama_internal = { path = "../krama_internal" }

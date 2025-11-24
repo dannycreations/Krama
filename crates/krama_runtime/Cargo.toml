@@ -1,0 +1,23 @@
+[package]
+name = "krama_runtime"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+bumpalo.workspace = true
+futures.workspace = true
+krama_core = { path = "../krama_core" }
+krama_lexer = { path = "../krama_lexer" }
+krama_parser = { path = "../krama_parser" }
+krama_std = { path = "../krama_std" }
+rustc-hash.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+krama_internal = { path = "../krama_internal" }

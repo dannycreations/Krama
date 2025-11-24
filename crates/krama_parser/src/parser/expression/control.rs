@@ -1,0 +1,261 @@
+use super::ParseError;
+use super::Parser;
+use super::Precedence;
+use bumpalo::collections::Vec as BumpVec;
+use krama_core::ast::expression::Expression;
+use krama_core::ast::expression::ExpressionKind;
+use krama_core::ast::expression::FunctionBody;
+use krama_core::ast::expression::MatchArm;
+use krama_core::ast::expression::MatchPattern;
+use krama_core::error::Error;
+use krama_core::error::ErrorKind;
+use krama_core::token::TokenKind;
+
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'a: 'ast,
+{
+  pub(super) fn parse_if_expression(&mut self) -> ParseError<'ast> {
+    let start_span = self.current_token.as_ref().unwrap().span;
+    self.advance();
+
+    if !self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::LParen)
+    {
+      return Err(Error {
+        span: self.current_token.as_ref().unwrap().span,
+        kind: ErrorKind::ParserError("Expected '(' after 'if' or 'elif'"),
+      });
+    }
+    self.advance();
+
+    let condition = self.parse_expression(Precedence::Lowest)?;
+
+    if !self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::RParen)
+    {
+      return Err(Error {
+        span: self.current_token.as_ref().unwrap().span,
+        kind: ErrorKind::ParserError("Expected ')' after if condition"),
+      });
+    }
+    self.advance();
+
+    let then_branch = self.parse_block_statement()?;
+    let then_span = then_branch.span;
+
+    let else_branch = if self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::Else)
+    {
+      self.advance();
+      let else_block = self.parse_block_statement()?;
+      let else_span = else_block.span;
+      Some(self.arena.alloc(Expression {
+        kind: ExpressionKind::Block(else_block),
+        span: else_span,
+      }))
+    } else if self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::Elif)
+    {
+      Some(self.arena.alloc(self.parse_if_expression()?))
+    } else {
+      None
+    };
+
+    Ok(Expression {
+      kind: ExpressionKind::If {
+        condition: self.arena.alloc(condition),
+        then_branch: self.arena.alloc(Expression {
+          kind: ExpressionKind::Block(then_branch),
+          span: then_span,
+        }),
+        else_branch: else_branch.map(|e| &*e),
+      },
+      span: start_span,
+    })
+  }
+
+  pub(super) fn parse_match_expression(&mut self) -> ParseError<'ast> {
+    let start_span = self.current_token.as_ref().unwrap().span;
+    self.advance();
+
+    if !self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::LParen)
+    {
+      return Err(Error {
+        span: start_span,
+        kind: ErrorKind::ParserError("Expected '(' after 'match'"),
+      });
+    }
+    self.advance();
+
+    let subject = self.parse_expression(Precedence::Lowest)?;
+
+    if !self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::RParen)
+    {
+      return Err(Error {
+        span: start_span,
+        kind: ErrorKind::ParserError("Expected ')' after match subject"),
+      });
+    }
+    self.advance();
+
+    if !self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::LBrace)
+    {
+      return Err(Error {
+        span: start_span,
+        kind: ErrorKind::ParserError("Expected '{' for match arms"),
+      });
+    }
+    self.advance();
+
+    let mut arms = BumpVec::new_in(self.arena);
+    while self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind != TokenKind::RBrace)
+    {
+      while self
+        .current_token
+        .as_ref()
+        .is_some_and(|t| t.kind == TokenKind::Newline)
+      {
+        self.advance();
+      }
+
+      if self
+        .current_token
+        .as_ref()
+        .is_some_and(|t| t.kind != TokenKind::RBrace)
+      {
+        arms.push(self.parse_match_arm()?);
+      }
+    }
+
+    if self.current_token.is_none() {
+      return Err(Error {
+        span: start_span,
+        kind: ErrorKind::ParserError("Unexpected end of file: missing '}'"),
+      });
+    }
+
+    self.advance();
+
+    Ok(Expression {
+      kind: ExpressionKind::Match {
+        subject: self.arena.alloc(subject),
+        arms,
+      },
+      span: start_span,
+    })
+  }
+
+  fn parse_match_arm(&mut self) -> Result<MatchArm<'ast>, Error> {
+    let mut patterns = BumpVec::new_in(self.arena);
+    patterns.push(self.parse_match_pattern()?);
+
+    while self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::Comma)
+    {
+      self.advance();
+
+      if self.current_token.as_ref().is_some_and(|t| {
+        t.kind == TokenKind::Arrow || t.kind == TokenKind::LBrace
+      }) {
+        break;
+      }
+
+      while self
+        .current_token
+        .as_ref()
+        .is_some_and(|t| t.kind == TokenKind::Newline)
+      {
+        self.advance();
+      }
+
+      patterns.push(self.parse_match_pattern()?);
+    }
+
+    let body = if self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::Arrow)
+    {
+      self.advance();
+      let expr = self.parse_expression(Precedence::Lowest)?;
+      FunctionBody::Expression(self.arena.alloc(expr))
+    } else if self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::LBrace)
+    {
+      let block = self.arena.alloc(self.parse_block_statement()?);
+      FunctionBody::Block(block)
+    } else {
+      return Err(Error {
+        span: self.current_token.as_ref().unwrap().span,
+        kind: ErrorKind::ParserError("Expected '=>' or '{' for match arm body"),
+      });
+    };
+
+    if self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::Comma)
+    {
+      self.advance();
+    }
+    while self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::Newline)
+    {
+      self.advance();
+    }
+
+    Ok(MatchArm { patterns, body })
+  }
+
+  fn parse_match_pattern(&mut self) -> Result<MatchPattern<'ast>, Error> {
+    if self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::Else)
+    {
+      self.advance();
+      return Ok(MatchPattern::Else);
+    }
+
+    let left = self.parse_expression(Precedence::LessGreater)?;
+
+    if self
+      .current_token
+      .as_ref()
+      .is_some_and(|t| t.kind == TokenKind::DotDot)
+    {
+      self.advance();
+      let right = self.parse_expression(Precedence::LessGreater)?;
+      Ok(MatchPattern::Range(left, right))
+    } else {
+      Ok(MatchPattern::Expression(left))
+    }
+  }
+}
