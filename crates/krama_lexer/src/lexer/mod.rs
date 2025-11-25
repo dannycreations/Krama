@@ -10,9 +10,9 @@ use std::str::Chars;
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
-  pub(super) input_str: &'a str,
   pub(super) input: Peekable<Chars<'a>>,
   pub(super) position: usize,
+  input_str: &'a str,
 }
 
 impl<'a> Lexer<'a> {
@@ -22,6 +22,10 @@ impl<'a> Lexer<'a> {
       input: input.chars().peekable(),
       position: 0,
     }
+  }
+
+  pub fn input_len(&self) -> usize {
+    self.input_str.len()
   }
 
   pub(super) fn peek(&mut self) -> Option<char> {
@@ -48,26 +52,26 @@ impl<'a> Lexer<'a> {
   }
 
   fn skip_whitespace(&mut self) {
-    while let Some(c) = self.peek() {
-      if c.is_whitespace() && c != '\n' {
-        self.advance();
-      } else if c == '/' {
-        let mut ahead = self.input.clone();
-        ahead.next();
-        if ahead.peek() == Some(&'/') {
+    loop {
+      match self.peek() {
+        Some('/') if self.input.clone().nth(1) == Some('/') => {
+          // It's a comment. Consume the two slashes.
           self.advance();
           self.advance();
-          while let Some(pc) = self.peek() {
-            if pc == '\n' {
+          // Now consume until newline.
+          while let Some(c) = self.peek() {
+            if c == '\n' {
               break;
             }
             self.advance();
           }
-        } else {
+        }
+        Some(c) if c.is_whitespace() && c != '\n' => {
+          self.advance();
+        }
+        _ => {
           break;
         }
-      } else {
-        break;
       }
     }
   }
@@ -98,43 +102,50 @@ impl<'a> Iterator for Lexer<'a> {
 
       // Operators
       '+' => {
-        if self.advance_if('+') {
-          Token::new(TokenKind::PlusPlus, self.span(start))
+        let kind = if self.advance_if('+') {
+          TokenKind::PlusPlus
         } else if self.advance_if('=') {
-          Token::new(TokenKind::PlusEqual, self.span(start))
+          TokenKind::PlusEqual
         } else {
-          Token::new(TokenKind::Plus, self.span(start))
-        }
+          TokenKind::Plus
+        };
+        Token::new(kind, self.span(start))
       }
       '-' => {
-        if self.advance_if('-') {
-          Token::new(TokenKind::MinusMinus, self.span(start))
+        let kind = if self.advance_if('-') {
+          TokenKind::MinusMinus
         } else if self.advance_if('=') {
-          Token::new(TokenKind::MinusEqual, self.span(start))
+          TokenKind::MinusEqual
         } else {
-          Token::new(TokenKind::Minus, self.span(start))
-        }
+          TokenKind::Minus
+        };
+        Token::new(kind, self.span(start))
       }
       '*' => {
-        if self.advance_if('=') {
-          Token::new(TokenKind::StarEqual, self.span(start))
+        let kind = if self.advance_if('*') {
+          TokenKind::StarStar
+        } else if self.advance_if('=') {
+          TokenKind::StarEqual
         } else {
-          Token::new(TokenKind::Star, self.span(start))
-        }
+          TokenKind::Star
+        };
+        Token::new(kind, self.span(start))
       }
       '/' => {
-        if self.advance_if('=') {
-          Token::new(TokenKind::SlashEqual, self.span(start))
+        let kind = if self.advance_if('=') {
+          TokenKind::SlashEqual
         } else {
-          Token::new(TokenKind::Slash, self.span(start))
-        }
+          TokenKind::Slash
+        };
+        Token::new(kind, self.span(start))
       }
       '%' => {
-        if self.advance_if('=') {
-          Token::new(TokenKind::PercentEqual, self.span(start))
+        let kind = if self.advance_if('=') {
+          TokenKind::PercentEqual
         } else {
-          Token::new(TokenKind::Percent, self.span(start))
-        }
+          TokenKind::Percent
+        };
+        Token::new(kind, self.span(start))
       }
       '=' => {
         let kind = if self.advance_if('>') {
@@ -155,63 +166,69 @@ impl<'a> Iterator for Lexer<'a> {
         Token::new(kind, self.span(start))
       }
       '>' => {
-        if self.advance_if('>') {
+        let kind = if self.advance_if('>') {
           if self.advance_if('=') {
-            Token::new(TokenKind::GreaterGreaterEqual, self.span(start))
+            TokenKind::GreaterGreaterEqual
           } else {
-            Token::new(TokenKind::GreaterGreater, self.span(start))
+            TokenKind::GreaterGreater
           }
         } else if self.advance_if('=') {
-          Token::new(TokenKind::GreaterThanEqual, self.span(start))
+          TokenKind::GreaterThanEqual
         } else {
-          Token::new(TokenKind::GreaterThan, self.span(start))
-        }
+          TokenKind::GreaterThan
+        };
+        Token::new(kind, self.span(start))
       }
       '<' => {
-        if self.advance_if('<') {
+        let kind = if self.advance_if('<') {
           if self.advance_if('=') {
-            Token::new(TokenKind::LessLessEqual, self.span(start))
+            TokenKind::LessLessEqual
           } else {
-            Token::new(TokenKind::LessLess, self.span(start))
+            TokenKind::LessLess
           }
         } else if self.advance_if('=') {
-          Token::new(TokenKind::LessThanEqual, self.span(start))
+          TokenKind::LessThanEqual
         } else {
-          Token::new(TokenKind::LessThan, self.span(start))
-        }
+          TokenKind::LessThan
+        };
+        Token::new(kind, self.span(start))
       }
       '&' => {
-        if self.advance_if('=') {
-          Token::new(TokenKind::AmpersandEqual, self.span(start))
+        let kind = if self.advance_if('=') {
+          TokenKind::AmpersandEqual
         } else if self.advance_if('&') {
-          Token::new(TokenKind::AmpersandAmpersand, self.span(start))
+          TokenKind::AmpersandAmpersand
         } else {
-          Token::new(TokenKind::Ampersand, self.span(start))
-        }
+          TokenKind::Ampersand
+        };
+        Token::new(kind, self.span(start))
       }
       '|' => {
-        if self.advance_if('=') {
-          Token::new(TokenKind::PipeEqual, self.span(start))
+        let kind = if self.advance_if('=') {
+          TokenKind::PipeEqual
         } else if self.advance_if('|') {
-          Token::new(TokenKind::PipePipe, self.span(start))
+          TokenKind::PipePipe
         } else {
-          Token::new(TokenKind::Pipe, self.span(start))
-        }
+          TokenKind::Pipe
+        };
+        Token::new(kind, self.span(start))
       }
       '^' => {
-        if self.advance_if('=') {
-          Token::new(TokenKind::CaretEqual, self.span(start))
+        let kind = if self.advance_if('=') {
+          TokenKind::CaretEqual
         } else {
-          Token::new(TokenKind::Caret, self.span(start))
-        }
+          TokenKind::Caret
+        };
+        Token::new(kind, self.span(start))
       }
       '~' => Token::new(TokenKind::Tilde, self.span(start)),
       '.' => {
-        if self.advance_if('.') {
-          Token::new(TokenKind::DotDot, self.span(start))
+        let kind = if self.advance_if('.') {
+          TokenKind::DotDot
         } else {
-          Token::new(TokenKind::Dot, self.span(start))
-        }
+          TokenKind::Dot
+        };
+        Token::new(kind, self.span(start))
       }
 
       // Strings, Numbers, and Identifiers

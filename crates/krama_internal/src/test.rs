@@ -5,10 +5,11 @@ use futures::future::FutureExt;
 macro_rules! resolve_future {
   ($result:expr) => {
     if let ::krama_core::object::Object::Future(future) = $result {
-      let dummy_future =
-        async { Ok(::krama_core::object::Object::Void) }.boxed_local();
-      let real_future = future.replace(dummy_future);
-      real_future.await.unwrap()
+      if let Some(real_future) = future.take() {
+        real_future.await.unwrap()
+      } else {
+        panic!("Future already resolved")
+      }
     } else {
       $result
     }

@@ -1,12 +1,13 @@
+use bumpalo::Bump;
 use krama_core::ast::literal::Literal;
 use krama_core::ast::statement::{Statement, StatementKind};
 use krama_core::ast::types::{Type, TypeKind};
 use krama_core::span::Span;
 use krama_internal::test_parser;
 
-fn expect_const_statement_with_type(
-  statement: &Statement,
-  expected_type: Type,
+fn expect_const_statement_with_type<'ast>(
+  statement: &Statement<'ast>,
+  expected_type: Type<'ast>,
 ) {
   let kind = match &statement.kind {
     StatementKind::Const { kind, .. } => kind,
@@ -20,10 +21,11 @@ test_parser!(
   "const a: i32[] = []",
   1,
   |statement: &Statement| {
+    let arena = Bump::new();
     let expected_type = Type {
       span: Span::new(9, 14),
       kind: TypeKind::Array {
-        element: Box::new(Type {
+        element: arena.alloc(Type {
           span: Span::new(9, 12),
           kind: TypeKind::I32,
         }),
@@ -39,10 +41,11 @@ test_parser!(
   "const a: i32[5] = []",
   1,
   |statement: &Statement| {
+    let arena = Bump::new();
     let expected_type = Type {
       span: Span::new(9, 15),
       kind: TypeKind::Array {
-        element: Box::new(Type {
+        element: arena.alloc(Type {
           span: Span::new(9, 12),
           kind: TypeKind::I32,
         }),
@@ -84,13 +87,14 @@ test_parser!(
   "const a: i32[][] = []",
   1,
   |statement: &Statement| {
+    let arena = Bump::new();
     let expected_type = Type {
       span: Span::new(9, 16),
       kind: TypeKind::Array {
-        element: Box::new(Type {
+        element: arena.alloc(Type {
           span: Span::new(9, 14),
           kind: TypeKind::Array {
-            element: Box::new(Type {
+            element: arena.alloc(Type {
               span: Span::new(9, 12),
               kind: TypeKind::I32,
             }),

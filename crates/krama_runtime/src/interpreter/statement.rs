@@ -198,21 +198,20 @@ impl<'ast> Interpreter<'ast> {
     statements: &'s [Statement<'ast>],
   ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
     async move {
-      if statements.is_empty() {
-        return Ok(Object::Void);
+      let mut result = Object::Void;
+
+      for statement in statements {
+        result = self.eval_statement(statement).await?;
+
+        if matches!(
+          &result,
+          Object::Return(_) | Object::Break | Object::Continue
+        ) {
+          return Ok(result);
+        }
       }
-      let (statement, rest) = statements.split_first().unwrap();
-      let result = self.eval_statement(statement).await?;
-      if matches!(
-        &result,
-        Object::Return(_) | Object::Break | Object::Continue
-      ) {
-        return Ok(result);
-      }
-      if rest.is_empty() {
-        return Ok(result);
-      }
-      self.eval_statements(rest).await
+
+      Ok(result)
     }
     .boxed_local()
   }

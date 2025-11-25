@@ -35,12 +35,11 @@ impl<'ast> Environment<'ast> {
   }
 
   pub fn get_public_bindings(&self) -> FxHashMap<&'ast str, Object<'ast>> {
-    let mut public_bindings = FxHashMap::default();
-    for (name, (obj, public)) in &self.store {
-      if *public {
-        public_bindings.insert(*name, obj.clone());
-      }
-    }
-    public_bindings
+    self
+      .store
+      .iter()
+      .filter(|(_, (_, public))| *public)
+      .map(|(name, (obj, _))| (*name, obj.clone()))
+      .collect()
   }
 }

@@ -30,7 +30,7 @@ pub enum TypeKind<'ast> {
   Void,
   Identifier(&'ast str),
   Array {
-    element: Box<Type<'ast>>,
+    element: &'ast Type<'ast>,
     size: Option<Literal<'ast>>,
   },
   Tuple(BumpVec<'ast, Type<'ast>>),

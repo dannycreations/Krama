@@ -1,19 +1,20 @@
+use crate::cmd::CommandExecutor;
 use crate::error::report_error;
 use anyhow::Result;
+use async_trait::async_trait;
 use bumpalo::Bump;
 use clap::Parser;
 use krama_core::object::Object;
 use krama_runtime::interpreter::Interpreter;
-use tokio::io;
-use tokio::io::AsyncBufReadExt;
-use tokio::io::AsyncWriteExt;
-use tokio::io::BufReader;
+use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::signal;
 
 #[derive(Parser)]
 pub struct Repl;
 
-impl Repl {
-  pub async fn execute(&self, arena: &Bump) -> Result<()> {
+#[async_trait(?Send)]
+impl CommandExecutor for Repl {
+  async fn execute<'a>(&self, arena: &'a Bump) -> Result<()> {
     let interpreter = Interpreter::new(arena, None);
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
@@ -23,31 +24,43 @@ impl Repl {
       stdout.flush().await?;
 
       let mut line = String::new();
-      match reader.read_line(&mut line).await {
-        Ok(0) => {
-          break;
-        }
-        Ok(_) => {
-          let trimmed_line = line.trim_end();
-          if trimmed_line.is_empty() {
-            continue;
+
+      tokio::select! {
+          _ = signal::ctrl_c() => {
+              std::process::exit(0);
           }
+          result = reader.read_line(&mut line) => {
+              match result {
+                  Ok(0) => {
+                      break;
+                  }
+                  Ok(_) => {
+                      let trimmed_line = line.trim();
+                      if trimmed_line == "exit" {
+                          break;
+                      }
 
-          let line_in_arena = arena.alloc_str(trimmed_line);
+                      if trimmed_line.is_empty() {
+                          continue;
+                      }
 
-          match interpreter.eval(line_in_arena).await {
-            Ok(object) => {
-              if !matches!(object, Object::Void) {
-                println!("{}", object);
+                      let line_in_arena = arena.alloc_str(trimmed_line);
+
+                      match interpreter.eval(line_in_arena).await {
+                          Ok(object) => {
+                              if !matches!(object, Object::Void) {
+                                  println!("{}", object);
+                              }
+                          }
+                          Err(err) => report_error("repl", trimmed_line, err),
+                      };
+                  }
+                  Err(e) => {
+                      eprintln!("Error: {:?}", e);
+                      break;
+                  }
               }
-            }
-            Err(err) => report_error("repl", trimmed_line, err),
-          };
-        }
-        Err(e) => {
-          eprintln!("Error: {:?}", e);
-          break;
-        }
+          }
       }
     }
     Ok(())

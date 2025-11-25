@@ -16,6 +16,9 @@ pub type NativeFnCallback<'ast> =
     BumpVec<'ast, Object<'ast>>,
   ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>>;
 
+pub type ObjectFuture<'ast> =
+  Rc<RefCell<Option<LocalBoxFuture<'ast, Result<Object<'ast>, Error>>>>>;
+
 #[derive(Clone)]
 pub struct NativeFn<'ast> {
   pub name: &'static str,
@@ -62,7 +65,7 @@ pub enum Object<'ast> {
   Return(&'ast Object<'ast>),
   Break,
   Continue,
-  Future(Rc<RefCell<LocalBoxFuture<'ast, Result<Object<'ast>, Error>>>>),
+  Future(ObjectFuture<'ast>),
 }
 
 impl<'ast> Object<'ast> {
@@ -205,7 +208,7 @@ impl<'ast> PartialEq for Object<'ast> {
       (Object::Void, Object::Void) => true,
       (Object::NativeFn(a), Object::NativeFn(b)) => a == b,
       (Object::UserFn(a), Object::UserFn(b)) => Rc::ptr_eq(a, b),
-      (Object::Return(a), Object::Return(b)) => std::ptr::eq(*a, *b),
+      (Object::Return(a), Object::Return(b)) => **a == **b,
       (Object::Break, Object::Break) => true,
       (Object::Continue, Object::Continue) => true,
       (Object::Future(_), Object::Future(_)) => false,

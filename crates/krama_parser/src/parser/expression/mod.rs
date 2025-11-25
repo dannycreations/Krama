@@ -40,12 +40,15 @@ where
   ) -> ParseError<'ast> {
     let mut left = self.parse_prefix_expression()?;
 
-    while precedence < self.current_precedence()
-      && self
+    while precedence < self.current_precedence() {
+      if self
         .current_token
         .as_ref()
-        .is_some_and(|t| t.kind != TokenKind::Newline)
-    {
+        .is_some_and(|t| t.kind == TokenKind::Newline)
+      {
+        break;
+      }
+
       left = match self.current_token.as_ref().unwrap().kind {
         TokenKind::LParen => self.parse_call_expression(left)?,
         TokenKind::Dot => self.parse_member_expression(left)?,

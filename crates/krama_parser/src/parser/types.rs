@@ -116,7 +116,7 @@ where
 
     Ok(Type {
       kind: TypeKind::Array {
-        element: Box::new(element_type),
+        element: self.arena.alloc(element_type),
         size,
       },
       span: span.merge(&end_span),

@@ -6,7 +6,7 @@ use futures::FutureExt;
 use krama_core::ast::expression::FunctionBody;
 use krama_core::error::Error;
 use krama_core::error::ErrorKind;
-use krama_core::object::Object;
+use krama_core::object::{Object, ObjectFuture};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -20,7 +20,9 @@ impl<'ast> Interpreter<'ast> {
     match function {
       Object::NativeFn(function) => {
         let future = (function.callback)(self.arena, arguments);
-        Ok(Object::Future(Rc::new(RefCell::new(future.boxed_local()))))
+        let object_future: ObjectFuture =
+          Rc::new(RefCell::new(Some(future.boxed_local())));
+        Ok(Object::Future(object_future))
       }
       Object::UserFn(function) => {
         let mut new_interpreter = self.clone();
@@ -67,7 +69,9 @@ impl<'ast> Interpreter<'ast> {
           }
           result
         };
-        Ok(Object::Future(Rc::new(RefCell::new(future.boxed_local()))))
+        let object_future: ObjectFuture =
+          Rc::new(RefCell::new(Some(future.boxed_local())));
+        Ok(Object::Future(object_future))
       }
       _ => Err(Error {
         span,

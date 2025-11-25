@@ -1,5 +1,7 @@
+use crate::cmd::CommandExecutor;
 use crate::error::report_error;
-use anyhow::Result;
+use anyhow::{Context, Result};
+use async_trait::async_trait;
 use bumpalo::Bump;
 use clap::Parser;
 use futures::future::BoxFuture;
@@ -33,17 +35,18 @@ fn find_test_files<'a>(
   .boxed()
 }
 
-impl Test {
-  pub async fn execute(&self, root_path: &str) -> Result<()> {
+#[async_trait(?Send)]
+impl CommandExecutor for Test {
+  async fn execute<'a>(&self, _arena: &'a Bump) -> Result<()> {
     let mut passed = 0;
     let mut failed = 0;
 
     let mut test_files = Vec::new();
 
-    let mut path = Path::new(root_path);
-    let mut path_buf = path.to_path_buf();
+    let root_path = std::env::current_dir()?;
+    let mut path_buf = root_path;
     path_buf.push(&self.path);
-    path = path_buf.as_path();
+    let path = path_buf.as_path();
 
     find_test_files(path, &mut test_files).await?;
 
@@ -51,7 +54,8 @@ impl Test {
       let path = path_buf.as_path();
       let arena = Bump::new();
       let content = fs::read_to_string(&path).await?;
-      let interpreter = Interpreter::new(&arena, Some(path.to_str().unwrap()));
+      let path_str = path.to_str().context("path is not valid UTF-8")?;
+      let interpreter = Interpreter::new(&arena, Some(path_str));
       let content_in_arena = arena.alloc_str(&content);
 
       println!("Running {}", path.display());
@@ -65,14 +69,14 @@ impl Test {
             } else {
               println!("  '{}'... failed", result.name);
               if let Some(err) = result.error {
-                report_error(path.to_str().unwrap(), &content, err);
+                report_error(path_str, &content, err);
               }
               failed += 1;
             }
           }
         }
         Err(err) => {
-          report_error(path.to_str().unwrap(), &content, err);
+          report_error(path_str, &content, err);
           failed += 1;
         }
       }

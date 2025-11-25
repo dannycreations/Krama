@@ -1,4 +1,3 @@
-use futures::future::FutureExt;
 use krama_core::object::Object;
 use krama_internal::{
   test_eval_async, test_eval_is_module, test_eval_is_native_function,

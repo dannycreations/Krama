@@ -47,47 +47,39 @@ where
     let precedence = self.current_precedence();
     let token = *self.current_token.as_ref().unwrap();
 
-    let operator = match token.kind {
-      TokenKind::Plus => BinaryOperator::Add,
-      TokenKind::Minus => BinaryOperator::Subtract,
-      TokenKind::Star => {
-        if self
-          .peek_token
-          .as_ref()
-          .is_some_and(|t| t.kind == TokenKind::Star)
-        {
-          self.advance();
-          BinaryOperator::Exponent
-        } else {
-          BinaryOperator::Multiply
-        }
+    let (operator, is_assignment) = match token.kind {
+      TokenKind::Plus => (BinaryOperator::Add, false),
+      TokenKind::Minus => (BinaryOperator::Subtract, false),
+      TokenKind::Star => (BinaryOperator::Multiply, false),
+      TokenKind::StarStar => (BinaryOperator::Exponent, false),
+      TokenKind::Slash => (BinaryOperator::Divide, false),
+      TokenKind::Percent => (BinaryOperator::Modulo, false),
+      TokenKind::EqualEqual => (BinaryOperator::Equal, false),
+      TokenKind::BangEqual => (BinaryOperator::NotEqual, false),
+      TokenKind::LessThan => (BinaryOperator::LessThan, false),
+      TokenKind::LessThanEqual => (BinaryOperator::LessThanOrEqual, false),
+      TokenKind::GreaterThan => (BinaryOperator::GreaterThan, false),
+      TokenKind::GreaterThanEqual => {
+        (BinaryOperator::GreaterThanOrEqual, false)
       }
-      TokenKind::Slash => BinaryOperator::Divide,
-      TokenKind::Percent => BinaryOperator::Modulo,
-      TokenKind::Equal => BinaryOperator::Assign,
-      TokenKind::EqualEqual => BinaryOperator::Equal,
-      TokenKind::BangEqual => BinaryOperator::NotEqual,
-      TokenKind::LessThan => BinaryOperator::LessThan,
-      TokenKind::LessThanEqual => BinaryOperator::LessThanOrEqual,
-      TokenKind::GreaterThan => BinaryOperator::GreaterThan,
-      TokenKind::GreaterThanEqual => BinaryOperator::GreaterThanOrEqual,
-      TokenKind::PlusEqual => BinaryOperator::Add,
-      TokenKind::MinusEqual => BinaryOperator::Subtract,
-      TokenKind::StarEqual => BinaryOperator::Multiply,
-      TokenKind::SlashEqual => BinaryOperator::Divide,
-      TokenKind::PercentEqual => BinaryOperator::Modulo,
-      TokenKind::AmpersandAmpersand => BinaryOperator::LogicalAnd,
-      TokenKind::PipePipe => BinaryOperator::LogicalOr,
-      TokenKind::Ampersand => BinaryOperator::BitwiseAnd,
-      TokenKind::Pipe => BinaryOperator::BitwiseOr,
-      TokenKind::Caret => BinaryOperator::BitwiseXor,
-      TokenKind::LessLess => BinaryOperator::LeftShift,
-      TokenKind::GreaterGreater => BinaryOperator::RightShift,
-      TokenKind::AmpersandEqual => BinaryOperator::BitwiseAnd,
-      TokenKind::PipeEqual => BinaryOperator::BitwiseOr,
-      TokenKind::CaretEqual => BinaryOperator::BitwiseXor,
-      TokenKind::LessLessEqual => BinaryOperator::LeftShift,
-      TokenKind::GreaterGreaterEqual => BinaryOperator::RightShift,
+      TokenKind::AmpersandAmpersand => (BinaryOperator::LogicalAnd, false),
+      TokenKind::PipePipe => (BinaryOperator::LogicalOr, false),
+      TokenKind::Ampersand => (BinaryOperator::BitwiseAnd, false),
+      TokenKind::Pipe => (BinaryOperator::BitwiseOr, false),
+      TokenKind::Caret => (BinaryOperator::BitwiseXor, false),
+      TokenKind::LessLess => (BinaryOperator::LeftShift, false),
+      TokenKind::GreaterGreater => (BinaryOperator::RightShift, false),
+      TokenKind::Equal => (BinaryOperator::Assign, true),
+      TokenKind::PlusEqual => (BinaryOperator::Add, true),
+      TokenKind::MinusEqual => (BinaryOperator::Subtract, true),
+      TokenKind::StarEqual => (BinaryOperator::Multiply, true),
+      TokenKind::SlashEqual => (BinaryOperator::Divide, true),
+      TokenKind::PercentEqual => (BinaryOperator::Modulo, true),
+      TokenKind::AmpersandEqual => (BinaryOperator::BitwiseAnd, true),
+      TokenKind::PipeEqual => (BinaryOperator::BitwiseOr, true),
+      TokenKind::CaretEqual => (BinaryOperator::BitwiseXor, true),
+      TokenKind::LessLessEqual => (BinaryOperator::LeftShift, true),
+      TokenKind::GreaterGreaterEqual => (BinaryOperator::RightShift, true),
       _ => {
         return Err(Error {
           span: token.span,
@@ -99,18 +91,7 @@ where
     self.advance();
     let right = self.parse_expression(precedence)?;
 
-    if token.kind == TokenKind::Equal
-      || token.kind == TokenKind::PlusEqual
-      || token.kind == TokenKind::MinusEqual
-      || token.kind == TokenKind::StarEqual
-      || token.kind == TokenKind::SlashEqual
-      || token.kind == TokenKind::PercentEqual
-      || token.kind == TokenKind::AmpersandEqual
-      || token.kind == TokenKind::PipeEqual
-      || token.kind == TokenKind::CaretEqual
-      || token.kind == TokenKind::LessLessEqual
-      || token.kind == TokenKind::GreaterGreaterEqual
-    {
+    if is_assignment {
       Ok(Expression {
         kind: ExpressionKind::Assignment {
           left: self.arena.alloc(left),

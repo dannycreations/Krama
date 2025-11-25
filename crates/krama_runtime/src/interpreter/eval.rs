@@ -113,7 +113,7 @@ impl<'ast> Interpreter<'ast> {
 
           if let Some(hint) = kind {
             if let TypeKind::Array { element, .. } = &hint.kind {
-              element_kind = Some(element.as_ref());
+              element_kind = Some(*element);
             }
           }
 

@@ -93,9 +93,11 @@ impl<'ast> Interpreter<'ast> {
     loop {
       match current_object {
         Object::Future(future_rc) => {
-          let dummy_future = async { Ok(Object::Void) }.boxed_local();
-          let real_future = future_rc.replace(dummy_future);
-          current_object = real_future.await?;
+          if let Some(future) = future_rc.take() {
+            current_object = future.await?;
+          } else {
+            return Ok(Object::Void);
+          }
         }
         _ => return Ok(current_object),
       }

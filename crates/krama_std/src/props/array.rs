@@ -23,8 +23,8 @@ fn length<'ast>(
       }
       _ => Err(Error {
         span: Default::default(),
-        kind: ErrorKind::RuntimeError(
-          "length is not a property of this object".to_string(),
+        kind: ErrorKind::TypeMismatch(
+          "length property can only be used on arrays".to_string(),
         ),
       }),
     }

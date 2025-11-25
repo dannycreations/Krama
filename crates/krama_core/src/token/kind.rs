@@ -52,6 +52,7 @@ pub enum TokenKind<'a> {
   Minus,
   MinusMinus,
   Star,
+  StarStar,
   Slash,
   Percent,
   Equal,
@@ -109,7 +110,11 @@ impl<'a> TokenKind<'a> {
       TokenKind::Float(_) => TokenKind::Float("..."),
       TokenKind::String(_) => TokenKind::String("..."),
       TokenKind::Identifier(_) => TokenKind::Identifier("..."),
-      _ => unsafe { std::mem::transmute::<TokenKind<'_>, TokenKind<'_>>(self) },
+      // It is safe to cast the lifetime here because the other
+      // variants do not contain any data with a lifetime.
+      _ => unsafe {
+        std::mem::transmute::<TokenKind<'a>, TokenKind<'static>>(self)
+      },
     }
   }
 }

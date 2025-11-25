@@ -1,29 +1,17 @@
+use crate::build_native_functions;
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
 use krama_core::error::Error;
 use krama_core::error::ErrorKind;
-use krama_core::object::NativeFn;
+use krama_core::object::NativeFnCallback;
 use krama_core::object::Object;
 use rustc_hash::FxHashMap;
 
 pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
-  let mut exports = FxHashMap::default();
-  exports.insert(
-    "assert",
-    Object::NativeFn(NativeFn {
-      name: "assert",
-      callback: assert,
-    }),
-  );
-  exports.insert(
-    "assertEqual",
-    Object::NativeFn(NativeFn {
-      name: "assertEqual",
-      callback: assert_eq,
-    }),
-  );
-  exports
+  let functions: &[(&'static str, NativeFnCallback<'ast>)] =
+    &[("assert", assert), ("assertEqual", assert_eq)];
+  build_native_functions(functions)
 }
 
 fn assert<'ast>(
