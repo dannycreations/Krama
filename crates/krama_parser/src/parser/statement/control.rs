@@ -1,7 +1,8 @@
-use super::Parser;
 use krama_core::ast::statement::{Statement, StatementKind};
 use krama_core::error::Error;
 use krama_core::token::TokenKind;
+
+use super::Parser;
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -10,7 +11,7 @@ where
   pub(super) fn parse_while_statement(
     &mut self,
   ) -> Result<Statement<'ast>, Error> {
-    let start_span = self.current_token.as_ref().unwrap().span;
+    let start_span = self.current_token.span;
     self.advance();
 
     self.consume_token(TokenKind::LParen)?;

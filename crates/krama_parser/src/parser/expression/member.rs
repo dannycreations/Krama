@@ -1,9 +1,7 @@
-use super::ParseError;
-use super::Parser;
-use super::Precedence;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::expression::ExpressionKind;
+use krama_core::ast::expression::{Expression, ExpressionKind};
 use krama_core::span::Span;
+
+use super::{ParseError, Parser, Precedence};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where

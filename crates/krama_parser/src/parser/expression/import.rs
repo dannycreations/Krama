@@ -1,24 +1,17 @@
-use super::ParseError;
-use super::Parser;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::expression::ExpressionKind;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
-use krama_core::token::Token;
-use krama_core::token::TokenKind;
+use krama_core::ast::expression::{Expression, ExpressionKind};
+use krama_core::error::{Error, ErrorKind};
+use krama_core::token::{Token, TokenKind};
+
+use super::{ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'a: 'ast,
 {
   pub(super) fn parse_import_expression(&mut self) -> ParseError<'ast> {
-    let start_span = self.current_token.as_ref().unwrap().span;
+    let start_span = self.current_token.span;
     self.advance();
-    if !self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::Import)
-    {
+    if self.current_token.kind != TokenKind::Import {
       return Err(Error {
         span: start_span,
         kind: ErrorKind::SyntaxError("Expected 'import' after '@'".to_string()),
@@ -26,11 +19,7 @@ where
     }
     self.advance();
 
-    if !self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::LParen)
-    {
+    if self.current_token.kind != TokenKind::LParen {
       return Err(Error {
         span: start_span,
         kind: ErrorKind::SyntaxError(
@@ -40,11 +29,11 @@ where
     }
     self.advance();
 
-    let path = match self.current_token.as_ref() {
-      Some(Token {
+    let path = match self.current_token {
+      Token {
         kind: TokenKind::String(path),
         ..
-      }) => self.arena.alloc_str(path),
+      } => self.arena.alloc_str(path),
       _ => {
         return Err(Error {
           span: start_span,
@@ -56,11 +45,7 @@ where
     };
     self.advance();
 
-    if !self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::RParen)
-    {
+    if self.current_token.kind != TokenKind::RParen {
       return Err(Error {
         span: start_span,
         kind: ErrorKind::SyntaxError(

@@ -1,4 +1,3 @@
-use super::Parser;
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::ast::statement::{
   Binding, DestructuredIdentifier, Statement, StatementKind,
@@ -7,6 +6,8 @@ use krama_core::error::Error;
 use krama_core::span::Span;
 use krama_core::token::TokenKind;
 
+use super::Parser;
+
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'a: 'ast,
@@ -14,16 +15,12 @@ where
   pub(super) fn parse_let_statement(
     &mut self,
   ) -> Result<Statement<'ast>, Error> {
-    let start_span = self.current_token.as_ref().unwrap().span;
+    let start_span = self.current_token.span;
     self.advance();
 
     let name = self.parse_identifier()?;
 
-    let kind = if self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::Colon)
-    {
+    let kind = if self.current_token.kind == TokenKind::Colon {
       self.advance();
       Some(self.parse_type()?)
     } else {
@@ -52,22 +49,14 @@ where
   ) -> Result<Statement<'ast>, Error> {
     self.advance();
 
-    let binding = if self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == krama_core::token::TokenKind::LBrace)
-    {
+    let binding = if self.current_token.kind == TokenKind::LBrace {
       self.advance();
       let items = self.parse_destructured_items()?;
       self.advance();
       Binding::Destructure(items)
     } else {
       let name = self.parse_identifier()?;
-      if self
-        .current_token
-        .as_ref()
-        .is_some_and(|t| t.kind == krama_core::token::TokenKind::Comma)
-      {
+      if self.current_token.kind == TokenKind::Comma {
         self.advance();
         self.advance();
         let items = self.parse_destructured_items()?;
@@ -81,11 +70,7 @@ where
       }
     };
 
-    let kind = if self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::Colon)
-    {
+    let kind = if self.current_token.kind == TokenKind::Colon {
       self.advance();
       Some(self.parse_type()?)
     } else {
@@ -111,21 +96,13 @@ where
     &mut self,
   ) -> Result<BumpVec<'ast, DestructuredIdentifier<'ast>>, Error> {
     let mut items = BumpVec::new_in(self.arena);
-    if self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == krama_core::token::TokenKind::RBrace)
-    {
+    if self.current_token.kind == TokenKind::RBrace {
       return Ok(items);
     }
     loop {
       let name = self.parse_identifier()?;
 
-      let alias = if self
-        .current_token
-        .as_ref()
-        .is_some_and(|t| t.kind == krama_core::token::TokenKind::As)
-      {
+      let alias = if self.current_token.kind == TokenKind::As {
         self.advance();
         let alias_name = self.parse_identifier()?;
         Some(self.arena.alloc_str(alias_name))
@@ -138,11 +115,7 @@ where
         alias: alias.map(|s| s as &str),
       });
 
-      if !self
-        .current_token
-        .as_ref()
-        .is_some_and(|t| t.kind == krama_core::token::TokenKind::Comma)
-      {
+      if self.current_token.kind != TokenKind::Comma {
         break;
       }
       self.advance();

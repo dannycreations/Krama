@@ -1,13 +1,12 @@
-#![allow(clippy::arc_with_non_send_sync)]
-
-use crate::interpreter::Interpreter;
-use krama_core::object::ModuleObject;
-use krama_core::object::Object;
-use krama_std::modules;
 use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
+
+use krama_core::object::{ModuleObject, Object};
+use krama_std::modules;
 use tokio::fs;
+
+use crate::interpreter::Interpreter;
 
 #[derive(Default, Clone)]
 pub struct Resolver;

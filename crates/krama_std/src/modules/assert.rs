@@ -1,12 +1,11 @@
-use crate::build_native_functions;
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
-use krama_core::object::NativeFnCallback;
-use krama_core::object::Object;
+use krama_core::error::{Error, ErrorKind};
+use krama_core::object::{NativeFnCallback, Object};
 use rustc_hash::FxHashMap;
+
+use crate::build_native_functions;
 
 pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
   let functions: &[(&'static str, NativeFnCallback<'ast>)] =

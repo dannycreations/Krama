@@ -1,5 +1,3 @@
-#![allow(clippy::arc_with_non_send_sync)]
-
 mod eval;
 mod expression;
 mod flow;
@@ -11,22 +9,22 @@ mod statement;
 mod test;
 mod types;
 
-use crate::environment::Environment;
-use crate::resolver::Resolver;
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use bumpalo::Bump;
-use futures::future::FutureExt;
-use futures::future::LocalBoxFuture;
+use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::ast::statement::Statement;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use krama_core::error::{Error, ErrorKind};
 use krama_core::object::Object;
 use krama_lexer::lexer::Lexer;
 use krama_parser::parser::Parser;
 use krama_std::props::PropFn;
 use rustc_hash::FxHashMap;
-use std::cell::RefCell;
-use std::rc::Rc;
 pub use test::TestResult;
+
+use crate::environment::Environment;
+use crate::resolver::Resolver;
 
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
@@ -88,26 +86,15 @@ impl<'ast> Interpreter<'ast> {
     object: Object<'ast>,
   ) -> Result<Object<'ast>, Error> {
     let mut current_object = object;
-    loop {
-      match current_object {
-        Object::Future(future_rc) => {
-          if let Some(future) = future_rc.take() {
-            let result = future.await?;
-            let result_for_reinsertion = result.clone();
-            *future_rc.borrow_mut() =
-              Some(async move { Ok(result_for_reinsertion) }.boxed_local());
-            current_object = result;
-          } else {
-            return Err(Error {
-              span: Default::default(),
-              kind: ErrorKind::RuntimeError(
-                "Future is already being awaited".to_string(),
-              ),
-            });
-          }
-        }
-        _ => return Ok(current_object),
-      }
+    while let Object::Future(future_rc) = current_object {
+      let future = future_rc.take().ok_or_else(|| Error {
+        span: Default::default(),
+        kind: ErrorKind::RuntimeError(
+          "Future is already being awaited".to_string(),
+        ),
+      })?;
+      current_object = future.await?;
     }
+    Ok(current_object)
   }
 }

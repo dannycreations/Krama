@@ -1,17 +1,16 @@
-use crate::build_native_functions;
-use crate::{count_args, parse_args};
+use std::path::Path;
+use std::rc::Rc;
+
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
 use krama_core::ast::types::{Type, TypeKind};
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
-use krama_core::object::NativeFnCallback;
-use krama_core::object::Object;
+use krama_core::error::{Error, ErrorKind};
+use krama_core::object::{NativeFnCallback, Object};
 use rustc_hash::FxHashMap;
-use std::path::Path;
-use std::rc::Rc;
 use tokio::fs;
+
+use crate::{build_native_functions, count_args, parse_args};
 
 pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
   let functions: &[(&'static str, NativeFnCallback<'ast>)] = &[

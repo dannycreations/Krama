@@ -1,7 +1,8 @@
-use super::Interpreter;
 use krama_core::ast::literal::Literal;
 use krama_core::error::Error;
 use krama_core::object::Object;
+
+use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub(super) async fn eval_literal(

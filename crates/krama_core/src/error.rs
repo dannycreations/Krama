@@ -1,5 +1,6 @@
-use crate::span::Span;
 use std::fmt;
+
+use crate::span::Span;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Error {

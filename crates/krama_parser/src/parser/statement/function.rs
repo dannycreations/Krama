@@ -1,10 +1,10 @@
-use super::Parser;
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::ast::statement::{Parameter, Statement, StatementKind};
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use krama_core::error::{Error, ErrorKind};
 use krama_core::span::Span;
 use krama_core::token::TokenKind;
+
+use super::Parser;
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -16,11 +16,7 @@ where
     start_span: Span,
   ) -> Result<Statement<'ast>, Error> {
     self.advance();
-    let name = if let Some(krama_core::token::Token {
-      kind: krama_core::token::TokenKind::Identifier(name),
-      ..
-    }) = self.current_token.as_ref()
-    {
+    let name = if let TokenKind::Identifier(name) = self.current_token.kind {
       self.arena.alloc_str(name)
     } else {
       return Err(Error {
@@ -33,11 +29,7 @@ where
     self.advance();
     self.advance();
     let parameters = self.parse_fn_parameters()?;
-    let kind = if self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::Colon)
-    {
+    let kind = if self.current_token.kind == TokenKind::Colon {
       self.advance();
       Some(self.parse_type()?)
     } else {
@@ -61,36 +53,24 @@ where
     &mut self,
   ) -> Result<BumpVec<'ast, Parameter<'ast>>, Error> {
     let mut parameters = BumpVec::new_in(self.arena);
-    if self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == krama_core::token::TokenKind::RParen)
-    {
+    if self.current_token.kind == TokenKind::RParen {
       self.advance();
       return Ok(parameters);
     }
 
     loop {
-      let param_span_start = self.current_token.as_ref().unwrap().span;
-      let name = if let Some(krama_core::token::Token {
-        kind: krama_core::token::TokenKind::Identifier(name),
-        ..
-      }) = self.current_token.as_ref()
-      {
+      let param_span_start = self.current_token.span;
+      let name = if let TokenKind::Identifier(name) = self.current_token.kind {
         self.arena.alloc_str(name)
       } else {
         return Err(Error {
-          span: self.current_token.as_ref().unwrap().span,
+          span: self.current_token.span,
           kind: ErrorKind::SyntaxError("Expected parameter name".to_string()),
         });
       };
       self.advance();
 
-      let kind = if self
-        .current_token
-        .as_ref()
-        .is_some_and(|t| t.kind == TokenKind::Colon)
-      {
+      let kind = if self.current_token.kind == TokenKind::Colon {
         self.advance();
         Some(self.parse_type()?)
       } else {
@@ -100,23 +80,15 @@ where
       let span = param_span_start;
       parameters.push(Parameter { name, kind, span });
 
-      if !self
-        .current_token
-        .as_ref()
-        .is_some_and(|t| t.kind == krama_core::token::TokenKind::Comma)
-      {
+      if self.current_token.kind != TokenKind::Comma {
         break;
       }
       self.advance();
     }
 
-    if !self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == krama_core::token::TokenKind::RParen)
-    {
+    if self.current_token.kind != TokenKind::RParen {
       return Err(Error {
-        span: self.current_token.as_ref().unwrap().span,
+        span: self.current_token.span,
         kind: ErrorKind::SyntaxError(
           "Expected ')' after parameters".to_string(),
         ),

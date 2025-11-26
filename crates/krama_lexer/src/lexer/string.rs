@@ -1,6 +1,6 @@
+use krama_core::token::{Token, TokenKind};
+
 use super::Lexer;
-use krama_core::token::Token;
-use krama_core::token::TokenKind;
 
 impl<'a> Lexer<'a> {
   pub(super) fn string(&mut self, start: usize) -> Token<'a> {

@@ -1,13 +1,14 @@
-use super::Interpreter;
+use std::rc::Rc;
+
 use bumpalo::collections::Vec as BumpVec;
 use futures::future::{join_all, FutureExt, LocalBoxFuture};
 use futures::join;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::expression::ExpressionKind;
+use krama_core::ast::expression::{Expression, ExpressionKind};
 use krama_core::ast::types::{Type, TypeKind};
 use krama_core::error::Error;
 use krama_core::object::{Function, Object, UserFn};
-use std::rc::Rc;
+
+use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub(super) fn eval_expression<'s>(

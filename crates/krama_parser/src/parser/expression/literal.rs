@@ -1,18 +1,16 @@
-use super::ParseError;
-use super::Parser;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::expression::ExpressionKind;
+use krama_core::ast::expression::{Expression, ExpressionKind};
 use krama_core::ast::literal::Literal;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use krama_core::error::{Error, ErrorKind};
 use krama_core::token::TokenKind;
+
+use super::{ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'a: 'ast,
 {
   pub(super) fn parse_identifier_expression(&mut self) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     let name = self.parse_identifier()?;
     Ok(Expression {
       kind: ExpressionKind::Identifier(name),
@@ -21,7 +19,7 @@ where
   }
 
   pub(super) fn parse_integer(&mut self) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     if let TokenKind::Integer(value) = token.kind {
       self.advance();
       let value: i64 = if value.contains('_') {
@@ -42,7 +40,7 @@ where
   }
 
   pub(super) fn parse_float(&mut self) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     if let TokenKind::Float(value) = token.kind {
       self.advance();
       let value: f64 = if value.contains('_') {
@@ -63,7 +61,7 @@ where
   }
 
   pub(super) fn parse_string(&mut self) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     if let TokenKind::String(value) = token.kind {
       self.advance();
       Ok(Expression {
@@ -81,7 +79,7 @@ where
   }
 
   pub(super) fn parse_boolean(&mut self) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     self.advance();
     let value = token.kind == TokenKind::True;
     Ok(Expression {
@@ -91,7 +89,7 @@ where
   }
 
   pub(super) fn parse_null(&mut self) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     self.advance();
     Ok(Expression {
       kind: ExpressionKind::Literal(Literal::Null),

@@ -1,8 +1,8 @@
-use super::Lexer;
-use krama_core::token::Token;
-use krama_core::token::TokenKind;
+use krama_core::token::{Token, TokenKind};
 use once_cell::sync::Lazy;
 use phf::phf_map;
+
+use super::Lexer;
 
 static KEYWORDS: Lazy<phf::Map<&'static str, TokenKind>> = Lazy::new(|| {
   phf_map! {
@@ -45,16 +45,17 @@ static KEYWORDS: Lazy<phf::Map<&'static str, TokenKind>> = Lazy::new(|| {
 
 impl<'a> Lexer<'a> {
   pub(super) fn identifier(&mut self, start: usize) -> Token<'a> {
-    while let Some(c) = self.peek() {
-      if c.is_alphanumeric() || c == '_' {
-        self.advance();
-      } else {
-        break;
-      }
-    }
+    let remaining = &self.input_str[self.position..];
+    let len: usize = remaining
+      .chars()
+      .take_while(|c| c.is_alphanumeric() || *c == '_')
+      .map(|c| c.len_utf8())
+      .sum();
 
-    let end = self.position;
-    let value = &self.input_str[start..end];
+    self.position += len;
+    self.input = self.input_str[self.position..].chars().peekable();
+
+    let value = &self.input_str[start..self.position];
 
     let kind = KEYWORDS
       .get(value)

@@ -1,12 +1,13 @@
-use super::Interpreter;
+use std::rc::Rc;
+
 use futures::future::LocalBoxFuture;
 use futures::FutureExt;
 use krama_core::ast::expression::FunctionBody;
-use krama_core::ast::statement::Statement;
-use krama_core::ast::statement::StatementKind;
+use krama_core::ast::statement::{Statement, StatementKind};
 use krama_core::error::Error;
 use krama_core::object::{Function, Object};
-use std::rc::Rc;
+
+use super::Interpreter;
 
 pub struct TestResult {
   pub name: String,

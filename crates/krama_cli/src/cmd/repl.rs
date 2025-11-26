@@ -1,4 +1,3 @@
-use crate::error::report_error;
 use anyhow::Result;
 use bumpalo::Bump;
 use clap::Parser;
@@ -6,6 +5,8 @@ use krama_core::object::Object;
 use krama_runtime::interpreter::Interpreter;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::signal;
+
+use crate::error::report_error;
 
 #[derive(Parser)]
 pub struct Repl;

@@ -1,14 +1,15 @@
-use super::types::check_type;
-use super::Interpreter;
-use crate::environment::Environment;
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use bumpalo::collections::Vec as BumpVec;
 use futures::FutureExt;
 use krama_core::ast::expression::FunctionBody;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use krama_core::error::{Error, ErrorKind};
 use krama_core::object::{Function, Object, ObjectFuture};
-use std::cell::RefCell;
-use std::rc::Rc;
+
+use super::types::check_type;
+use super::Interpreter;
+use crate::environment::Environment;
 
 impl<'ast> Interpreter<'ast> {
   pub(super) async fn eval_call_expression(
@@ -65,9 +66,9 @@ impl<'ast> Interpreter<'ast> {
 
             if let Ok(Object::Return(value)) = result {
               if let Some(kind) = &function.kind {
-                check_type(kind, &value)?;
+                check_type(kind, value)?;
               }
-              return Ok(*value);
+              return Ok((*value).clone());
             }
             result
           };

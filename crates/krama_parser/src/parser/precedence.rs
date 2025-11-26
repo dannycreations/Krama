@@ -1,5 +1,4 @@
-use krama_core::token::Token;
-use krama_core::token::TokenKind;
+use krama_core::token::{Token, TokenKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Precedence {

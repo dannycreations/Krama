@@ -1,20 +1,16 @@
-use super::ParseError;
-use super::Parser;
-use super::Precedence;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::expression::ExpressionKind;
-use krama_core::ast::operator::UnaryOperator;
-use krama_core::ast::operator::UpdateOperator;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use krama_core::ast::expression::{Expression, ExpressionKind};
+use krama_core::ast::operator::{UnaryOperator, UpdateOperator};
+use krama_core::error::{Error, ErrorKind};
 use krama_core::token::TokenKind;
+
+use super::{ParseError, Parser, Precedence};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'a: 'ast,
 {
   pub(super) fn parse_unary_expression(&mut self) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     self.advance();
     let operator = match token.kind {
       TokenKind::Bang => UnaryOperator::Not,
@@ -39,7 +35,7 @@ where
   }
 
   pub(super) fn parse_prefix_update_expression(&mut self) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     self.advance();
     let operator = match token.kind {
       TokenKind::PlusPlus => UpdateOperator::Increment,

@@ -1,7 +1,5 @@
-use futures::future::FutureExt;
-use futures::future::LocalBoxFuture;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use futures::future::{FutureExt, LocalBoxFuture};
+use krama_core::error::{Error, ErrorKind};
 use krama_core::object::Object;
 use rustc_hash::FxHashMap;
 

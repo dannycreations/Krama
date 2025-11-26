@@ -1,35 +1,23 @@
-use super::ParseError;
-use super::Parser;
-use super::Precedence;
 use bumpalo::collections::Vec as BumpVec;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::expression::ExpressionKind;
-use krama_core::ast::expression::FunctionBody;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use krama_core::ast::expression::{Expression, ExpressionKind, FunctionBody};
+use krama_core::error::{Error, ErrorKind};
 use krama_core::token::TokenKind;
+
+use super::{ParseError, Parser, Precedence};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'a: 'ast,
 {
   pub(super) fn parse_paren_expression(&mut self) -> ParseError<'ast> {
-    let start_span = self.current_token.as_ref().unwrap().span;
+    let start_span = self.current_token.span;
     self.advance();
 
     // Handle empty parameter list `()` for a function
-    if self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::RParen)
-    {
+    if self.current_token.kind == TokenKind::RParen {
       self.advance();
 
-      if self
-        .current_token
-        .as_ref()
-        .is_some_and(|t| t.kind == TokenKind::Arrow)
-      {
+      if self.current_token.kind == TokenKind::Arrow {
         self.advance();
         let body = self.parse_expression(Precedence::Lowest)?;
         return Ok(Expression {
@@ -42,11 +30,7 @@ where
         });
       }
 
-      if self
-        .current_token
-        .as_ref()
-        .is_some_and(|t| t.kind == TokenKind::LBrace)
-      {
+      if self.current_token.kind == TokenKind::LBrace {
         let body = self.arena.alloc(self.parse_block_statement()?);
         return Ok(Expression {
           kind: ExpressionKind::Fn {
@@ -71,22 +55,14 @@ where
     let mut expressions = BumpVec::new_in(self.arena);
     expressions.push(self.parse_expression(Precedence::Lowest)?);
 
-    while self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::Comma)
-    {
+    while self.current_token.kind == TokenKind::Comma {
       self.advance();
       expressions.push(self.parse_expression(Precedence::Lowest)?);
     }
 
-    if !self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::RParen)
-    {
+    if self.current_token.kind != TokenKind::RParen {
       return Err(Error {
-        span: self.current_token.as_ref().unwrap().span,
+        span: self.current_token.span,
         kind: ErrorKind::SyntaxError(
           "Expected ')' after expression or parameter list".to_string(),
         ),
@@ -95,14 +71,8 @@ where
     self.advance();
 
     // Now, check if it's a function or a grouped expression.
-    let is_arrow_func = self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::Arrow);
-    let is_block_func = self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::LBrace);
+    let is_arrow_func = self.current_token.kind == TokenKind::Arrow;
+    let is_block_func = self.current_token.kind == TokenKind::LBrace;
 
     if is_arrow_func || is_block_func {
       // It's a function. Validate that `expressions` is a valid parameter list.
@@ -118,11 +88,7 @@ where
         FunctionBody::Block(body_block)
       };
 
-      let kind = if self
-        .current_token
-        .as_ref()
-        .is_some_and(|t| t.kind == TokenKind::Colon)
-      {
+      let kind = if self.current_token.kind == TokenKind::Colon {
         self.advance();
         Some(self.parse_type()?)
       } else {

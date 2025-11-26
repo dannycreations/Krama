@@ -2,11 +2,11 @@ mod identifier;
 mod number;
 mod string;
 
-use krama_core::span::Span;
-use krama_core::token::Token;
-use krama_core::token::TokenKind;
 use std::iter::Peekable;
 use std::str::Chars;
+
+use krama_core::span::Span;
+use krama_core::token::{Token, TokenKind};
 
 macro_rules! token {
   ($lexer:ident, $start:expr, $kind:expr) => {
@@ -80,13 +80,16 @@ impl<'a> Lexer<'a> {
   }
 
   fn skip_whitespace(&mut self) {
-    while let Some(&c) = self.input.peek() {
-      if c.is_whitespace() && c != '\n' {
-        self.position += c.len_utf8();
-        self.input.next();
-      } else {
-        break;
-      }
+    let remaining = &self.input_str[self.position..];
+    let len: usize = remaining
+      .chars()
+      .take_while(|c| c.is_whitespace() && *c != '\n')
+      .map(|c| c.len_utf8())
+      .sum();
+
+    if len > 0 {
+      self.position += len;
+      self.input = self.input_str[self.position..].chars().peekable();
     }
   }
 }
@@ -143,12 +146,14 @@ impl<'a> Iterator for Lexer<'a> {
       '/' => {
         if self.advance_if('/') {
           // It's a comment. Consume until newline.
-          while let Some(c) = self.peek() {
-            if c == '\n' {
-              break;
-            }
-            self.advance();
-          }
+          let remaining = &self.input_str[self.position..];
+          let comment_len: usize = remaining
+            .chars()
+            .take_while(|&c| c != '\n')
+            .map(|c| c.len_utf8())
+            .sum();
+          self.position += comment_len;
+          self.input = self.input_str[self.position..].chars().peekable();
           return self.next();
         } else {
           token!(self, start, TokenKind::Slash, '=', TokenKind::SlashEqual)

@@ -1,7 +1,8 @@
 pub mod kind;
 
-use super::span::Span;
 pub use kind::TokenKind;
+
+use super::span::Span;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Token<'a> {

@@ -1,9 +1,4 @@
-use ariadne::Color;
-use ariadne::Fmt;
-use ariadne::Label;
-use ariadne::Report;
-use ariadne::ReportKind;
-use ariadne::Source;
+use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
 use krama_core::error::Error;
 
 pub fn report_error(file_path: &str, content: &str, error: Error) {

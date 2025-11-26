@@ -1,11 +1,11 @@
-use super::Interpreter;
 use bumpalo::collections::Vec as BumpVec;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::expression::FunctionBody;
-use krama_core::ast::expression::MatchArm;
-use krama_core::ast::expression::MatchPattern;
+use krama_core::ast::expression::{
+  Expression, FunctionBody, MatchArm, MatchPattern,
+};
 use krama_core::error::Error;
 use krama_core::object::Object;
+
+use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub(super) async fn eval_match_expression(

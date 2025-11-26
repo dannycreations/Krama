@@ -1,11 +1,10 @@
+use bumpalo::collections::Vec as BumpVec;
+
 use super::literal::Literal;
-use super::operator::BinaryOperator;
-use super::operator::UnaryOperator;
-use super::operator::UpdateOperator;
+use super::operator::{BinaryOperator, UnaryOperator, UpdateOperator};
 use super::statement::{BlockStatement, Parameter};
 use super::types::Type;
 use crate::span::Span;
-use bumpalo::collections::Vec as BumpVec;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Expression<'ast> {

@@ -1,12 +1,14 @@
-use crate::error::report_error;
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use bumpalo::Bump;
 use clap::Parser;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use krama_runtime::interpreter::Interpreter;
-use std::path::Path;
 use tokio::fs;
+
+use crate::error::report_error;
 
 #[derive(Parser)]
 pub struct Test {

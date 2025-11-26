@@ -1,13 +1,10 @@
-use super::ParseError;
-use super::Parser;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::expression::ExpressionKind;
-use krama_core::ast::operator::BinaryOperator;
-use krama_core::ast::operator::UpdateOperator;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use krama_core::ast::expression::{Expression, ExpressionKind};
+use krama_core::ast::operator::{BinaryOperator, UpdateOperator};
+use krama_core::error::{Error, ErrorKind};
 use krama_core::span::Span;
 use krama_core::token::TokenKind;
+
+use super::{ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -17,7 +14,7 @@ where
     &mut self,
     argument: Expression<'ast>,
   ) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     let operator = match token.kind {
       TokenKind::PlusPlus => UpdateOperator::Increment,
       TokenKind::MinusMinus => UpdateOperator::Decrement,
@@ -45,7 +42,7 @@ where
     left: Expression<'ast>,
   ) -> ParseError<'ast> {
     let precedence = self.current_precedence();
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token;
 
     let (operator, is_assignment) = match token.kind {
       TokenKind::Plus => (BinaryOperator::Add, false),

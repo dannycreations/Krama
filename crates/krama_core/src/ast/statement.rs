@@ -1,7 +1,8 @@
+use bumpalo::collections::Vec as BumpVec;
+
 use super::expression::Expression;
 use super::types::Type;
 use crate::span::Span;
-use bumpalo::collections::Vec as BumpVec;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Statement<'ast> {

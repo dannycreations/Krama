@@ -1,9 +1,10 @@
-use crate::error::report_error;
 use anyhow::Result;
 use bumpalo::Bump;
 use clap::Parser;
 use krama_runtime::interpreter::Interpreter;
 use tokio::fs;
+
+use crate::error::report_error;
 
 #[derive(Parser)]
 pub struct Run {

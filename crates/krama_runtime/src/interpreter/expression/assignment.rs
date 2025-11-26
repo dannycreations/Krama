@@ -1,13 +1,10 @@
+use krama_core::ast::expression::{Expression, ExpressionKind};
+use krama_core::ast::operator::{BinaryOperator, UpdateOperator};
+use krama_core::error::{Error, ErrorKind};
+use krama_core::object::Object;
+use krama_core::span::Span;
+
 use crate::interpreter::Interpreter;
-use krama_core::{
-  ast::{
-    expression::{Expression, ExpressionKind},
-    operator::{BinaryOperator, UpdateOperator},
-  },
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
-};
 
 impl<'ast> Interpreter<'ast> {
   pub(crate) async fn eval_assignment_expression(
@@ -45,7 +42,7 @@ impl<'ast> Interpreter<'ast> {
         kind: ErrorKind::ReferenceError(ident.to_string()),
       })?;
     let new_val = self
-      .eval_binary_expression(operator, (*left_val).clone(), right_val, span)
+      .eval_binary_expression(operator, left_val.clone(), right_val, span)
       .await?;
     self
       .environment
@@ -78,7 +75,7 @@ impl<'ast> Interpreter<'ast> {
         kind: ErrorKind::ReferenceError(ident.to_string()),
       })?;
     let resolved_original_value =
-      self.resolve_object((*original_value).clone()).await?;
+      self.resolve_object(original_value.clone()).await?;
     let new_value = match (operator, resolved_original_value.clone()) {
       (UpdateOperator::Increment, Object::Integer(i)) => Object::Integer(i + 1),
       (UpdateOperator::Decrement, Object::Integer(i)) => Object::Integer(i - 1),

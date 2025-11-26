@@ -1,11 +1,12 @@
-use super::Interpreter;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use krama_core::error::{Error, ErrorKind};
 use krama_core::object::Object;
 use krama_core::span::Span;
 use rustc_hash::FxHashMap;
-use std::cell::RefCell;
-use std::rc::Rc;
+
+use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub(super) async fn eval_import(
@@ -51,10 +52,7 @@ impl<'ast> Interpreter<'ast> {
     let module =
       Object::Module(Rc::new(RefCell::new(krama_core::object::ModuleObject {
         name: self.arena.alloc_str(path),
-        exports: exports
-          .into_iter()
-          .map(|(k, v)| (k, (*v).clone()))
-          .collect(),
+        exports: exports.into_iter().map(|(k, v)| (k, v.clone())).collect(),
       })));
 
     self

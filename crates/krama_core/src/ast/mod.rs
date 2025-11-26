@@ -4,8 +4,9 @@ pub mod operator;
 pub mod statement;
 pub mod types;
 
-use crate::ast::statement::Statement;
 use bumpalo::collections::Vec as BumpVec;
+
+use crate::ast::statement::Statement;
 
 #[derive(Debug, PartialEq)]
 pub struct Program<'ast> {

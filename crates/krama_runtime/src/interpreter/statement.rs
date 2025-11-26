@@ -1,18 +1,17 @@
+use std::rc::Rc;
+
+use bumpalo::collections::Vec as BumpVec;
+use futures::future::{FutureExt, LocalBoxFuture};
+use krama_core::ast::expression::FunctionBody;
+use krama_core::ast::statement::{
+  Binding, BlockStatement, Statement, StatementKind,
+};
+use krama_core::error::{Error, ErrorKind};
+use krama_core::object::{Function, Object, UserFn};
+use tokio::task;
+
 use super::types::check_type;
 use super::Interpreter;
-use bumpalo::collections::Vec as BumpVec;
-use futures::future::FutureExt;
-use futures::future::LocalBoxFuture;
-use krama_core::ast::expression::FunctionBody;
-use krama_core::ast::statement::Binding;
-use krama_core::ast::statement::BlockStatement;
-use krama_core::ast::statement::Statement;
-use krama_core::ast::statement::StatementKind;
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
-use krama_core::object::{Function, Object, UserFn};
-use std::rc::Rc;
-use tokio::task;
 
 impl<'ast> Interpreter<'ast> {
   pub(super) fn eval_statement<'s>(
@@ -162,7 +161,7 @@ impl<'ast> Interpreter<'ast> {
             None => Object::Void,
           };
           let value = self.resolve_object(value).await?;
-          Ok(Object::Return(Box::new(value)))
+          Ok(Object::Return(self.arena.alloc(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),

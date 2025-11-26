@@ -1,12 +1,12 @@
-use crate::interpreter::Interpreter;
-use bumpalo::collections::String as BumpString;
-use krama_core::{
-  ast::operator::BinaryOperator,
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
-};
 use std::rc::Rc;
+
+use bumpalo::collections::String as BumpString;
+use krama_core::ast::operator::BinaryOperator;
+use krama_core::error::{Error, ErrorKind};
+use krama_core::object::Object;
+use krama_core::span::Span;
+
+use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub(crate) async fn eval_binary_expression(

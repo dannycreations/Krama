@@ -1,31 +1,23 @@
-use super::Parser;
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::ast::literal::Literal;
 use krama_core::ast::types::{Type, TypeKind};
-use krama_core::error::Error;
-use krama_core::error::ErrorKind;
+use krama_core::error::{Error, ErrorKind};
 use krama_core::token::TokenKind;
+
+use super::Parser;
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'a: 'ast,
 {
   pub(super) fn parse_type(&mut self) -> Result<Type<'ast>, Error> {
-    let mut kind = if self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::LBracket)
-    {
+    let mut kind = if self.current_token.kind == TokenKind::LBracket {
       self.parse_tuple_type()?
     } else {
       self.parse_base_type()?
     };
 
-    while self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::LBracket)
-    {
+    while self.current_token.kind == TokenKind::LBracket {
       kind = self.parse_array_type(kind)?;
     }
 
@@ -33,39 +25,27 @@ where
   }
 
   fn parse_tuple_type(&mut self) -> Result<Type<'ast>, Error> {
-    let start_span = self.current_token.as_ref().unwrap().span;
+    let start_span = self.current_token.span;
     self.consume_token(TokenKind::LBracket)?;
 
     let mut types = BumpVec::new_in(self.arena);
 
-    if !self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::RBracket)
-    {
+    if self.current_token.kind != TokenKind::RBracket {
       loop {
         types.push(self.parse_type()?);
 
-        if self
-          .current_token
-          .as_ref()
-          .is_some_and(|t| t.kind == TokenKind::RBracket)
-        {
+        if self.current_token.kind == TokenKind::RBracket {
           break;
         }
         self.consume_token(TokenKind::Comma)?;
-        if self
-          .current_token
-          .as_ref()
-          .is_some_and(|t| t.kind == TokenKind::RBracket)
-        {
+        if self.current_token.kind == TokenKind::RBracket {
           // Allow trailing comma
           break;
         }
       }
     }
 
-    let end_span = self.current_token.as_ref().unwrap().span;
+    let end_span = self.current_token.span;
     self.consume_token(TokenKind::RBracket)?;
 
     Ok(Type {
@@ -81,14 +61,10 @@ where
     let span = element_type.span;
     self.consume_token(TokenKind::LBracket)?;
 
-    let size;
-    if self
-      .current_token
-      .as_ref()
-      .is_some_and(|t| t.kind == TokenKind::RBracket)
-    {
-      size = None;
-    } else if let Some(token) = self.current_token.as_ref() {
+    let size = if self.current_token.kind == TokenKind::RBracket {
+      None
+    } else {
+      let token = self.current_token;
       if let TokenKind::Integer(val) = token.kind {
         self.advance();
         let parsed_val: i64 = if val.contains('_') {
@@ -96,7 +72,7 @@ where
         } else {
           val.parse().unwrap()
         };
-        size = Some(Literal::Integer(parsed_val));
+        Some(Literal::Integer(parsed_val))
       } else {
         return Err(Error {
           span: token.span,
@@ -105,13 +81,8 @@ where
           ),
         });
       }
-    } else {
-      // This is an unrecoverable state.
-      // The lexer should always provide an Eof token.
-      panic!("Unexpected end of input while parsing array type");
-    }
-
-    let end_span = self.current_token.as_ref().unwrap().span;
+    };
+    let end_span = self.current_token.span;
     self.consume_token(TokenKind::RBracket)?;
 
     Ok(Type {
@@ -124,7 +95,7 @@ where
   }
 
   fn parse_base_type(&mut self) -> Result<Type<'ast>, Error> {
-    let token = self.current_token.as_ref().unwrap();
+    let token = self.current_token;
     let span = token.span;
     let kind = match token.kind {
       TokenKind::I8 => TypeKind::I8,

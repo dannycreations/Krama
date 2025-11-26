@@ -1,14 +1,16 @@
-use super::ast::expression::FunctionBody;
-use super::ast::statement::Parameter;
-use super::ast::types::Type;
-use crate::error::Error;
+use std::cell::RefCell;
+use std::fmt;
+use std::rc::Rc;
+
 pub use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
 use rustc_hash::FxHashMap;
-use std::cell::RefCell;
-use std::fmt;
-use std::rc::Rc;
+
+use super::ast::expression::FunctionBody;
+use super::ast::statement::Parameter;
+use super::ast::types::Type;
+use crate::error::Error;
 
 pub type NativeFnCallback<'ast> =
   fn(
@@ -91,7 +93,7 @@ pub enum Object<'ast> {
   Module(Rc<RefCell<ModuleObject<'ast>>>),
   Global(Rc<RefCell<GlobalObject<'ast>>>),
   Function(Function<'ast>),
-  Return(Box<Object<'ast>>),
+  Return(&'ast Object<'ast>),
   Break,
   Continue,
   Future(ObjectFuture<'ast>),
@@ -201,7 +203,7 @@ impl<'ast> Clone for Object<'ast> {
       Object::Module(m) => Object::Module(m.clone()),
       Object::Global(g) => Object::Global(g.clone()),
       Object::Function(f) => Object::Function(f.clone()),
-      Object::Return(v) => Object::Return(v.clone()),
+      Object::Return(v) => Object::Return(v),
       Object::Break => Object::Break,
       Object::Continue => Object::Continue,
       Object::Future(f) => Object::Future(f.clone()),
@@ -249,7 +251,7 @@ impl<'ast> PartialEq for Object<'ast> {
       (Object::Null, Object::Null) => true,
       (Object::Void, Object::Void) => true,
       (Object::Function(a), Object::Function(b)) => a == b,
-      (Object::Return(a), Object::Return(b)) => *a == *b,
+      (Object::Return(a), Object::Return(b)) => **a == **b,
       (Object::Break, Object::Break) => true,
       (Object::Continue, Object::Continue) => true,
       (Object::Module(a), Object::Module(b)) => Rc::ptr_eq(a, b),

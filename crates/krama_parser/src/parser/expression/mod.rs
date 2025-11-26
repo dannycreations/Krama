@@ -9,17 +9,13 @@ pub(super) mod literal;
 pub(super) mod member;
 pub(super) mod unary;
 
-use super::precedence::Precedence;
-use super::ParseError;
-use super::Parser;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::expression::ExpressionKind;
-use krama_core::ast::statement::Statement;
-use krama_core::ast::statement::StatementKind;
+use krama_core::ast::expression::{Expression, ExpressionKind};
+use krama_core::ast::statement::{Statement, StatementKind};
 use krama_core::error::Error;
-use krama_core::error::ErrorKind;
-use krama_core::span::Span;
 use krama_core::token::TokenKind;
+
+use super::precedence::Precedence;
+use super::{ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -45,10 +41,7 @@ where
     let mut left = self.parse_prefix_expression()?;
 
     while precedence < self.current_precedence() {
-      let token = match self.current_token.as_ref() {
-        Some(token) => *token,
-        None => break,
-      };
+      let token = self.current_token;
 
       if token.kind == TokenKind::Newline {
         break;
@@ -68,13 +61,7 @@ where
   }
 
   fn parse_prefix_expression(&mut self) -> ParseError<'ast> {
-    let token = self.current_token.as_ref().ok_or_else(|| {
-      let eof_pos = self.lexer.input_len();
-      Error {
-        span: Span::new(eof_pos, eof_pos),
-        kind: ErrorKind::SyntaxError("Unexpected end of file".to_string()),
-      }
-    })?;
+    let token = self.current_token;
 
     match token.kind {
       TokenKind::Identifier(_) => self.parse_identifier_expression(),

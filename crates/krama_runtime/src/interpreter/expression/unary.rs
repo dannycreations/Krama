@@ -1,10 +1,9 @@
+use krama_core::ast::operator::UnaryOperator;
+use krama_core::error::{Error, ErrorKind};
+use krama_core::object::Object;
+use krama_core::span::Span;
+
 use crate::interpreter::Interpreter;
-use krama_core::{
-  ast::operator::UnaryOperator,
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
-};
 
 impl<'ast> Interpreter<'ast> {
   pub(crate) async fn eval_unary_expression(
