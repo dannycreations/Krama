@@ -1,6 +1,8 @@
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::Object;
-use krama_core::span::Span;
+use krama_core::{
+  error::{Error, ErrorKind},
+  object::Object,
+  span::Span,
+};
 
 use super::Interpreter;
 

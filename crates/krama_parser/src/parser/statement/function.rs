@@ -1,8 +1,10 @@
 use bumpalo::collections::Vec as BumpVec;
-use krama_core::ast::statement::{Parameter, Statement, StatementKind};
-use krama_core::error::{Error, ErrorKind};
-use krama_core::span::Span;
-use krama_core::token::TokenKind;
+use krama_core::{
+  ast::statement::{Parameter, Statement, StatementKind},
+  error::{Error, ErrorKind},
+  span::Span,
+  token::TokenKind,
+};
 
 use super::Parser;
 

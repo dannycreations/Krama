@@ -1,10 +1,12 @@
 use std::rc::Rc;
 
 use bumpalo::collections::String as BumpString;
-use krama_core::ast::operator::BinaryOperator;
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::Object;
-use krama_core::span::Span;
+use krama_core::{
+  ast::operator::BinaryOperator,
+  error::{Error, ErrorKind},
+  object::Object,
+  span::Span,
+};
 
 use crate::interpreter::Interpreter;
 

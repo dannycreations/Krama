@@ -1,8 +1,15 @@
-use krama_core::ast::expression::ExpressionKind;
-use krama_core::ast::literal::Literal;
-use krama_core::ast::statement::{Statement, StatementKind};
-use krama_core::span::Span;
+use bumpalo::Bump;
+use krama_core::{
+  ast::{
+    expression::ExpressionKind,
+    literal::Literal,
+    statement::{Statement, StatementKind},
+  },
+  span::Span,
+};
 use krama_internal::test_parser;
+use krama_lexer::lexer::Lexer;
+use krama_parser::parser::Parser;
 
 test_parser!(
   should_semicolon_statement,
@@ -45,9 +52,9 @@ test_parser!(
 #[test]
 fn should_multiple_statements_with_and_without_semicolon() {
   let text = "1;2\n3";
-  let arena = bumpalo::Bump::new();
-  let lexer = krama_lexer::lexer::Lexer::new(text);
-  let mut parser = krama_parser::parser::Parser::new(lexer, &arena);
+  let arena = Bump::new();
+  let lexer = Lexer::new(text);
+  let mut parser = Parser::new(lexer, &arena);
   let program = parser.parse().unwrap();
   assert_eq!(program.statements.len(), 3);
 

@@ -1,8 +1,12 @@
 use bumpalo::Bump;
-use krama_core::ast::literal::Literal;
-use krama_core::ast::statement::{Statement, StatementKind};
-use krama_core::ast::types::{Type, TypeKind};
-use krama_core::span::Span;
+use krama_core::{
+  ast::{
+    literal::Literal,
+    statement::{Statement, StatementKind},
+    types::{Type, TypeKind},
+  },
+  span::Span,
+};
 use krama_internal::test_parser;
 
 fn expect_const_statement_with_type<'ast>(
@@ -61,7 +65,7 @@ test_parser!(
   "const a: [i32, bool] = [1, true]",
   1,
   |statement: &Statement| {
-    let arena = bumpalo::Bump::new();
+    let arena = Bump::new();
     let expected_type = Type {
       span: Span::new(9, 20),
       kind: TypeKind::Tuple(
@@ -113,7 +117,7 @@ test_parser!(
   "const a: [i32, [bool, str]] = [1, [true, \"a\"]]",
   1,
   |statement: &Statement| {
-    let arena = bumpalo::Bump::new();
+    let arena = Bump::new();
     let expected_type = Type {
       span: Span::new(9, 27),
       kind: TypeKind::Tuple(

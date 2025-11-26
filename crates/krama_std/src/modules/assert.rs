@@ -1,8 +1,9 @@
-use bumpalo::collections::Vec as BumpVec;
-use bumpalo::Bump;
+use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::{NativeFnCallback, Object};
+use krama_core::{
+  error::{Error, ErrorKind},
+  object::{NativeFnCallback, Object},
+};
 use rustc_hash::FxHashMap;
 
 use crate::build_native_functions;

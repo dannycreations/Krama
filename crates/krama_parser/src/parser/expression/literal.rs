@@ -1,7 +1,11 @@
-use krama_core::ast::expression::{Expression, ExpressionKind};
-use krama_core::ast::literal::Literal;
-use krama_core::error::{Error, ErrorKind};
-use krama_core::token::TokenKind;
+use krama_core::{
+  ast::{
+    expression::{Expression, ExpressionKind},
+    literal::Literal,
+  },
+  error::{Error, ErrorKind},
+  token::TokenKind,
+};
 
 use super::{ParseError, Parser};
 

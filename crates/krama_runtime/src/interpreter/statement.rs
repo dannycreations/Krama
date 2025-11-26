@@ -2,16 +2,17 @@ use std::rc::Rc;
 
 use bumpalo::collections::Vec as BumpVec;
 use futures::future::{FutureExt, LocalBoxFuture};
-use krama_core::ast::expression::FunctionBody;
-use krama_core::ast::statement::{
-  Binding, BlockStatement, Statement, StatementKind,
+use krama_core::{
+  ast::{
+    expression::FunctionBody,
+    statement::{Binding, BlockStatement, Statement, StatementKind},
+  },
+  error::{Error, ErrorKind},
+  object::{Function, Object, UserFn},
 };
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::{Function, Object, UserFn};
 use tokio::task;
 
-use super::types::check_type;
-use super::Interpreter;
+use super::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
   pub(super) fn eval_statement<'s>(

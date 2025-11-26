@@ -3,13 +3,13 @@ mod precedence;
 pub mod statement;
 pub mod types;
 
-use bumpalo::collections::Vec as BumpVec;
-use bumpalo::Bump;
-use krama_core::ast::expression::Expression;
-use krama_core::ast::Program;
-use krama_core::error::{Error, ErrorKind};
-use krama_core::span::Span;
-use krama_core::token::{Token, TokenKind};
+use bumpalo::{collections::Vec as BumpVec, Bump};
+use krama_core::{
+  ast::{expression::Expression, Program},
+  error::{Error, ErrorKind},
+  span::Span,
+  token::{Token, TokenKind},
+};
 use krama_lexer::lexer::Lexer;
 
 use self::precedence::Precedence;

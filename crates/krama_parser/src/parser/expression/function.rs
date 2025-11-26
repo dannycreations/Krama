@@ -1,8 +1,9 @@
-use krama_core::ast::expression::{Expression, ExpressionKind, FunctionBody};
-use krama_core::token::TokenKind;
+use krama_core::{
+  ast::expression::{Expression, ExpressionKind, FunctionBody},
+  token::TokenKind,
+};
 
-use crate::parser::precedence::Precedence;
-use crate::parser::{ParseError, Parser};
+use crate::parser::{precedence::Precedence, ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where

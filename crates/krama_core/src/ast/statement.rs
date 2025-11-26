@@ -1,7 +1,6 @@
 use bumpalo::collections::Vec as BumpVec;
 
-use super::expression::Expression;
-use super::types::Type;
+use super::{expression::Expression, types::Type};
 use crate::span::Span;
 
 #[derive(Debug, Clone, PartialEq)]

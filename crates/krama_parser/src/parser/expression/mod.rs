@@ -9,13 +9,16 @@ pub(super) mod literal;
 pub(super) mod member;
 pub(super) mod unary;
 
-use krama_core::ast::expression::{Expression, ExpressionKind};
-use krama_core::ast::statement::{Statement, StatementKind};
-use krama_core::error::Error;
-use krama_core::token::TokenKind;
+use krama_core::{
+  ast::{
+    expression::{Expression, ExpressionKind},
+    statement::{Statement, StatementKind},
+  },
+  error::Error,
+  token::TokenKind,
+};
 
-use super::precedence::Precedence;
-use super::{ParseError, Parser};
+use super::{precedence::Precedence, ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where

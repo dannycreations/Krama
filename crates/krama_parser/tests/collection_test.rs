@@ -1,6 +1,8 @@
-use krama_core::ast::expression::ExpressionKind;
-use krama_core::ast::literal::Literal;
-use krama_core::ast::statement::{Statement, StatementKind};
+use krama_core::ast::{
+  expression::ExpressionKind,
+  literal::Literal,
+  statement::{Statement, StatementKind},
+};
 use krama_internal::test_parser;
 
 test_parser!(

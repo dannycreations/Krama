@@ -1,7 +1,9 @@
-use krama_core::ast::statement::{Statement, StatementKind};
-use krama_core::error::Error;
+use krama_core::{
+  ast::statement::{Statement, StatementKind},
+  error::Error,
+};
 
-use super::Parser;
+use super::{super::precedence::Precedence, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -12,8 +14,7 @@ where
   ) -> Result<Statement<'ast>, Error> {
     let start_span = self.current_token.span;
     self.advance();
-    let name =
-      self.parse_expression(super::super::precedence::Precedence::Lowest)?;
+    let name = self.parse_expression(Precedence::Lowest)?;
     let body = self.parse_block_statement()?;
     Ok(Statement {
       kind: StatementKind::Test {

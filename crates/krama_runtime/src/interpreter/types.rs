@@ -1,7 +1,11 @@
-use krama_core::ast::literal::Literal;
-use krama_core::ast::types::{Type, TypeKind};
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::Object;
+use krama_core::{
+  ast::{
+    literal::Literal,
+    types::{Type, TypeKind},
+  },
+  error::{Error, ErrorKind},
+  object::Object,
+};
 
 pub(crate) fn check_type<'ast>(
   expected_type: &Type<'ast>,

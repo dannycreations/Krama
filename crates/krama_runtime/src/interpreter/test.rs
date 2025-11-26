@@ -1,11 +1,17 @@
 use std::rc::Rc;
 
-use futures::future::LocalBoxFuture;
-use futures::FutureExt;
-use krama_core::ast::expression::FunctionBody;
-use krama_core::ast::statement::{Statement, StatementKind};
-use krama_core::error::Error;
-use krama_core::object::{Function, Object};
+use bumpalo::collections::Vec as BumpVec;
+use futures::{future::LocalBoxFuture, FutureExt};
+use krama_core::{
+  ast::{
+    expression::FunctionBody,
+    statement::{Statement, StatementKind},
+  },
+  error::Error,
+  object::{Function, Object, UserFn},
+};
+use krama_lexer::lexer::Lexer;
+use krama_parser::parser::Parser;
 
 use super::Interpreter;
 
@@ -20,8 +26,8 @@ impl<'ast> Interpreter<'ast> {
     &self,
     source: &'ast str,
   ) -> Result<Vec<TestResult>, Error> {
-    let lexer = krama_lexer::lexer::Lexer::new(source);
-    let mut parser = krama_parser::parser::Parser::new(lexer, self.arena);
+    let lexer = Lexer::new(source);
+    let mut parser = Parser::new(lexer, self.arena);
     let program = parser.parse()?;
 
     let mut results = Vec::new();
@@ -73,8 +79,8 @@ impl<'ast> Interpreter<'ast> {
           _ => "Unnamed test".to_string(),
         };
 
-        let function = krama_core::object::UserFn {
-          parameters: bumpalo::collections::Vec::new_in(self.arena),
+        let function = UserFn {
+          parameters: BumpVec::new_in(self.arena),
           body: FunctionBody::Block(body),
           kind: None,
         };
@@ -83,7 +89,7 @@ impl<'ast> Interpreter<'ast> {
         let result = self
           .eval_call_expression(
             callee,
-            bumpalo::collections::Vec::new_in(self.arena),
+            BumpVec::new_in(self.arena),
             statement.span,
           )
           .await;

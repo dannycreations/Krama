@@ -1,12 +1,12 @@
 use bumpalo::collections::Vec as BumpVec;
-use krama_core::ast::statement::{
-  Binding, DestructuredIdentifier, Statement, StatementKind,
+use krama_core::{
+  ast::statement::{Binding, DestructuredIdentifier, Statement, StatementKind},
+  error::Error,
+  span::Span,
+  token::TokenKind,
 };
-use krama_core::error::Error;
-use krama_core::span::Span;
-use krama_core::token::TokenKind;
 
-use super::Parser;
+use super::{super::precedence::Precedence, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -29,8 +29,7 @@ where
 
     self.advance();
 
-    let value =
-      self.parse_expression(super::super::precedence::Precedence::Lowest)?;
+    let value = self.parse_expression(Precedence::Lowest)?;
 
     Ok(Statement {
       kind: StatementKind::Let {
@@ -79,8 +78,7 @@ where
 
     self.advance();
 
-    let value =
-      self.parse_expression(super::super::precedence::Precedence::Lowest)?;
+    let value = self.parse_expression(Precedence::Lowest)?;
     Ok(Statement {
       kind: StatementKind::Const {
         public,

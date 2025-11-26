@@ -1,14 +1,15 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use bumpalo::collections::Vec as BumpVec;
 use futures::FutureExt;
-use krama_core::ast::expression::FunctionBody;
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::{Function, Object, ObjectFuture};
+use krama_core::{
+  ast::expression::FunctionBody,
+  error::{Error, ErrorKind},
+  object::{Function, Object, ObjectFuture},
+  span::Span,
+};
 
-use super::types::check_type;
-use super::Interpreter;
+use super::{types::check_type, Interpreter};
 use crate::environment::Environment;
 
 impl<'ast> Interpreter<'ast> {
@@ -16,7 +17,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     function: Object<'ast>,
     arguments: BumpVec<'ast, Object<'ast>>,
-    span: krama_core::span::Span,
+    span: Span,
   ) -> Result<Object<'ast>, Error> {
     match function {
       Object::Function(function) => match function {
@@ -79,7 +80,10 @@ impl<'ast> Interpreter<'ast> {
       },
       _ => Err(Error {
         span,
-        kind: ErrorKind::TypeError("".to_string()),
+        kind: ErrorKind::TypeError(format!(
+          "Object of type '{}' is not callable",
+          function.type_name()
+        )),
       }),
     }
   }

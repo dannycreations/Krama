@@ -1,3 +1,5 @@
+use std::mem;
+
 #[derive(Debug, Clone, Copy, PartialEq, strum_macros::Display)]
 pub enum TokenKind<'a> {
   // Keywords
@@ -112,9 +114,7 @@ impl<'a> TokenKind<'a> {
       TokenKind::Identifier(_) => TokenKind::Identifier("..."),
       // It is safe to cast the lifetime here because the other
       // variants do not contain any data with a lifetime.
-      _ => unsafe {
-        std::mem::transmute::<TokenKind<'a>, TokenKind<'static>>(self)
-      },
+      _ => unsafe { mem::transmute::<TokenKind<'a>, TokenKind<'static>>(self) },
     }
   }
 

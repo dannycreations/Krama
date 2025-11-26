@@ -1,6 +1,4 @@
-use std::cell::RefCell;
-use std::path::Path;
-use std::rc::Rc;
+use std::{cell::RefCell, path::Path, rc::Rc};
 
 use krama_core::object::{ModuleObject, Object};
 use krama_std::modules;

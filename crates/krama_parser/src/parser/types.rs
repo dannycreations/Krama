@@ -1,8 +1,12 @@
 use bumpalo::collections::Vec as BumpVec;
-use krama_core::ast::literal::Literal;
-use krama_core::ast::types::{Type, TypeKind};
-use krama_core::error::{Error, ErrorKind};
-use krama_core::token::TokenKind;
+use krama_core::{
+  ast::{
+    literal::Literal,
+    types::{Type, TypeKind},
+  },
+  error::{Error, ErrorKind},
+  token::TokenKind,
+};
 
 use super::Parser;
 

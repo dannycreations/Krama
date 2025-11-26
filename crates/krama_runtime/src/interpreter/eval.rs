@@ -1,12 +1,18 @@
 use std::rc::Rc;
 
 use bumpalo::collections::Vec as BumpVec;
-use futures::future::{join_all, FutureExt, LocalBoxFuture};
-use futures::join;
-use krama_core::ast::expression::{Expression, ExpressionKind};
-use krama_core::ast::types::{Type, TypeKind};
-use krama_core::error::Error;
-use krama_core::object::{Function, Object, UserFn};
+use futures::{
+  future::{join_all, FutureExt, LocalBoxFuture},
+  join,
+};
+use krama_core::{
+  ast::{
+    expression::{Expression, ExpressionKind},
+    types::{Type, TypeKind},
+  },
+  error::Error,
+  object::{Function, Object, UserFn},
+};
 
 use super::Interpreter;
 

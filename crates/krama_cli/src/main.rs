@@ -1,9 +1,7 @@
 use anyhow::Result;
 use bumpalo::Bump;
 use clap::Parser as ClapParser;
-use krama_cli::cmd::repl::Repl;
-use krama_cli::cmd::run::Run;
-use krama_cli::cmd::test::Test;
+use krama_cli::cmd::{repl::Repl, run::Run, test::Test};
 
 #[derive(ClapParser)]
 #[clap(author, version, about, long_about = None)]

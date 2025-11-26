@@ -1,8 +1,10 @@
-use krama_core::ast::statement::{Statement, StatementKind};
-use krama_core::error::Error;
-use krama_core::token::TokenKind;
+use krama_core::{
+  ast::statement::{Statement, StatementKind},
+  error::Error,
+  token::TokenKind,
+};
 
-use super::Parser;
+use super::{super::precedence::Precedence, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -16,8 +18,7 @@ where
 
     self.consume_token(TokenKind::LParen)?;
 
-    let condition =
-      self.parse_expression(super::super::precedence::Precedence::Lowest)?;
+    let condition = self.parse_expression(Precedence::Lowest)?;
 
     self.consume_token(TokenKind::RParen)?;
     let body = self.parse_block_statement()?;

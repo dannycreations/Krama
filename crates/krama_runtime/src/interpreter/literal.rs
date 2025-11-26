@@ -1,6 +1,4 @@
-use krama_core::ast::literal::Literal;
-use krama_core::error::Error;
-use krama_core::object::Object;
+use krama_core::{ast::literal::Literal, error::Error, object::Object};
 
 use super::Interpreter;
 

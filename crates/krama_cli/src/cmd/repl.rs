@@ -1,10 +1,14 @@
+use std::process;
+
 use anyhow::Result;
 use bumpalo::Bump;
 use clap::Parser;
 use krama_core::object::Object;
 use krama_runtime::interpreter::Interpreter;
-use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::signal;
+use tokio::{
+  io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader},
+  signal,
+};
 
 use crate::error::report_error;
 
@@ -25,7 +29,7 @@ impl Repl {
 
       tokio::select! {
           _ = signal::ctrl_c() => {
-              std::process::exit(0);
+              process::exit(0);
           }
           result = reader.read_line(&mut line) => {
               match result {

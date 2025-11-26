@@ -1,9 +1,10 @@
 use bumpalo::collections::Vec as BumpVec;
-use krama_core::ast::expression::{
-  Expression, FunctionBody, MatchArm, MatchPattern,
+use krama_core::{
+  ast::expression::{Expression, FunctionBody, MatchArm, MatchPattern},
+  error::Error,
+  object::Object,
+  span::Span,
 };
-use krama_core::error::Error;
-use krama_core::object::Object;
 
 use super::Interpreter;
 
@@ -12,7 +13,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     subject: &Expression<'ast>,
     arms: &BumpVec<'ast, MatchArm<'ast>>,
-    span: krama_core::span::Span,
+    span: Span,
   ) -> Result<Object<'ast>, Error> {
     let subject = self.eval_expression(subject, None).await?;
 
@@ -45,7 +46,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     subject: &Object<'ast>,
     pattern: &MatchPattern<'ast>,
-    _span: krama_core::span::Span,
+    _span: Span,
   ) -> Result<bool, Error> {
     match pattern {
       MatchPattern::Else => Ok(true),

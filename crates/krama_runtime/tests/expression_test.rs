@@ -1,5 +1,4 @@
-use krama_core::error::ErrorKind;
-use krama_core::object::Object;
+use krama_core::{error::ErrorKind, object::Object};
 use krama_internal::{test_eval, test_eval_error};
 
 // Unary Expression Tests

@@ -1,5 +1,7 @@
-use krama_core::ast::expression::{Expression, ExpressionKind};
-use krama_core::span::Span;
+use krama_core::{
+  ast::expression::{Expression, ExpressionKind},
+  span::Span,
+};
 
 use super::{ParseError, Parser, Precedence};
 

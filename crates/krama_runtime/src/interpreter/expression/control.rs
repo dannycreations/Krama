@@ -1,7 +1,8 @@
-use krama_core::ast::expression::Expression;
-use krama_core::ast::types::Type;
-use krama_core::error::Error;
-use krama_core::object::Object;
+use krama_core::{
+  ast::{expression::Expression, types::Type},
+  error::Error,
+  object::Object,
+};
 
 use crate::interpreter::Interpreter;
 

@@ -1,10 +1,12 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::Object;
-use krama_core::span::Span;
+use krama_core::{
+  error::{Error, ErrorKind},
+  object::{ModuleObject, Object},
+  span::Span,
+};
 use rustc_hash::FxHashMap;
+use tokio::fs;
 
 use super::Interpreter;
 
@@ -30,7 +32,7 @@ impl<'ast> Interpreter<'ast> {
       return Ok(module.clone());
     }
 
-    let source = tokio::fs::read_to_string(path)
+    let source = fs::read_to_string(path)
       .await
       .map_err(|e| format!("Failed to read module file: {}", e))?;
     let source_str = self.arena.alloc_str(&source);
@@ -49,11 +51,10 @@ impl<'ast> Interpreter<'ast> {
       .into_iter()
       .collect();
 
-    let module =
-      Object::Module(Rc::new(RefCell::new(krama_core::object::ModuleObject {
-        name: self.arena.alloc_str(path),
-        exports: exports.into_iter().map(|(k, v)| (k, v.clone())).collect(),
-      })));
+    let module = Object::Module(Rc::new(RefCell::new(ModuleObject {
+      name: self.arena.alloc_str(path),
+      exports: exports.into_iter().map(|(k, v)| (k, v.clone())).collect(),
+    })));
 
     self
       .modules

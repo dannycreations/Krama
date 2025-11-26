@@ -2,11 +2,12 @@ mod identifier;
 mod number;
 mod string;
 
-use std::iter::Peekable;
-use std::str::Chars;
+use std::{iter::Peekable, str::Chars};
 
-use krama_core::span::Span;
-use krama_core::token::{Token, TokenKind};
+use krama_core::{
+  span::Span,
+  token::{Token, TokenKind},
+};
 
 macro_rules! token {
   ($lexer:ident, $start:expr, $kind:expr) => {

@@ -1,6 +1,4 @@
-use krama_core::ast::statement::Statement;
-use krama_core::error::Error;
-use krama_core::token::TokenKind;
+use krama_core::{ast::statement::Statement, error::Error, token::TokenKind};
 
 use super::Parser;
 

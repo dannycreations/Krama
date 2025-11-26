@@ -9,22 +9,22 @@ mod statement;
 mod test;
 mod types;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use bumpalo::Bump;
 use futures::future::{FutureExt, LocalBoxFuture};
-use krama_core::ast::statement::Statement;
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::Object;
+use krama_core::{
+  ast::statement::Statement,
+  error::{Error, ErrorKind},
+  object::Object,
+};
 use krama_lexer::lexer::Lexer;
 use krama_parser::parser::Parser;
-use krama_std::props::PropFn;
+use krama_std::{globals, props, props::PropFn};
 use rustc_hash::FxHashMap;
 pub use test::TestResult;
 
-use crate::environment::Environment;
-use crate::resolver::Resolver;
+use crate::{environment::Environment, resolver::Resolver};
 
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
@@ -39,7 +39,7 @@ pub struct Interpreter<'ast> {
 impl<'ast> Interpreter<'ast> {
   pub fn new(arena: &'ast Bump, path: Option<&'ast str>) -> Self {
     let mut env = Environment::new();
-    for (name, function) in krama_std::globals::get_globals() {
+    for (name, function) in globals::get_globals() {
       env.set(name, function, true);
     }
 
@@ -49,7 +49,7 @@ impl<'ast> Interpreter<'ast> {
       modules: Rc::new(RefCell::new(FxHashMap::default())),
       arena,
       path,
-      props: Rc::new(krama_std::props::get_props()),
+      props: Rc::new(props::get_props()),
     }
   }
 

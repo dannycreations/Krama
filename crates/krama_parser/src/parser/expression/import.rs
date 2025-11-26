@@ -1,6 +1,8 @@
-use krama_core::ast::expression::{Expression, ExpressionKind};
-use krama_core::error::{Error, ErrorKind};
-use krama_core::token::{Token, TokenKind};
+use krama_core::{
+  ast::expression::{Expression, ExpressionKind},
+  error::{Error, ErrorKind},
+  token::{Token, TokenKind},
+};
 
 use super::{ParseError, Parser};
 

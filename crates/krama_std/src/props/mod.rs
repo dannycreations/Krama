@@ -2,8 +2,7 @@ pub mod array;
 pub mod string;
 
 use futures::future::LocalBoxFuture;
-use krama_core::error::Error;
-use krama_core::object::Object;
+use krama_core::{error::Error, object::Object};
 use rustc_hash::FxHashMap;
 
 pub type PropFn =

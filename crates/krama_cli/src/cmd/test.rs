@@ -1,10 +1,13 @@
-use std::path::Path;
+use std::{
+  env,
+  io::Error,
+  path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result};
 use bumpalo::Bump;
 use clap::Parser;
-use futures::future::BoxFuture;
-use futures::FutureExt;
+use futures::{future::BoxFuture, FutureExt};
 use krama_runtime::interpreter::Interpreter;
 use tokio::fs;
 
@@ -18,8 +21,8 @@ pub struct Test {
 
 fn find_test_files<'a>(
   path: &'a Path,
-  test_files: &'a mut Vec<std::path::PathBuf>,
-) -> BoxFuture<'a, Result<(), std::io::Error>> {
+  test_files: &'a mut Vec<PathBuf>,
+) -> BoxFuture<'a, Result<(), Error>> {
   async move {
     let mut entries = fs::read_dir(path).await?;
     while let Some(entry) = entries.next_entry().await? {
@@ -42,7 +45,7 @@ impl Test {
 
     let mut test_files = Vec::new();
 
-    let root_path = std::env::current_dir()?;
+    let root_path = env::current_dir()?;
     let mut path_buf = root_path;
     path_buf.push(&self.path);
     let path = path_buf.as_path();

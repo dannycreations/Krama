@@ -1,15 +1,11 @@
-use std::cell::RefCell;
-use std::fmt;
-use std::rc::Rc;
+use std::{cell::RefCell, fmt, rc::Rc};
 
 pub use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
 use rustc_hash::FxHashMap;
 
-use super::ast::expression::FunctionBody;
-use super::ast::statement::Parameter;
-use super::ast::types::Type;
+use super::ast::{expression::FunctionBody, statement::Parameter, types::Type};
 use crate::error::Error;
 
 pub type NativeFnCallback<'ast> =
@@ -211,8 +207,8 @@ impl<'ast> Clone for Object<'ast> {
   }
 }
 
-impl<'ast> std::fmt::Debug for Object<'ast> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'ast> fmt::Debug for Object<'ast> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Object::Integer(i) => write!(f, "Integer({})", i),
       Object::Float(fl) => write!(f, "Float({})", fl),

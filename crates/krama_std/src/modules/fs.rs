@@ -1,12 +1,12 @@
-use std::path::Path;
-use std::rc::Rc;
+use std::{path::Path, rc::Rc, str};
 
-use bumpalo::collections::Vec as BumpVec;
-use bumpalo::Bump;
+use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
-use krama_core::ast::types::{Type, TypeKind};
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::{NativeFnCallback, Object};
+use krama_core::{
+  ast::types::{Type, TypeKind},
+  error::{Error, ErrorKind},
+  object::{NativeFnCallback, Object},
+};
 use rustc_hash::FxHashMap;
 use tokio::fs;
 
@@ -38,7 +38,7 @@ fn read_file<'ast>(
       span: Default::default(),
       kind: ErrorKind::RuntimeError(e.to_string()),
     })?;
-    let contents_str = std::str::from_utf8(&contents).map_err(|e| Error {
+    let contents_str = str::from_utf8(&contents).map_err(|e| Error {
       span: Default::default(),
       kind: ErrorKind::RuntimeError(e.to_string()),
     })?;

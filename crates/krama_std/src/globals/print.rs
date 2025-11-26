@@ -1,10 +1,10 @@
-use bumpalo::collections::Vec as BumpVec;
-use bumpalo::Bump;
+use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
-use krama_core::error::{Error, ErrorKind};
-use krama_core::object::Object;
-use tokio::io;
-use tokio::io::AsyncWriteExt;
+use krama_core::{
+  error::{Error, ErrorKind},
+  object::Object,
+};
+use tokio::{io, io::AsyncWriteExt};
 
 pub fn print<'ast>(
   _: &'ast Bump,

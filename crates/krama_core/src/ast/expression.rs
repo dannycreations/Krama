@@ -1,9 +1,11 @@
 use bumpalo::collections::Vec as BumpVec;
 
-use super::literal::Literal;
-use super::operator::{BinaryOperator, UnaryOperator, UpdateOperator};
-use super::statement::{BlockStatement, Parameter};
-use super::types::Type;
+use super::{
+  literal::Literal,
+  operator::{BinaryOperator, UnaryOperator, UpdateOperator},
+  statement::{BlockStatement, Parameter},
+  types::Type,
+};
 use crate::span::Span;
 
 #[derive(Debug, Clone, PartialEq)]

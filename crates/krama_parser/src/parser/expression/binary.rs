@@ -1,8 +1,12 @@
-use krama_core::ast::expression::{Expression, ExpressionKind};
-use krama_core::ast::operator::{BinaryOperator, UpdateOperator};
-use krama_core::error::{Error, ErrorKind};
-use krama_core::span::Span;
-use krama_core::token::TokenKind;
+use krama_core::{
+  ast::{
+    expression::{Expression, ExpressionKind},
+    operator::{BinaryOperator, UpdateOperator},
+  },
+  error::{Error, ErrorKind},
+  span::Span,
+  token::TokenKind,
+};
 
 use super::{ParseError, Parser};
 

@@ -1,7 +1,9 @@
 use bumpalo::collections::Vec as BumpVec;
-use krama_core::ast::expression::{Expression, ExpressionKind, FunctionBody};
-use krama_core::error::{Error, ErrorKind};
-use krama_core::token::TokenKind;
+use krama_core::{
+  ast::expression::{Expression, ExpressionKind, FunctionBody},
+  error::{Error, ErrorKind},
+  token::TokenKind,
+};
 
 use super::{ParseError, Parser, Precedence};
 
