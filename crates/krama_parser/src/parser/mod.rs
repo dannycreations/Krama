@@ -87,17 +87,17 @@ where
         self.advance();
         Ok(name)
       }
-      kind if kind.is_keyword() => Err(Error {
-        span: token.span,
-        kind: ErrorKind::SyntaxError(format!("Unexpected keyword: `{}`", kind)),
-      }),
-      found => Err(Error {
-        span: token.span,
-        kind: ErrorKind::SyntaxError(format!(
-          "Expected identifier, but got `{:?}`",
-          found
-        )),
-      }),
+      kind => {
+        let message = if kind.is_keyword() {
+          format!("Unexpected keyword: `{}`", kind)
+        } else {
+          format!("Expected identifier, but got `{:?}`", kind)
+        };
+        Err(Error {
+          span: token.span,
+          kind: ErrorKind::SyntaxError(message),
+        })
+      }
     }
   }
 

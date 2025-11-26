@@ -28,8 +28,12 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &'ast str,
   ) -> Result<Object<'ast>, String> {
-    if let Some(module) = self.modules.try_borrow().unwrap().get(path) {
-      return Ok(module.clone());
+    if let Ok(modules) = self.modules.try_borrow() {
+      if let Some(module) = modules.get(path) {
+        return Ok(module.clone());
+      }
+    } else {
+      return Err("Failed to borrow modules".to_string());
     }
 
     let source = fs::read_to_string(path)
@@ -46,7 +50,7 @@ impl<'ast> Interpreter<'ast> {
     let exports: FxHashMap<_, _> = new_interpreter
       .environment
       .try_borrow()
-      .unwrap()
+      .map_err(|e| e.to_string())?
       .get_public_bindings()
       .into_iter()
       .collect();
@@ -59,7 +63,7 @@ impl<'ast> Interpreter<'ast> {
     self
       .modules
       .try_borrow_mut()
-      .unwrap()
+      .map_err(|e| e.to_string())?
       .insert(path.to_string(), module.clone());
 
     Ok(module)

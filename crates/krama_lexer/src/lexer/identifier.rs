@@ -45,15 +45,13 @@ static KEYWORDS: Lazy<phf::Map<&'static str, TokenKind>> = Lazy::new(|| {
 
 impl<'a> Lexer<'a> {
   pub(super) fn identifier(&mut self, start: usize) -> Token<'a> {
-    let remaining = &self.input_str[self.position..];
-    let len: usize = remaining
-      .chars()
-      .take_while(|c| c.is_alphanumeric() || *c == '_')
-      .map(|c| c.len_utf8())
-      .sum();
-
-    self.position += len;
-    self.input = self.input_str[self.position..].chars().peekable();
+    while let Some(c) = self.peek() {
+      if c.is_alphanumeric() || c == '_' {
+        self.advance();
+      } else {
+        break;
+      }
+    }
 
     let value = &self.input_str[start..self.position];
 

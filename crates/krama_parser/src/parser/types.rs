@@ -71,11 +71,13 @@ where
       let token = self.current_token;
       if let TokenKind::Integer(val) = token.kind {
         self.advance();
-        let parsed_val: i64 = if val.contains('_') {
-          val.replace('_', "").parse().unwrap()
-        } else {
-          val.parse().unwrap()
-        };
+        let parsed_val: i64 =
+          val.replace('_', "").parse().map_err(|_| Error {
+            span: token.span,
+            kind: ErrorKind::SyntaxError(
+              "Invalid integer literal for array size".to_string(),
+            ),
+          })?;
         Some(Literal::Integer(parsed_val))
       } else {
         return Err(Error {

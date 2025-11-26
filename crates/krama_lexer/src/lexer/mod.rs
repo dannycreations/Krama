@@ -79,27 +79,42 @@ impl<'a> Lexer<'a> {
   pub(super) fn span(&self, start: usize) -> Span {
     Span::new(start, self.position)
   }
-
-  fn skip_whitespace(&mut self) {
-    let remaining = &self.input_str[self.position..];
-    let len: usize = remaining
-      .chars()
-      .take_while(|c| c.is_whitespace() && *c != '\n')
-      .map(|c| c.len_utf8())
-      .sum();
-
-    if len > 0 {
-      self.position += len;
-      self.input = self.input_str[self.position..].chars().peekable();
-    }
-  }
 }
 
 impl<'a> Iterator for Lexer<'a> {
   type Item = Token<'a>;
 
   fn next(&mut self) -> Option<Self::Item> {
-    self.skip_whitespace();
+    loop {
+      // Skip whitespace
+      while let Some(c) = self.peek() {
+        if c.is_whitespace() && c != '\n' {
+          self.advance();
+        } else {
+          break;
+        }
+      }
+
+      // Skip comments
+      if self.peek() == Some('/') {
+        let mut iter = self.input.clone();
+        iter.next();
+        if iter.peek() == Some(&'/') {
+          // Consume the comment line
+          self.advance(); // consume '/'
+          self.advance(); // consume '/'
+          while let Some(c) = self.peek() {
+            if c == '\n' {
+              break;
+            }
+            self.advance();
+          }
+          continue; // Restart loop to handle more whitespace/comments
+        }
+      }
+      break; // Proceed to tokenization
+    }
+
     let start = self.position;
     let char = self.advance()?;
 
@@ -144,22 +159,7 @@ impl<'a> Iterator for Lexer<'a> {
         '=',
         TokenKind::PercentEqual
       ),
-      '/' => {
-        if self.advance_if('/') {
-          // It's a comment. Consume until newline.
-          let remaining = &self.input_str[self.position..];
-          let comment_len: usize = remaining
-            .chars()
-            .take_while(|&c| c != '\n')
-            .map(|c| c.len_utf8())
-            .sum();
-          self.position += comment_len;
-          self.input = self.input_str[self.position..].chars().peekable();
-          return self.next();
-        } else {
-          token!(self, start, TokenKind::Slash, '=', TokenKind::SlashEqual)
-        }
-      }
+      '/' => token!(self, start, TokenKind::Slash, '=', TokenKind::SlashEqual),
       '*' => token_triple!(
         self,
         start,

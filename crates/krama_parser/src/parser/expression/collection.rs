@@ -12,7 +12,7 @@ where
 {
   pub(super) fn parse_collection_expression(&mut self) -> ParseError<'ast> {
     let start_span = self.current_token.span;
-    self.consume_token(TokenKind::LBracket).unwrap();
+    self.consume_token(TokenKind::LBracket)?;
 
     let mut elements = BumpVec::new_in(self.arena);
 
@@ -32,7 +32,7 @@ where
       if self.current_token.kind == TokenKind::RBracket {
         break;
       }
-      self.consume_token(TokenKind::Comma).unwrap();
+      self.consume_token(TokenKind::Comma)?;
       if self.current_token.kind == TokenKind::RBracket {
         // Allow trailing comma
         break;
@@ -40,7 +40,7 @@ where
     }
 
     let end_span = self.current_token.span;
-    self.consume_token(TokenKind::RBracket).unwrap();
+    self.consume_token(TokenKind::RBracket)?;
 
     Ok(Expression {
       kind: ExpressionKind::Collection { elements },

@@ -74,6 +74,7 @@ impl<'ast> fmt::Debug for Function<'ast> {
   }
 }
 
+#[derive(Clone)]
 pub enum Object<'ast> {
   Integer(i64),
   Float(f64),
@@ -89,7 +90,7 @@ pub enum Object<'ast> {
   Module(Rc<RefCell<ModuleObject<'ast>>>),
   Global(Rc<RefCell<GlobalObject<'ast>>>),
   Function(Function<'ast>),
-  Return(&'ast Object<'ast>),
+  Return(Rc<Object<'ast>>),
   Break,
   Continue,
   Future(ObjectFuture<'ast>),
@@ -182,31 +183,6 @@ impl<'ast> fmt::Display for Object<'ast> {
   }
 }
 
-impl<'ast> Clone for Object<'ast> {
-  fn clone(&self) -> Self {
-    match self {
-      Object::Integer(i) => Object::Integer(*i),
-      Object::Float(f) => Object::Float(*f),
-      Object::Boolean(b) => Object::Boolean(*b),
-      Object::String(s) => Object::String(s),
-      Object::Array { elements, kind } => Object::Array {
-        elements: elements.clone(),
-        kind: kind.clone(),
-      },
-      Object::Tuple(t) => Object::Tuple(t.clone()),
-      Object::Null => Object::Null,
-      Object::Void => Object::Void,
-      Object::Module(m) => Object::Module(m.clone()),
-      Object::Global(g) => Object::Global(g.clone()),
-      Object::Function(f) => Object::Function(f.clone()),
-      Object::Return(v) => Object::Return(v),
-      Object::Break => Object::Break,
-      Object::Continue => Object::Continue,
-      Object::Future(f) => Object::Future(f.clone()),
-    }
-  }
-}
-
 impl<'ast> fmt::Debug for Object<'ast> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
@@ -247,7 +223,7 @@ impl<'ast> PartialEq for Object<'ast> {
       (Object::Null, Object::Null) => true,
       (Object::Void, Object::Void) => true,
       (Object::Function(a), Object::Function(b)) => a == b,
-      (Object::Return(a), Object::Return(b)) => **a == **b,
+      (Object::Return(a), Object::Return(b)) => a == b,
       (Object::Break, Object::Break) => true,
       (Object::Continue, Object::Continue) => true,
       (Object::Module(a), Object::Module(b)) => Rc::ptr_eq(a, b),

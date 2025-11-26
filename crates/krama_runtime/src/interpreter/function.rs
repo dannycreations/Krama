@@ -49,7 +49,10 @@ impl<'ast> Interpreter<'ast> {
               }
               new_env
                 .try_borrow_mut()
-                .unwrap()
+                .map_err(|e| Error {
+                  span,
+                  kind: ErrorKind::RuntimeError(e.to_string()),
+                })?
                 .set(param.name, arg, false);
             }
             new_interpreter.environment = new_env;
@@ -67,9 +70,9 @@ impl<'ast> Interpreter<'ast> {
 
             if let Ok(Object::Return(value)) = result {
               if let Some(kind) = &function.kind {
-                check_type(kind, value)?;
+                check_type(kind, &value)?;
               }
-              return Ok((*value).clone());
+              return Ok(value.as_ref().clone());
             }
             result
           };

@@ -37,7 +37,10 @@ impl<'ast> Interpreter<'ast> {
           self
             .environment
             .try_borrow_mut()
-            .unwrap()
+            .map_err(|e| Error {
+              span,
+              kind: ErrorKind::RuntimeError(e.to_string()),
+            })?
             .set(name, value, false);
           Ok(Object::Void)
         }
@@ -69,20 +72,29 @@ impl<'ast> Interpreter<'ast> {
               self
                 .environment
                 .try_borrow_mut()
-                .unwrap()
+                .map_err(|e| Error {
+                  span,
+                  kind: ErrorKind::RuntimeError(e.to_string()),
+                })?
                 .set(name, value, *public);
             }
             Binding::Destructure(items) => {
               if let Object::Module(module) = value {
-                let module = module.try_borrow().unwrap();
+                let module = module.try_borrow().map_err(|e| Error {
+                  span,
+                  kind: ErrorKind::RuntimeError(e.to_string()),
+                })?;
                 for item in items.iter() {
                   if let Some(export) = module.exports.get(item.name) {
                     let name = item.alias.unwrap_or(item.name);
-                    self.environment.try_borrow_mut().unwrap().set(
-                      name,
-                      export.clone(),
-                      *public,
-                    );
+                    self
+                      .environment
+                      .try_borrow_mut()
+                      .map_err(|e| Error {
+                        span,
+                        kind: ErrorKind::RuntimeError(e.to_string()),
+                      })?
+                      .set(name, export.clone(), *public);
                   } else {
                     return Err(Error {
                       span,
@@ -104,20 +116,29 @@ impl<'ast> Interpreter<'ast> {
               items,
             } => {
               if let Object::Module(module_obj) = &value {
-                self.environment.try_borrow_mut().unwrap().set(
-                  module_alias,
-                  value.clone(),
-                  *public,
-                );
-                let module = module_obj.try_borrow().unwrap();
+                self
+                  .environment
+                  .try_borrow_mut()
+                  .map_err(|e| Error {
+                    span,
+                    kind: ErrorKind::RuntimeError(e.to_string()),
+                  })?
+                  .set(module_alias, value.clone(), *public);
+                let module = module_obj.try_borrow().map_err(|e| Error {
+                  span,
+                  kind: ErrorKind::RuntimeError(e.to_string()),
+                })?;
                 for item in items.iter() {
                   if let Some(export) = module.exports.get(item.name) {
                     let name = item.alias.unwrap_or(item.name);
-                    self.environment.try_borrow_mut().unwrap().set(
-                      name,
-                      export.clone(),
-                      *public,
-                    );
+                    self
+                      .environment
+                      .try_borrow_mut()
+                      .map_err(|e| Error {
+                        span,
+                        kind: ErrorKind::RuntimeError(e.to_string()),
+                      })?
+                      .set(name, export.clone(), *public);
                   } else {
                     return Err(Error {
                       span,
@@ -152,7 +173,10 @@ impl<'ast> Interpreter<'ast> {
           self
             .environment
             .try_borrow_mut()
-            .unwrap()
+            .map_err(|e| Error {
+              span,
+              kind: ErrorKind::RuntimeError(e.to_string()),
+            })?
             .set(name, function, *public);
           Ok(Object::Void)
         }
@@ -162,7 +186,7 @@ impl<'ast> Interpreter<'ast> {
             None => Object::Void,
           };
           let value = self.resolve_object(value).await?;
-          Ok(Object::Return(self.arena.alloc(value)))
+          Ok(Object::Return(Rc::new(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),

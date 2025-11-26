@@ -72,9 +72,6 @@ impl<'ast> Interpreter<'ast> {
       let mut result = Object::Void;
       for statement in statements {
         result = self.eval_statement(statement).await?;
-        if matches!(result, Object::Return(_)) {
-          return Ok(result);
-        }
       }
       Ok(result)
     }

@@ -39,7 +39,10 @@ impl<'ast> Interpreter<'ast> {
     }
 
     if let Object::Module(module) = resolved_object {
-      let module = module.try_borrow().unwrap();
+      let module = module.try_borrow().map_err(|e| Error {
+        span,
+        kind: ErrorKind::RuntimeError(e.to_string()),
+      })?;
       if let Some(export) = module.exports.get(property_name) {
         Ok(export.clone())
       } else {

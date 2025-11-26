@@ -26,11 +26,10 @@ where
     let token = self.current_token;
     if let TokenKind::Integer(value) = token.kind {
       self.advance();
-      let value: i64 = if value.contains('_') {
-        value.replace('_', "").parse().unwrap()
-      } else {
-        value.parse().unwrap()
-      };
+      let value: i64 = value.replace('_', "").parse().map_err(|_| Error {
+        span: token.span,
+        kind: ErrorKind::SyntaxError("Invalid integer literal".to_string()),
+      })?;
       Ok(Expression {
         kind: ExpressionKind::Literal(Literal::Integer(value)),
         span: token.span,
@@ -47,11 +46,10 @@ where
     let token = self.current_token;
     if let TokenKind::Float(value) = token.kind {
       self.advance();
-      let value: f64 = if value.contains('_') {
-        value.replace('_', "").parse().unwrap()
-      } else {
-        value.parse().unwrap()
-      };
+      let value: f64 = value.replace('_', "").parse().map_err(|_| Error {
+        span: token.span,
+        kind: ErrorKind::SyntaxError("Invalid float literal".to_string()),
+      })?;
       Ok(Expression {
         kind: ExpressionKind::Literal(Literal::Float(value)),
         span: token.span,

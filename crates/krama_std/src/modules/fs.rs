@@ -98,13 +98,12 @@ fn read_dir<'ast>(
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));
 
-    let mut entries = BumpVec::new_in(arena);
-
     let mut paths = fs::read_dir(*path_str).await.map_err(|e| Error {
       span: Default::default(),
       kind: ErrorKind::RuntimeError(e.to_string()),
     })?;
 
+    let mut entries = BumpVec::new_in(arena);
     while let Some(path) = paths.next_entry().await.map_err(|e| Error {
       span: Default::default(),
       kind: ErrorKind::RuntimeError(e.to_string()),

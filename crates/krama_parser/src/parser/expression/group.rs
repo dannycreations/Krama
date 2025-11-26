@@ -109,8 +109,15 @@ where
 
     // It's not a function. It must be a grouped expression.
     if expressions.len() == 1 {
-      // This is a valid grouped expression
-      Ok(expressions.pop().unwrap())
+      match expressions.pop() {
+        Some(expr) => Ok(expr),
+        None => Err(Error {
+          span: start_span,
+          kind: ErrorKind::SyntaxError(
+            "Expected expression in parentheses".to_string(),
+          ),
+        }),
+      }
     } else {
       // e.g. `(1, 2)` which is not a function and not a single expression.
       Err(Error {

@@ -19,8 +19,12 @@ impl Resolver {
     interpreter: &Interpreter<'ast>,
     path: &'ast str,
   ) -> Result<Object<'ast>, String> {
-    if let Some(module) = interpreter.modules.try_borrow().unwrap().get(path) {
-      return Ok(module.clone());
+    if let Ok(modules) = interpreter.modules.try_borrow() {
+      if let Some(module) = modules.get(path) {
+        return Ok(module.clone());
+      }
+    } else {
+      return Err("Failed to borrow modules cache".to_string());
     }
 
     let module = if path.starts_with("std:") {
@@ -29,11 +33,11 @@ impl Resolver {
       self.resolve_file_module(interpreter, path).await?
     };
 
-    interpreter
-      .modules
-      .try_borrow_mut()
-      .unwrap()
-      .insert(path.to_string(), module.clone());
+    if let Ok(mut modules) = interpreter.modules.try_borrow_mut() {
+      modules.insert(path.to_string(), module.clone());
+    } else {
+      return Err("Failed to mutably borrow modules cache".to_string());
+    }
 
     Ok(module)
   }
@@ -42,7 +46,9 @@ impl Resolver {
     &self,
     path: &'ast str,
   ) -> Result<Object<'ast>, String> {
-    let module_name = path.strip_prefix("std:").unwrap();
+    let module_name = path
+      .strip_prefix("std:")
+      .ok_or_else(|| "Invalid standard module path".to_string())?;
     modules::get_modules(module_name)
       .map(|exports| {
         let module = ModuleObject {
@@ -72,7 +78,11 @@ impl Resolver {
     let canonical_path = fs::canonicalize(&path_buf)
       .await
       .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
-    let path_str = interpreter.alloc_str(canonical_path.to_str().unwrap());
+    let path_str = interpreter.alloc_str(
+      canonical_path
+        .to_str()
+        .ok_or_else(|| "Invalid path encoding".to_string())?,
+    );
 
     interpreter.eval_and_cache(path_str).await
   }
