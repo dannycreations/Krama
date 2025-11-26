@@ -12,7 +12,6 @@ doctest = false
 [dependencies]
 bumpalo.workspace = true
 futures.workspace = true
-itertools.workspace = true
 krama_core = { path = "../krama_core" }
 rustc-hash.workspace = true
 tokio.workspace = true

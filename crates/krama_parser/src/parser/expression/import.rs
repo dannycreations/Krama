@@ -21,7 +21,7 @@ where
     {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Expected 'import' after '@'"),
+        kind: ErrorKind::SyntaxError("Expected 'import' after '@'".to_string()),
       });
     }
     self.advance();
@@ -33,7 +33,9 @@ where
     {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Expected '(' after '@import'"),
+        kind: ErrorKind::SyntaxError(
+          "Expected '(' after '@import'".to_string(),
+        ),
       });
     }
     self.advance();
@@ -46,8 +48,8 @@ where
       _ => {
         return Err(Error {
           span: start_span,
-          kind: ErrorKind::ParserError(
-            "Expected a string literal for the import path",
+          kind: ErrorKind::SyntaxError(
+            "Expected a string literal for the import path".to_string(),
           ),
         })
       }
@@ -61,7 +63,9 @@ where
     {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Expected ')' after import path"),
+        kind: ErrorKind::SyntaxError(
+          "Expected ')' after import path".to_string(),
+        ),
       });
     }
     self.advance();

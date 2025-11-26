@@ -15,7 +15,10 @@ where
       self.parse_expression(super::super::precedence::Precedence::Lowest)?;
     let body = self.parse_block_statement()?;
     Ok(Statement {
-      kind: StatementKind::Test { name, body },
+      kind: StatementKind::Test {
+        name: self.arena.alloc(name),
+        body: self.arena.alloc(body),
+      },
       span: start_span,
     })
   }

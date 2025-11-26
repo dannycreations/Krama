@@ -4,7 +4,6 @@ use krama_core::ast::statement::{
   Binding, DestructuredIdentifier, Statement, StatementKind,
 };
 use krama_core::error::Error;
-use krama_core::error::ErrorKind;
 use krama_core::span::Span;
 use krama_core::token::TokenKind;
 
@@ -18,19 +17,7 @@ where
     let start_span = self.current_token.as_ref().unwrap().span;
     self.advance();
 
-    let name = if let Some(krama_core::token::Token {
-      kind: krama_core::token::TokenKind::Identifier(name),
-      ..
-    }) = self.current_token.as_ref()
-    {
-      self.arena.alloc_str(name)
-    } else {
-      return Err(Error {
-        span: self.current_token.as_ref().unwrap().span,
-        kind: ErrorKind::ParserError("Expected identifier after 'let'"),
-      });
-    };
-    self.advance();
+    let name = self.parse_identifier()?;
 
     let kind = if self
       .current_token
@@ -49,7 +36,11 @@ where
       self.parse_expression(super::super::precedence::Precedence::Lowest)?;
 
     Ok(Statement {
-      kind: StatementKind::Let { name, kind, value },
+      kind: StatementKind::Let {
+        name,
+        kind,
+        value: self.arena.alloc(value),
+      },
       span: start_span,
     })
   }
@@ -71,19 +62,7 @@ where
       self.advance();
       Binding::Destructure(items)
     } else {
-      let name = if let Some(krama_core::token::Token {
-        kind: krama_core::token::TokenKind::Identifier(name),
-        ..
-      }) = self.current_token.as_ref()
-      {
-        self.arena.alloc_str(name)
-      } else {
-        return Err(Error {
-          span: start_span,
-          kind: ErrorKind::ParserError("Expected identifier after 'const'"),
-        });
-      };
-      self.advance();
+      let name = self.parse_identifier()?;
       if self
         .current_token
         .as_ref()
@@ -122,7 +101,7 @@ where
         public,
         binding,
         kind,
-        value,
+        value: self.arena.alloc(value),
       },
       span: start_span,
     })
@@ -140,19 +119,7 @@ where
       return Ok(items);
     }
     loop {
-      let name = if let Some(krama_core::token::Token {
-        kind: krama_core::token::TokenKind::Identifier(name),
-        ..
-      }) = self.current_token.as_ref()
-      {
-        self.arena.alloc_str(name)
-      } else {
-        return Err(Error {
-          span: self.current_token.as_ref().unwrap().span,
-          kind: ErrorKind::ParserError("Expected identifier in destructuring"),
-        });
-      };
-      self.advance();
+      let name = self.parse_identifier()?;
 
       let alias = if self
         .current_token
@@ -160,19 +127,7 @@ where
         .is_some_and(|t| t.kind == krama_core::token::TokenKind::As)
       {
         self.advance();
-        let alias_name = if let Some(krama_core::token::Token {
-          kind: krama_core::token::TokenKind::Identifier(name),
-          ..
-        }) = self.current_token.as_ref()
-        {
-          *name
-        } else {
-          return Err(Error {
-            span: self.current_token.as_ref().unwrap().span,
-            kind: ErrorKind::ParserError("Expected identifier after 'as'"),
-          });
-        };
-        self.advance();
+        let alias_name = self.parse_identifier()?;
         Some(self.arena.alloc_str(alias_name))
       } else {
         None

@@ -1,3 +1,4 @@
+use krama_core::error::ErrorKind;
 use krama_core::object::Object;
 use krama_internal::{test_eval, test_eval_error};
 
@@ -121,4 +122,8 @@ test_eval!(
   Object::Integer(2)
 );
 
-test_eval_error!(should_err_type_mismatch_let_decl, "let a: i8 = 1.0;");
+test_eval_error!(
+  should_err_type_mismatch_let_decl,
+  "let a: i8 = 1.0;",
+  ErrorKind::TypeError(_)
+);

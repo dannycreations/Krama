@@ -20,40 +20,41 @@ impl<'ast> Interpreter<'ast> {
     } else {
       return Err(Error {
         span,
-        kind: ErrorKind::InvalidExpression(
-          "Invalid member expression".to_string(),
-        ),
+        kind: ErrorKind::SyntaxError("Invalid member expression".to_string()),
       });
     };
 
-    let object_type = match resolved_object {
+    let object_type = match &resolved_object {
       Object::Array { .. } => "array",
       Object::String(_) => "string",
+      Object::Tuple(_) => "tuple",
       _ => "",
     };
 
-    if let Some(prop) = self.props.get(&(object_type, property_name)) {
-      return prop(resolved_object).await;
+    if !object_type.is_empty() {
+      if let Some(prop) = self.props.get(&(object_type, property_name)) {
+        return prop(resolved_object).await;
+      }
     }
 
-    match resolved_object {
-      Object::Module(module) => {
-        let module = module.try_borrow().unwrap();
-        if let Some(export) = module.exports.get(property_name) {
-          Ok(export.clone())
-        } else {
-          Err(Error {
-            span,
-            kind: ErrorKind::IdentifierNotFound(property_name.to_string()),
-          })
-        }
+    if let Object::Module(module) = resolved_object {
+      let module = module.try_borrow().unwrap();
+      if let Some(export) = module.exports.get(property_name) {
+        Ok(export.clone())
+      } else {
+        Err(Error {
+          span,
+          kind: ErrorKind::ReferenceError(property_name.to_string()),
+        })
       }
-      _ => Err(Error {
+    } else {
+      Err(Error {
         span,
-        kind: ErrorKind::InvalidExpression(
-          "Member expression can only be used on modules".to_string(),
-        ),
-      }),
+        kind: ErrorKind::SyntaxError(format!(
+          "Property '{}' not found for type '{}'",
+          property_name, object_type
+        )),
+      })
     }
   }
 }

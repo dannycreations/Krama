@@ -20,10 +20,14 @@ impl<'a> Lexer<'a> {
       }
     }
 
+    if self.peek() != Some('"') {
+      return Token::new(TokenKind::Unknown, self.span(start));
+    }
+
     let content_end = self.position;
     let value = &self.input_str[content_start..content_end];
 
-    self.advance();
+    self.advance(); // consume closing quote
 
     Token::new(TokenKind::String(value), self.span(start))
   }

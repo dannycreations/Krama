@@ -49,29 +49,28 @@ where
     &mut self,
     expected_kind: TokenKind,
   ) -> Result<(), Error> {
-    match self.current_token.as_ref() {
-      Some(token) if token.kind == expected_kind => {
+    if let Some(token) = self.current_token.as_ref() {
+      if token.kind == expected_kind {
         self.advance();
-        Ok(())
+        return Ok(());
       }
-      Some(token) => Err(Error {
+      return Err(Error {
         span: token.span,
-        kind: ErrorKind::UnexpectedToken {
-          expected: expected_kind.into_static(),
-          found: token.kind.into_static(),
-        },
-      }),
-      None => {
-        let eof_pos = self.lexer.input_len();
-        Err(Error {
-          span: Span::new(eof_pos, eof_pos),
-          kind: ErrorKind::ParserErrorOwned(format!(
-            "Expected token {:?}, but found end of file.",
-            expected_kind,
-          )),
-        })
-      }
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected token {:?}, but got {:?}",
+          expected_kind, token.kind
+        )),
+      });
     }
+
+    let eof_pos = self.lexer.input_len();
+    Err(Error {
+      span: Span::new(eof_pos, eof_pos),
+      kind: ErrorKind::SyntaxError(format!(
+        "Expected token {:?}, but found end of file.",
+        expected_kind,
+      )),
+    })
   }
 
   pub fn parse(&mut self) -> Result<Program<'ast>, Error> {
@@ -93,6 +92,36 @@ where
       statements.push(statement);
     }
     Ok(Program { statements })
+  }
+
+  pub(super) fn parse_identifier(&mut self) -> Result<&'a str, Error> {
+    let token = self.current_token.as_ref().ok_or_else(|| {
+      let eof_pos = self.lexer.input_len();
+      Error {
+        span: Span::new(eof_pos, eof_pos),
+        kind: ErrorKind::SyntaxError(
+          "Expected identifier, found nothing".to_string(),
+        ),
+      }
+    })?;
+
+    match token.kind {
+      TokenKind::Identifier(name) => {
+        self.advance();
+        Ok(name)
+      }
+      kind if kind.is_keyword() => Err(Error {
+        span: token.span,
+        kind: ErrorKind::SyntaxError(format!("Unexpected keyword: `{}`", kind)),
+      }),
+      found => Err(Error {
+        span: token.span,
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected identifier, but got `{:?}`",
+          found
+        )),
+      }),
+    }
   }
 
   pub(super) fn current_precedence(&self) -> Precedence {

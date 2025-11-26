@@ -22,10 +22,11 @@ fn assert<'ast>(
     if objects.len() != 1 {
       return Err(Error {
         span: Default::default(),
-        kind: ErrorKind::WrongNumberOfArguments {
-          expected: 1,
-          got: objects.len(),
-        },
+        kind: ErrorKind::TypeError(format!(
+          "Expected {} arguments, but got {}",
+          1,
+          objects.len()
+        )),
       });
     }
 
@@ -48,10 +49,11 @@ fn assert_eq<'ast>(
     if objects.len() != 2 {
       return Err(Error {
         span: Default::default(),
-        kind: ErrorKind::WrongNumberOfArguments {
-          expected: 2,
-          got: objects.len(),
-        },
+        kind: ErrorKind::TypeError(format!(
+          "Expected {} arguments, but got {}",
+          2,
+          objects.len()
+        )),
       });
     }
 

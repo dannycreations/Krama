@@ -10,6 +10,7 @@ use super::PropFn;
 pub fn get_props() -> FxHashMap<(&'static str, &'static str), PropFn> {
   let mut props = FxHashMap::default();
   props.insert(("array", "length"), length as PropFn);
+  props.insert(("tuple", "length"), length as PropFn);
   props
 }
 
@@ -21,11 +22,13 @@ fn length<'ast>(
       Object::Array { elements, .. } => {
         Ok(Object::Integer(elements.len() as i64))
       }
+      Object::Tuple(elements) => Ok(Object::Integer(elements.len() as i64)),
       _ => Err(Error {
         span: Default::default(),
-        kind: ErrorKind::TypeMismatch(
-          "length property can only be used on arrays".to_string(),
-        ),
+        kind: ErrorKind::TypeError(format!(
+          "Cannot get length of type `{}`",
+          object.type_name()
+        )),
       }),
     }
   }

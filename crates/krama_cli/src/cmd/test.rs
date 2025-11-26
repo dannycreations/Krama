@@ -1,7 +1,5 @@
-use crate::cmd::CommandExecutor;
 use crate::error::report_error;
 use anyhow::{Context, Result};
-use async_trait::async_trait;
 use bumpalo::Bump;
 use clap::Parser;
 use futures::future::BoxFuture;
@@ -13,7 +11,7 @@ use tokio::fs;
 #[derive(Parser)]
 pub struct Test {
   #[clap(default_value = "src")]
-  path: String,
+  pub path: String,
 }
 
 fn find_test_files<'a>(
@@ -35,9 +33,8 @@ fn find_test_files<'a>(
   .boxed()
 }
 
-#[async_trait(?Send)]
-impl CommandExecutor for Test {
-  async fn execute<'a>(&self, _arena: &'a Bump) -> Result<()> {
+impl Test {
+  pub async fn execute(&self, arena: &mut Bump) -> Result<()> {
     let mut passed = 0;
     let mut failed = 0;
 
@@ -51,35 +48,37 @@ impl CommandExecutor for Test {
     find_test_files(path, &mut test_files).await?;
 
     for path_buf in test_files {
-      let path = path_buf.as_path();
-      let arena = Bump::new();
-      let content = fs::read_to_string(&path).await?;
-      let path_str = path.to_str().context("path is not valid UTF-8")?;
-      let interpreter = Interpreter::new(&arena, Some(path_str));
-      let content_in_arena = arena.alloc_str(&content);
+      {
+        let path = path_buf.as_path();
+        let content = fs::read_to_string(&path).await?;
+        let path_str = path.to_str().context("path is not valid UTF-8")?;
+        let interpreter = Interpreter::new(arena, Some(path_str));
+        let content_in_arena = arena.alloc_str(&content);
 
-      println!("Running {}", path.display());
+        println!("Running {}", path.display());
 
-      match interpreter.run_tests(content_in_arena).await {
-        Ok(results) => {
-          for result in results {
-            if result.passed {
-              println!("  test {} ... ok", result.name);
-              passed += 1;
-            } else {
-              println!("  '{}'... failed", result.name);
-              if let Some(err) = result.error {
-                report_error(path_str, &content, err);
+        match interpreter.run_tests(content_in_arena).await {
+          Ok(results) => {
+            for result in results {
+              if result.passed {
+                println!("  test {} ... ok", result.name);
+                passed += 1;
+              } else {
+                println!("  '{}'... failed", result.name);
+                if let Some(err) = result.error {
+                  report_error(path_str, &content, err);
+                }
+                failed += 1;
               }
-              failed += 1;
             }
           }
-        }
-        Err(err) => {
-          report_error(path_str, &content, err);
-          failed += 1;
+          Err(err) => {
+            report_error(path_str, &content, err);
+            failed += 1;
+          }
         }
       }
+      arena.reset();
     }
     println!("\nTest results: {} passed, {} failed", passed, failed);
     Ok(())

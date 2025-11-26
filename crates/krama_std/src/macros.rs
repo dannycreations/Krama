@@ -13,25 +13,36 @@ macro_rules! parse_args {
         if $objects.len() != EXPECTED_ARGS {
             return Err(Error {
                 span: Default::default(),
-                kind: ErrorKind::WrongNumberOfArguments {
-                    expected: EXPECTED_ARGS,
-                    got: $objects.len(),
-                },
+                kind: ErrorKind::TypeError(format!(
+                    "Expected {} arguments, but got {}",
+                    EXPECTED_ARGS,
+                    $objects.len()
+                )),
             });
         }
 
         let mut arg_iter = $objects.iter();
         $(
-            let $arg = match arg_iter.next().unwrap() {
-                $type => $arg,
-                other => {
+            let $arg = match arg_iter.next() {
+                Some($type) => $arg,
+                Some(other) => {
                     return Err(Error {
                         span: Default::default(),
-                        kind: ErrorKind::TypeMismatch(format!(
+                        kind: ErrorKind::TypeError(format!(
                             "Expected argument '{}' to be of type '{}', but got {}",
                             stringify!($arg),
                             stringify!($type),
                             other.to_string()
+                        )),
+                    });
+                }
+                None => {
+                    return Err(Error {
+                        span: Default::default(),
+                        kind: ErrorKind::TypeError(format!(
+                            "Expected {} arguments, but got {}",
+                            EXPECTED_ARGS,
+                            $objects.len()
                         )),
                     });
                 }

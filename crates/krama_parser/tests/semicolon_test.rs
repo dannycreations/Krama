@@ -5,7 +5,7 @@ use krama_core::span::Span;
 use krama_internal::test_parser;
 
 test_parser!(
-  test_semicolon_statement,
+  should_semicolon_statement,
   "1;",
   1,
   |statement: &Statement| {
@@ -24,7 +24,7 @@ test_parser!(
 );
 
 test_parser!(
-  test_semicolon_statement_without_semicolon,
+  should_semicolon_statement_without_semicolon,
   "1",
   1,
   |statement: &Statement| {
@@ -43,7 +43,7 @@ test_parser!(
 );
 
 #[test]
-fn test_multiple_statements_with_and_without_semicolon() {
+fn should_multiple_statements_with_and_without_semicolon() {
   let text = "1;2\n3";
   let arena = bumpalo::Bump::new();
   let lexer = krama_lexer::lexer::Lexer::new(text);

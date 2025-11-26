@@ -17,6 +17,8 @@ use krama_core::ast::expression::ExpressionKind;
 use krama_core::ast::statement::Statement;
 use krama_core::ast::statement::StatementKind;
 use krama_core::error::Error;
+use krama_core::error::ErrorKind;
+use krama_core::span::Span;
 use krama_core::token::TokenKind;
 
 impl<'a, 'ast> Parser<'a, 'ast>
@@ -29,7 +31,9 @@ where
     let expression = self.parse_expression(Precedence::Lowest)?;
     let span = expression.span;
     Ok(Statement {
-      kind: StatementKind::Expression { expression },
+      kind: StatementKind::Expression {
+        expression: self.arena.alloc(expression),
+      },
       span,
     })
   }
@@ -41,15 +45,16 @@ where
     let mut left = self.parse_prefix_expression()?;
 
     while precedence < self.current_precedence() {
-      if self
-        .current_token
-        .as_ref()
-        .is_some_and(|t| t.kind == TokenKind::Newline)
-      {
+      let token = match self.current_token.as_ref() {
+        Some(token) => *token,
+        None => break,
+      };
+
+      if token.kind == TokenKind::Newline {
         break;
       }
 
-      left = match self.current_token.as_ref().unwrap().kind {
+      left = match token.kind {
         TokenKind::LParen => self.parse_call_expression(left)?,
         TokenKind::Dot => self.parse_member_expression(left)?,
         TokenKind::PlusPlus | TokenKind::MinusMinus => {
@@ -63,9 +68,16 @@ where
   }
 
   fn parse_prefix_expression(&mut self) -> ParseError<'ast> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token.as_ref().ok_or_else(|| {
+      let eof_pos = self.lexer.input_len();
+      Error {
+        span: Span::new(eof_pos, eof_pos),
+        kind: ErrorKind::SyntaxError("Unexpected end of file".to_string()),
+      }
+    })?;
+
     match token.kind {
-      TokenKind::Identifier(_) => self.parse_identifier(),
+      TokenKind::Identifier(_) => self.parse_identifier_expression(),
       TokenKind::Integer(_) => self.parse_integer(),
       TokenKind::Float(_) => self.parse_float(),
       TokenKind::String(_) => self.parse_string(),
@@ -94,9 +106,10 @@ where
       }
       _ => Err(Error {
         span: token.span,
-        kind: krama_core::error::ErrorKind::ParserError(
-          "Unexpected token for prefix expression",
-        ),
+        kind: krama_core::error::ErrorKind::SyntaxError(format!(
+          "Unexpected token for prefix expression: {:?}",
+          token.kind
+        )),
       }),
     }
   }

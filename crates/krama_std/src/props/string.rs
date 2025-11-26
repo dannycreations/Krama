@@ -21,9 +21,10 @@ fn length<'ast>(
       Object::String(s) => Ok(Object::Integer(s.len() as i64)),
       _ => Err(Error {
         span: Default::default(),
-        kind: ErrorKind::RuntimeError(
-          "length is not a property of this object".to_string(),
-        ),
+        kind: ErrorKind::TypeError(format!(
+          "Cannot get length of type `{}`",
+          object.type_name()
+        )),
       }),
     }
   }

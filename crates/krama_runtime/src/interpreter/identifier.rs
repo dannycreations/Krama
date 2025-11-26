@@ -10,9 +10,14 @@ impl<'ast> Interpreter<'ast> {
     name: &'ast str,
     span: Span,
   ) -> Result<Object<'ast>, Error> {
-    self.environment.borrow().get(name).ok_or_else(|| Error {
-      span,
-      kind: ErrorKind::IdentifierNotFound(name.to_string()),
-    })
+    self
+      .environment
+      .borrow()
+      .get(name)
+      .map(|o| (*o).clone())
+      .ok_or_else(|| Error {
+        span,
+        kind: ErrorKind::ReferenceError(name.to_string()),
+      })
   }
 }

@@ -22,3 +22,9 @@ test_lexer_single!(
   r#""hello \"world\"""#,
   TokenKind::String(r#"hello \"world\""#)
 );
+
+test_lexer_single!(
+  should_lex_unterminated_string_lit,
+  r#""hello"#,
+  TokenKind::Unknown
+);

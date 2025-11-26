@@ -100,8 +100,8 @@ where
       } else {
         return Err(Error {
           span: token.span,
-          kind: ErrorKind::ParserError(
-            "Expected integer literal for array size",
+          kind: ErrorKind::SyntaxError(
+            "Expected integer literal for array size".to_string(),
           ),
         });
       }
@@ -147,7 +147,7 @@ where
       _ => {
         return Err(Error {
           span,
-          kind: ErrorKind::ParserError("Expected type"),
+          kind: ErrorKind::SyntaxError("Expected type".to_string()),
         })
       }
     };

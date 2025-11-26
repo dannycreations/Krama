@@ -16,7 +16,7 @@ impl<'ast> Interpreter<'ast> {
     let condition = self.eval_expression(condition, None).await?;
     let condition = self.resolve_object(condition).await?;
 
-    if self.is_truthy(&condition) {
+    if condition.is_truthy() {
       self.eval_expression(then_branch, kind).await
     } else if let Some(else_branch) = else_branch {
       self.eval_expression(else_branch, kind).await

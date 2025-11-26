@@ -11,20 +11,13 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'a: 'ast,
 {
-  pub(super) fn parse_identifier(&mut self) -> ParseError<'ast> {
+  pub(super) fn parse_identifier_expression(&mut self) -> ParseError<'ast> {
     let token = *self.current_token.as_ref().unwrap();
-    if let TokenKind::Identifier(name) = token.kind {
-      self.advance();
-      Ok(Expression {
-        kind: ExpressionKind::Identifier(self.arena.alloc_str(name)),
-        span: token.span,
-      })
-    } else {
-      Err(Error {
-        span: token.span,
-        kind: ErrorKind::ParserError("Expected identifier"),
-      })
-    }
+    let name = self.parse_identifier()?;
+    Ok(Expression {
+      kind: ExpressionKind::Identifier(name),
+      span: token.span,
+    })
   }
 
   pub(super) fn parse_integer(&mut self) -> ParseError<'ast> {
@@ -43,7 +36,7 @@ where
     } else {
       Err(Error {
         span: token.span,
-        kind: ErrorKind::ParserError("Expected integer"),
+        kind: ErrorKind::SyntaxError("Expected integer".to_string()),
       })
     }
   }
@@ -64,7 +57,7 @@ where
     } else {
       Err(Error {
         span: token.span,
-        kind: ErrorKind::ParserError("Expected float"),
+        kind: ErrorKind::SyntaxError("Expected float".to_string()),
       })
     }
   }
@@ -82,7 +75,7 @@ where
     } else {
       Err(Error {
         span: token.span,
-        kind: ErrorKind::ParserError("Expected string"),
+        kind: ErrorKind::SyntaxError("Expected string".to_string()),
       })
     }
   }

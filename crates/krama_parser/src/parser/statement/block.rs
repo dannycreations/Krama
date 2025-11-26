@@ -42,7 +42,9 @@ where
     if self.current_token.is_none() {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Unexpected end of file: missing '}'"),
+        kind: ErrorKind::SyntaxError(
+          "Unexpected end of file: missing '}'".to_string(),
+        ),
       });
     }
 

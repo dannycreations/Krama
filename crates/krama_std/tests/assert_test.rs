@@ -1,3 +1,4 @@
+use krama_core::error::ErrorKind;
 use krama_core::object::Object;
 use krama_internal::{test_eval, test_eval_error};
 
@@ -25,7 +26,7 @@ test_eval_error!(
         const { assert } = @import("std:assert")
         assert(false)
     "#,
-  "Runtime error: Assertion failed"
+  ErrorKind::RuntimeError(_)
 );
 
 test_eval_error!(
@@ -34,5 +35,5 @@ test_eval_error!(
         const { assertEqual } = @import("std:assert")
         assertEqual(1, 2)
     "#,
-  "Runtime error: Assertion failed: Integer(1) != Integer(2)"
+  ErrorKind::RuntimeError(_)
 );

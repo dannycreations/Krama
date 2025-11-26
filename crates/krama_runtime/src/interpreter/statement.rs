@@ -10,8 +10,7 @@ use krama_core::ast::statement::Statement;
 use krama_core::ast::statement::StatementKind;
 use krama_core::error::Error;
 use krama_core::error::ErrorKind;
-use krama_core::object::Object;
-use krama_core::object::UserFn;
+use krama_core::object::{Function, Object, UserFn};
 use std::rc::Rc;
 use tokio::task;
 
@@ -24,10 +23,12 @@ impl<'ast> Interpreter<'ast> {
       let span = statement.span;
       match &statement.kind {
         StatementKind::Expression { expression } => {
-          self.eval_expression(expression, None).await
+          let value = self.eval_expression(expression, None).await?;
+          self.resolve_object(value).await
         }
         StatementKind::Let { name, value, kind } => {
           let value = self.eval_expression(value, kind.as_ref()).await?;
+          let value = self.resolve_object(value).await?;
 
           if let Some(kind) = kind {
             check_type(kind, &value)?;
@@ -41,11 +42,11 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
         StatementKind::Test { name: _, body } => {
-          let function = Object::UserFn(Rc::new(UserFn {
+          let function = Object::Function(Function::User(Rc::new(UserFn {
             parameters: BumpVec::new_in(self.arena),
-            body: FunctionBody::Block(self.arena.alloc(body.clone())),
+            body: FunctionBody::Block(body),
             kind: None,
-          }));
+          })));
           self
             .eval_call_expression(function, BumpVec::new_in(self.arena), span)
             .await
@@ -57,6 +58,7 @@ impl<'ast> Interpreter<'ast> {
           kind,
         } => {
           let value = self.eval_expression(value, kind.as_ref()).await?;
+          let value = self.resolve_object(value).await?;
 
           if let Some(kind) = kind {
             check_type(kind, &value)?;
@@ -84,16 +86,14 @@ impl<'ast> Interpreter<'ast> {
                   } else {
                     return Err(Error {
                       span,
-                      kind: ErrorKind::IdentifierNotFound(
-                        item.name.to_string(),
-                      ),
+                      kind: ErrorKind::ReferenceError(item.name.to_string()),
                     });
                   }
                 }
               } else {
                 return Err(Error {
                   span,
-                  kind: ErrorKind::TypeMismatch(
+                  kind: ErrorKind::TypeError(
                     "Destructuring can only be done on modules".to_string(),
                   ),
                 });
@@ -121,16 +121,14 @@ impl<'ast> Interpreter<'ast> {
                   } else {
                     return Err(Error {
                       span,
-                      kind: ErrorKind::IdentifierNotFound(
-                        item.name.to_string(),
-                      ),
+                      kind: ErrorKind::ReferenceError(item.name.to_string()),
                     });
                   }
                 }
               } else {
                 return Err(Error {
                   span,
-                  kind: ErrorKind::TypeMismatch(
+                  kind: ErrorKind::TypeError(
                     "Destructuring can only be done on modules".to_string(),
                   ),
                 });
@@ -146,11 +144,11 @@ impl<'ast> Interpreter<'ast> {
           public,
           kind,
         } => {
-          let function = Object::UserFn(Rc::new(UserFn {
+          let function = Object::Function(Function::User(Rc::new(UserFn {
             parameters: parameters.clone(),
-            body: FunctionBody::Block(self.arena.alloc(body.clone())),
+            body: FunctionBody::Block(body),
             kind: kind.clone(),
-          }));
+          })));
           self
             .environment
             .try_borrow_mut()
@@ -163,7 +161,8 @@ impl<'ast> Interpreter<'ast> {
             Some(expression) => self.eval_expression(expression, None).await?,
             None => Object::Void,
           };
-          Ok(Object::Return(self.arena.alloc(value)))
+          let value = self.resolve_object(value).await?;
+          Ok(Object::Return(Box::new(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),
@@ -172,7 +171,9 @@ impl<'ast> Interpreter<'ast> {
             task::yield_now().await;
             let condition_result =
               self.eval_expression(condition, None).await?;
-            if !self.is_truthy(&condition_result) {
+            let condition_result =
+              self.resolve_object(condition_result).await?;
+            if !condition_result.is_truthy() {
               break;
             }
             let result = self.eval_block_statement(body).await?;

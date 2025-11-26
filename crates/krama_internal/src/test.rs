@@ -58,14 +58,19 @@ macro_rules! test_eval_is_native_function {
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
       let result = $crate::resolve_future!(result);
-      assert!(matches!(result, ::krama_core::object::Object::NativeFn(_)));
+      assert!(matches!(
+        result,
+        ::krama_core::object::Object::Function(
+          ::krama_core::object::Function::Native(_)
+        )
+      ));
     }
   };
 }
 
 #[macro_export]
 macro_rules! test_eval_error {
-  ($name:ident, $source:expr, $expected:expr) => {
+  ($name:ident, $source:expr, $expected:pat) => {
     #[tokio::test]
     async fn $name() {
       let arena = ::bumpalo::Bump::new();
@@ -73,7 +78,7 @@ macro_rules! test_eval_error {
         ::krama_runtime::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await;
-      assert_eq!(result.unwrap_err().to_string(), $expected);
+      assert!(matches!(result.unwrap_err().kind, $expected));
     }
   };
 
@@ -164,8 +169,9 @@ macro_rules! test_parser {
       let arena = ::bumpalo::Bump::new();
       let lexer = ::krama_lexer::lexer::Lexer::new($source);
       let mut parser = ::krama_parser::parser::Parser::new(lexer, &arena);
-      let program = parser.parse().unwrap();
-      assert_eq!(program.statements.len(), $len);
+      let program = parser.parse();
+      assert!(program.is_ok());
+      assert_eq!(program.unwrap().statements.len(), $len);
     }
   };
   ($name:ident, $source:expr, $len:expr, $assertion:expr) => {
@@ -174,10 +180,28 @@ macro_rules! test_parser {
       let arena = ::bumpalo::Bump::new();
       let lexer = ::krama_lexer::lexer::Lexer::new($source);
       let mut parser = ::krama_parser::parser::Parser::new(lexer, &arena);
-      let program = parser.parse().unwrap();
+      let program = parser.parse();
+      assert!(program.is_ok());
+      let program = program.unwrap();
       assert_eq!(program.statements.len(), $len);
       let statement = &program.statements[0];
       $assertion(statement);
+    }
+  };
+}
+
+#[macro_export]
+macro_rules! test_parser_error {
+  ($name:ident, $source:expr, $assertion:expr) => {
+    #[test]
+    fn $name() {
+      let arena = ::bumpalo::Bump::new();
+      let lexer = ::krama_lexer::lexer::Lexer::new($source);
+      let mut parser = ::krama_parser::parser::Parser::new(lexer, &arena);
+      let program = parser.parse();
+      assert!(program.is_err());
+      let error = program.unwrap_err();
+      $assertion(error);
     }
   };
 }

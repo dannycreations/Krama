@@ -3,7 +3,7 @@ use krama_core::token::Token;
 use krama_core::token::TokenKind;
 
 impl<'a> Lexer<'a> {
-  pub(super) fn number(&mut self, start: usize, _: char) -> Token<'a> {
+  pub(super) fn number(&mut self, start: usize) -> Token<'a> {
     let mut is_float = false;
     let num_start = self.position - 1;
 

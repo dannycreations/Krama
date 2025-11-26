@@ -24,7 +24,9 @@ where
     };
 
     Ok(Statement {
-      kind: StatementKind::Return { value },
+      kind: StatementKind::Return {
+        value: value.map(|v| self.arena.alloc(v) as &_),
+      },
       span: start_span,
     })
   }

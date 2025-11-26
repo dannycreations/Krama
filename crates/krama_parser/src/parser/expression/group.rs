@@ -60,8 +60,9 @@ where
 
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError(
-          "Empty parenthesis are only valid for function expressions.",
+        kind: ErrorKind::SyntaxError(
+          "Empty parenthesis are only valid for function expressions."
+            .to_string(),
         ),
       });
     }
@@ -86,8 +87,8 @@ where
     {
       return Err(Error {
         span: self.current_token.as_ref().unwrap().span,
-        kind: ErrorKind::ParserError(
-          "Expected ')' after expression or parameter list",
+        kind: ErrorKind::SyntaxError(
+          "Expected ')' after expression or parameter list".to_string(),
         ),
       });
     }
@@ -146,7 +147,7 @@ where
       // e.g. `(1, 2)` which is not a function and not a single expression.
       Err(Error {
                 span: start_span,
-                kind: ErrorKind::ParserError("Invalid grouped expression. It should contain only one expression. Tuples are not supported."),
+                kind: ErrorKind::SyntaxError("Invalid grouped expression. It should contain only one expression. Tuples are not supported.".to_string()),
             })
     }
   }

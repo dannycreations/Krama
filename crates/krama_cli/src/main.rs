@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bumpalo::Bump;
 use clap::Parser as ClapParser;
-use krama_cli::cmd::{repl::Repl, CommandExecutor};
+use krama_cli::cmd::{repl::Repl, run::Run, test::Test};
 
 #[derive(ClapParser)]
 #[clap(author, version, about, long_about = None)]
@@ -12,20 +12,26 @@ struct Args {
 
 #[derive(ClapParser)]
 enum Command {
-  Run(krama_cli::cmd::run::Run),
-  Test(krama_cli::cmd::test::Test),
+  Run(Run),
+  Test(Test),
+}
+
+impl Command {
+  async fn execute(self, arena: &mut Bump) -> Result<()> {
+    match self {
+      Command::Run(run) => run.execute(arena).await,
+      Command::Test(test) => test.execute(arena).await,
+    }
+  }
 }
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
   let args = Args::parse();
-  let arena = Bump::new();
+  let mut arena = Bump::new();
 
-  let command: Box<dyn CommandExecutor> = match args.command {
-    Some(Command::Run(run)) => Box::new(run),
-    Some(Command::Test(test)) => Box::new(test),
-    None => Box::new(Repl),
-  };
-
-  command.execute(&arena).await
+  match args.command {
+    Some(command) => command.execute(&mut arena).await,
+    None => Repl.execute(&arena).await,
+  }
 }

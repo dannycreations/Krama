@@ -22,7 +22,10 @@ where
     let body = self.parse_block_statement()?;
 
     Ok(Statement {
-      kind: StatementKind::While { condition, body },
+      kind: StatementKind::While {
+        condition: self.arena.alloc(condition),
+        body: self.arena.alloc(body),
+      },
       span: start_span,
     })
   }

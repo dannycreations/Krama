@@ -1,7 +1,5 @@
-use crate::cmd::CommandExecutor;
 use crate::error::report_error;
 use anyhow::Result;
-use async_trait::async_trait;
 use bumpalo::Bump;
 use clap::Parser;
 use krama_core::object::Object;
@@ -12,9 +10,8 @@ use tokio::signal;
 #[derive(Parser)]
 pub struct Repl;
 
-#[async_trait(?Send)]
-impl CommandExecutor for Repl {
-  async fn execute<'a>(&self, arena: &'a Bump) -> Result<()> {
+impl Repl {
+  pub async fn execute(&self, arena: &Bump) -> Result<()> {
     let interpreter = Interpreter::new(arena, None);
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();

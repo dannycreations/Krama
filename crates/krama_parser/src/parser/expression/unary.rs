@@ -24,7 +24,7 @@ where
       _ => {
         return Err(Error {
           span: token.span,
-          kind: ErrorKind::ParserError("Invalid unary operator"),
+          kind: ErrorKind::SyntaxError("Invalid unary operator".to_string()),
         })
       }
     };
@@ -47,7 +47,7 @@ where
       _ => {
         return Err(Error {
           span: token.span,
-          kind: ErrorKind::ParserError("Invalid prefix operator"),
+          kind: ErrorKind::SyntaxError("Invalid prefix operator".to_string()),
         })
       }
     };

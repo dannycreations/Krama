@@ -46,7 +46,7 @@ pub(crate) fn check_type<'ast>(
           if elements.len() > *size as usize {
             return Err(Error {
               span: expected_type.span,
-              kind: ErrorKind::TypeMismatch(format!(
+              kind: ErrorKind::TypeError(format!(
                 "Expected an array of size {}, but got {}",
                 size,
                 elements.len()
@@ -54,7 +54,7 @@ pub(crate) fn check_type<'ast>(
             });
           }
         }
-        for element in elements {
+        for element in &**elements {
           stack.push((element_type, element));
         }
         false
@@ -63,7 +63,7 @@ pub(crate) fn check_type<'ast>(
         if types.len() != elements.len() {
           return Err(Error {
             span: expected_type.span,
-            kind: ErrorKind::TypeMismatch(format!(
+            kind: ErrorKind::TypeError(format!(
               "Expected a tuple of {} elements, but got {}",
               types.len(),
               elements.len()
@@ -71,7 +71,7 @@ pub(crate) fn check_type<'ast>(
           });
         }
 
-        for (kind, element) in types.iter().zip(elements) {
+        for (kind, element) in types.iter().zip(&**elements) {
           stack.push((kind, element));
         }
         false
@@ -82,7 +82,7 @@ pub(crate) fn check_type<'ast>(
     if mismatched {
       return Err(Error {
         span: expected_type.span,
-        kind: ErrorKind::TypeMismatch(format!(
+        kind: ErrorKind::TypeError(format!(
           "Expected type {:?}, but got {:?}",
           expected_type.kind, object
         )),

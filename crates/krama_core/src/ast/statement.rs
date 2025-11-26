@@ -41,36 +41,36 @@ pub struct Parameter<'ast> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum StatementKind<'ast> {
   Test {
-    name: Expression<'ast>,
-    body: BlockStatement<'ast>,
+    name: &'ast Expression<'ast>,
+    body: &'ast BlockStatement<'ast>,
   },
   Const {
     public: bool,
     binding: Binding<'ast>,
     kind: Option<Type<'ast>>,
-    value: Expression<'ast>,
+    value: &'ast Expression<'ast>,
   },
   Let {
     name: &'ast str,
     kind: Option<Type<'ast>>,
-    value: Expression<'ast>,
+    value: &'ast Expression<'ast>,
   },
   Fn {
     public: bool,
     name: &'ast str,
     parameters: BumpVec<'ast, Parameter<'ast>>,
-    body: BlockStatement<'ast>,
+    body: &'ast BlockStatement<'ast>,
     kind: Option<Type<'ast>>,
   },
   Expression {
-    expression: Expression<'ast>,
+    expression: &'ast Expression<'ast>,
   },
   Return {
-    value: Option<Expression<'ast>>,
+    value: Option<&'ast Expression<'ast>>,
   },
   While {
-    condition: Expression<'ast>,
-    body: BlockStatement<'ast>,
+    condition: &'ast Expression<'ast>,
+    body: &'ast BlockStatement<'ast>,
   },
   Break,
   Continue,

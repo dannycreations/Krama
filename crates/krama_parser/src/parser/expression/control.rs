@@ -26,7 +26,9 @@ where
     {
       return Err(Error {
         span: self.current_token.as_ref().unwrap().span,
-        kind: ErrorKind::ParserError("Expected '(' after 'if' or 'elif'"),
+        kind: ErrorKind::SyntaxError(
+          "Expected '(' after 'if' or 'elif'".to_string(),
+        ),
       });
     }
     self.advance();
@@ -40,7 +42,9 @@ where
     {
       return Err(Error {
         span: self.current_token.as_ref().unwrap().span,
-        kind: ErrorKind::ParserError("Expected ')' after if condition"),
+        kind: ErrorKind::SyntaxError(
+          "Expected ')' after if condition'".to_string(),
+        ),
       });
     }
     self.advance();
@@ -94,7 +98,7 @@ where
     {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Expected '(' after 'match'"),
+        kind: ErrorKind::SyntaxError("Expected '(' after 'match'".to_string()),
       });
     }
     self.advance();
@@ -108,7 +112,9 @@ where
     {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Expected ')' after match subject"),
+        kind: ErrorKind::SyntaxError(
+          "Expected ')' after match subject".to_string(),
+        ),
       });
     }
     self.advance();
@@ -120,7 +126,7 @@ where
     {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Expected '{' for match arms"),
+        kind: ErrorKind::SyntaxError("Expected '{' for match arms".to_string()),
       });
     }
     self.advance();
@@ -151,7 +157,9 @@ where
     if self.current_token.is_none() {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Unexpected end of file: missing '}'"),
+        kind: ErrorKind::SyntaxError(
+          "Unexpected end of file: missing '}'".to_string(),
+        ),
       });
     }
 
@@ -212,7 +220,9 @@ where
     } else {
       return Err(Error {
         span: self.current_token.as_ref().unwrap().span,
-        kind: ErrorKind::ParserError("Expected '=>' or '{' for match arm body"),
+        kind: ErrorKind::SyntaxError(
+          "Expected '=>' or '{' for match arm body".to_string(),
+        ),
       });
     };
 

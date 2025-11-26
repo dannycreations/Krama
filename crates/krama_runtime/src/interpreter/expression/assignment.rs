@@ -22,7 +22,7 @@ impl<'ast> Interpreter<'ast> {
     } else {
       return Err(Error {
         span,
-        kind: ErrorKind::TypeMismatch(
+        kind: ErrorKind::TypeError(
           "Expected identifier for assignment".to_string(),
         ),
       });
@@ -42,10 +42,10 @@ impl<'ast> Interpreter<'ast> {
     let left_val =
       self.environment.borrow().get(ident).ok_or_else(|| Error {
         span,
-        kind: ErrorKind::IdentifierNotFound(ident.to_string()),
+        kind: ErrorKind::ReferenceError(ident.to_string()),
       })?;
     let new_val = self
-      .eval_binary_expression(operator, left_val, right_val, span)
+      .eval_binary_expression(operator, (*left_val).clone(), right_val, span)
       .await?;
     self
       .environment
@@ -66,7 +66,7 @@ impl<'ast> Interpreter<'ast> {
     } else {
       return Err(Error {
         span,
-        kind: ErrorKind::TypeMismatch(
+        kind: ErrorKind::TypeError(
           "Expected identifier for update expression".to_string(),
         ),
       });
@@ -75,9 +75,10 @@ impl<'ast> Interpreter<'ast> {
     let original_value =
       self.environment.borrow().get(ident).ok_or_else(|| Error {
         span,
-        kind: ErrorKind::IdentifierNotFound(ident.to_string()),
+        kind: ErrorKind::ReferenceError(ident.to_string()),
       })?;
-    let resolved_original_value = self.resolve_object(original_value).await?;
+    let resolved_original_value =
+      self.resolve_object((*original_value).clone()).await?;
     let new_value = match (operator, resolved_original_value.clone()) {
       (UpdateOperator::Increment, Object::Integer(i)) => Object::Integer(i + 1),
       (UpdateOperator::Decrement, Object::Integer(i)) => Object::Integer(i - 1),
@@ -86,7 +87,7 @@ impl<'ast> Interpreter<'ast> {
       _ => {
         return Err(Error {
           span,
-          kind: ErrorKind::TypeMismatch(
+          kind: ErrorKind::TypeError(
             "Update operator can only be applied to numbers".to_string(),
           ),
         })

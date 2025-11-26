@@ -5,7 +5,7 @@ use krama_core::ast::expression::FunctionBody;
 use krama_core::ast::statement::Statement;
 use krama_core::ast::statement::StatementKind;
 use krama_core::error::Error;
-use krama_core::object::Object;
+use krama_core::object::{Function, Object};
 use std::rc::Rc;
 
 pub struct TestResult {
@@ -74,10 +74,10 @@ impl<'ast> Interpreter<'ast> {
 
         let function = krama_core::object::UserFn {
           parameters: bumpalo::collections::Vec::new_in(self.arena),
-          body: FunctionBody::Block(self.arena.alloc(body.clone())),
+          body: FunctionBody::Block(body),
           kind: None,
         };
-        let callee = Object::UserFn(Rc::new(function));
+        let callee = Object::Function(Function::User(Rc::new(function)));
 
         let result = self
           .eval_call_expression(

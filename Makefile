@@ -7,8 +7,14 @@ check: format
 test: check
 	cargo test -- --no-capture
 
-spec_run:
+krama_run:
 	cargo run run
 
-spec_test:
+krama_test:
 	cargo run test
+
+cargo_machete:
+	cargo machete
+
+cargo_tarpaulin:
+	cargo tarpaulin --all-targets -- --test-threads 1 --no-capture

@@ -24,7 +24,7 @@ where
       _ => {
         return Err(Error {
           span: token.span,
-          kind: ErrorKind::ParserError("Invalid postfix operator"),
+          kind: ErrorKind::SyntaxError("Invalid postfix operator".to_string()),
         })
       }
     };
@@ -83,7 +83,7 @@ where
       _ => {
         return Err(Error {
           span: token.span,
-          kind: ErrorKind::ParserError("Invalid infix operator"),
+          kind: ErrorKind::SyntaxError("Invalid infix operator".to_string()),
         })
       }
     };

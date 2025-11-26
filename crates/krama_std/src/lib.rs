@@ -3,9 +3,7 @@ mod macros;
 pub mod modules;
 pub mod props;
 
-use krama_core::object::NativeFn;
-use krama_core::object::NativeFnCallback;
-use krama_core::object::Object;
+use krama_core::object::{Function, NativeFn, NativeFnCallback, Object};
 use rustc_hash::FxHashMap;
 
 pub(crate) fn build_native_functions<'ast>(
@@ -16,10 +14,10 @@ pub(crate) fn build_native_functions<'ast>(
     .map(|(name, callback)| {
       (
         *name,
-        Object::NativeFn(NativeFn {
+        Object::Function(Function::Native(NativeFn {
           name,
           callback: *callback,
-        }),
+        })),
       )
     })
     .collect()

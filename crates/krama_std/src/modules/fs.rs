@@ -10,6 +10,7 @@ use krama_core::object::NativeFnCallback;
 use krama_core::object::Object;
 use rustc_hash::FxHashMap;
 use std::path::Path;
+use std::rc::Rc;
 use tokio::fs;
 
 pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
@@ -34,12 +35,15 @@ fn read_file<'ast>(
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));
     let path = Path::new(*path_str);
-    let contents = fs::read_to_string(path).await.map_err(|e| Error {
+    let contents = fs::read(path).await.map_err(|e| Error {
       span: Default::default(),
       kind: ErrorKind::RuntimeError(e.to_string()),
     })?;
-
-    Ok(Object::String(arena.alloc_str(&contents)))
+    let contents_str = std::str::from_utf8(&contents).map_err(|e| Error {
+      span: Default::default(),
+      kind: ErrorKind::RuntimeError(e.to_string()),
+    })?;
+    Ok(Object::String(arena.alloc_str(contents_str)))
   })
 }
 
@@ -118,7 +122,7 @@ fn read_dir<'ast>(
     }
 
     Ok(Object::Array {
-      elements: entries,
+      elements: Rc::new(entries),
       kind: Type {
         kind: TypeKind::Identifier("str"),
         span: Default::default(),

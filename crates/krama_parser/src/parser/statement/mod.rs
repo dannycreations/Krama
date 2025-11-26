@@ -1,6 +1,8 @@
 use super::Parser;
 use krama_core::ast::statement::Statement;
 use krama_core::error::Error;
+use krama_core::error::ErrorKind;
+use krama_core::span::Span;
 use krama_core::token::TokenKind;
 
 pub(super) mod assignment;
@@ -16,7 +18,14 @@ where
   'a: 'ast,
 {
   pub(super) fn parse_statement(&mut self) -> Result<Statement<'ast>, Error> {
-    let token = *self.current_token.as_ref().unwrap();
+    let token = self.current_token.as_ref().ok_or_else(|| {
+      let eof_pos = self.lexer.input_len();
+      Error {
+        span: Span::new(eof_pos, eof_pos),
+        kind: ErrorKind::SyntaxError("Unexpected end of file".to_string()),
+      }
+    })?;
+
     let statement = match token.kind {
       TokenKind::Pub => self.parse_pub_statement(),
       TokenKind::Const => self.parse_const_statement(false, token.span),

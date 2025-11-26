@@ -18,7 +18,9 @@ where
       TokenKind::Fn => self.parse_fn_statement(true, start_span),
       _ => Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Expected 'const' or 'fn' after 'pub'"),
+        kind: ErrorKind::SyntaxError(
+          "Expected 'const' or 'fn' after 'pub'".to_string(),
+        ),
       }),
     }
   }

@@ -117,4 +117,44 @@ impl<'a> TokenKind<'a> {
       },
     }
   }
+
+  pub fn is_keyword(&self) -> bool {
+    matches!(
+      self,
+      TokenKind::Const
+        | TokenKind::Fn
+        | TokenKind::Pub
+        | TokenKind::Let
+        | TokenKind::If
+        | TokenKind::Elif
+        | TokenKind::Else
+        | TokenKind::Match
+        | TokenKind::While
+        | TokenKind::Return
+        | TokenKind::Break
+        | TokenKind::Continue
+        | TokenKind::Test
+        | TokenKind::True
+        | TokenKind::False
+        | TokenKind::Import
+        | TokenKind::As
+        | TokenKind::Null
+        | TokenKind::I8
+        | TokenKind::I16
+        | TokenKind::I32
+        | TokenKind::I64
+        | TokenKind::I128
+        | TokenKind::Isize
+        | TokenKind::U8
+        | TokenKind::U16
+        | TokenKind::U32
+        | TokenKind::U64
+        | TokenKind::U128
+        | TokenKind::Usize
+        | TokenKind::F32
+        | TokenKind::F64
+        | TokenKind::Bool
+        | TokenKind::Str
+    )
+  }
 }

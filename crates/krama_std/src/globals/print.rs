@@ -1,7 +1,6 @@
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
-use itertools::Itertools;
 use krama_core::error::Error;
 use krama_core::error::ErrorKind;
 use krama_core::object::Object;
@@ -14,8 +13,15 @@ pub fn print<'ast>(
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     let mut stdout = io::stdout();
-    let output =
-      format!("{}\n", objects.iter().map(|o| o.to_string()).join(" "));
+    let mut output = String::new();
+    for (i, obj) in objects.iter().enumerate() {
+      if i > 0 {
+        output.push(' ');
+      }
+      output.push_str(&obj.to_string());
+    }
+    output.push('\n');
+
     stdout
       .write_all(output.as_bytes())
       .await
@@ -23,6 +29,7 @@ pub fn print<'ast>(
         span: Default::default(),
         kind: ErrorKind::RuntimeError(e.to_string()),
       })?;
+
     Ok(Object::Void)
   })
 }

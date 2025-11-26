@@ -25,7 +25,9 @@ where
     } else {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::ParserError("Expected function name after 'fn'"),
+        kind: ErrorKind::SyntaxError(
+          "Expected function name after 'fn'".to_string(),
+        ),
       });
     };
     self.advance();
@@ -48,7 +50,7 @@ where
         public,
         name,
         parameters,
-        body,
+        body: self.arena.alloc(body),
         kind,
       },
       span: start_span,
@@ -79,7 +81,7 @@ where
       } else {
         return Err(Error {
           span: self.current_token.as_ref().unwrap().span,
-          kind: ErrorKind::ParserError("Expected parameter name"),
+          kind: ErrorKind::SyntaxError("Expected parameter name".to_string()),
         });
       };
       self.advance();
@@ -115,7 +117,9 @@ where
     {
       return Err(Error {
         span: self.current_token.as_ref().unwrap().span,
-        kind: ErrorKind::ParserError("Expected ')' after parameters"),
+        kind: ErrorKind::SyntaxError(
+          "Expected ')' after parameters".to_string(),
+        ),
       });
     }
     self.advance();

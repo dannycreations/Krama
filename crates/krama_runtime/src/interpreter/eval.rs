@@ -6,8 +6,7 @@ use krama_core::ast::expression::Expression;
 use krama_core::ast::expression::ExpressionKind;
 use krama_core::ast::types::{Type, TypeKind};
 use krama_core::error::Error;
-use krama_core::object::Object;
-use krama_core::object::UserFn;
+use krama_core::object::{Function, Object, UserFn};
 use std::rc::Rc;
 
 impl<'ast> Interpreter<'ast> {
@@ -18,7 +17,7 @@ impl<'ast> Interpreter<'ast> {
   ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
     async move {
       let span = expression.span;
-      let result = match &expression.kind {
+      match &expression.kind {
         ExpressionKind::Literal(literal) => self.eval_literal(*literal).await,
         ExpressionKind::Identifier(name) => {
           self.eval_identifier(name, span).await
@@ -99,11 +98,11 @@ impl<'ast> Interpreter<'ast> {
           parameters,
           body,
           kind,
-        } => Ok(Object::UserFn(Rc::new(UserFn {
+        } => Ok(Object::Function(Function::User(Rc::new(UserFn {
           parameters: parameters.clone(),
           body: body.clone(),
           kind: kind.clone(),
-        }))),
+        })))),
         ExpressionKind::Member { object, property } => {
           let object = self.eval_expression(object, None).await?;
           self.eval_member_expression(object, property, span).await
@@ -131,20 +130,19 @@ impl<'ast> Interpreter<'ast> {
             match hint.kind {
               TypeKind::Array { .. } => {
                 return Ok(Object::Array {
-                  elements: evaluated_elements,
+                  elements: Rc::new(evaluated_elements),
                   kind: hint.clone(),
                 })
               }
               TypeKind::Tuple(_) => {
-                return Ok(Object::Tuple(evaluated_elements))
+                return Ok(Object::Tuple(Rc::new(evaluated_elements)))
               }
               _ => {}
             }
           }
-          Ok(Object::Tuple(evaluated_elements))
+          Ok(Object::Tuple(Rc::new(evaluated_elements)))
         }
-      }?;
-      self.resolve_object(result).await
+      }
     }
     .boxed_local()
   }

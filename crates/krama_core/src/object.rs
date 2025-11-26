@@ -39,11 +39,41 @@ impl<'ast> fmt::Debug for NativeFn<'ast> {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct UserFn<'ast> {
   pub parameters: BumpVec<'ast, Parameter<'ast>>,
   pub body: FunctionBody<'ast>,
   pub kind: Option<Type<'ast>>,
+}
+
+#[derive(Clone)]
+pub enum Function<'ast> {
+  Native(NativeFn<'ast>),
+  User(Rc<UserFn<'ast>>),
+}
+
+impl<'ast> PartialEq for Function<'ast> {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Function::Native(a), Function::Native(b)) => a == b,
+      (Function::User(a), Function::User(b)) => Rc::ptr_eq(a, b),
+      _ => false,
+    }
+  }
+}
+
+impl<'ast> fmt::Debug for Function<'ast> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Function::Native(n) => n.fmt(f),
+      Function::User(u) => f
+        .debug_struct("UserFunction")
+        .field("parameters", &u.parameters)
+        .field("body", &u.body)
+        .field("kind", &u.kind)
+        .finish(),
+    }
+  }
 }
 
 pub enum Object<'ast> {
@@ -52,23 +82,42 @@ pub enum Object<'ast> {
   Boolean(bool),
   String(&'ast str),
   Array {
-    elements: BumpVec<'ast, Object<'ast>>,
+    elements: Rc<BumpVec<'ast, Object<'ast>>>,
     kind: Type<'ast>,
   },
-  Tuple(BumpVec<'ast, Object<'ast>>),
+  Tuple(Rc<BumpVec<'ast, Object<'ast>>>),
   Null,
   Void,
   Module(Rc<RefCell<ModuleObject<'ast>>>),
   Global(Rc<RefCell<GlobalObject<'ast>>>),
-  NativeFn(NativeFn<'ast>),
-  UserFn(Rc<UserFn<'ast>>),
-  Return(&'ast Object<'ast>),
+  Function(Function<'ast>),
+  Return(Box<Object<'ast>>),
   Break,
   Continue,
   Future(ObjectFuture<'ast>),
 }
 
 impl<'ast> Object<'ast> {
+  pub fn type_name(&self) -> &'static str {
+    match self {
+      Object::Integer(_) => "integer",
+      Object::Float(_) => "float",
+      Object::Boolean(_) => "boolean",
+      Object::String(_) => "string",
+      Object::Array { .. } => "array",
+      Object::Tuple(_) => "tuple",
+      Object::Null => "null",
+      Object::Void => "void",
+      Object::Module(_) => "module",
+      Object::Global(_) => "global",
+      Object::Function(_) => "function",
+      Object::Return(_) => "return",
+      Object::Break => "break",
+      Object::Continue => "continue",
+      Object::Future(_) => "future",
+    }
+  }
+
   pub fn is_truthy(&self) -> bool {
     match self {
       Object::Boolean(b) => *b,
@@ -77,8 +126,7 @@ impl<'ast> Object<'ast> {
       Object::String(s) => !s.is_empty(),
       Object::Array { elements, .. } => !elements.is_empty(),
       Object::Tuple(t) => !t.is_empty(),
-      Object::Null => false,
-      Object::Void => false,
+      Object::Null | Object::Void => false,
       _ => true,
     }
   }
@@ -124,8 +172,10 @@ impl<'ast> fmt::Display for Object<'ast> {
         }
       }
       Object::Global(_) => write!(f, "global"),
-      Object::NativeFn(_) => write!(f, "[native function]"),
-      Object::UserFn(_) => write!(f, "[function]"),
+      Object::Function(func) => match func {
+        Function::Native(_) => write!(f, "[native function]"),
+        Function::User(_) => write!(f, "[function]"),
+      },
       Object::Return(value) => write!(f, "{}", value),
       Object::Break => write!(f, "break"),
       Object::Continue => write!(f, "continue"),
@@ -150,9 +200,8 @@ impl<'ast> Clone for Object<'ast> {
       Object::Void => Object::Void,
       Object::Module(m) => Object::Module(m.clone()),
       Object::Global(g) => Object::Global(g.clone()),
-      Object::NativeFn(f) => Object::NativeFn(f.clone()),
-      Object::UserFn(f) => Object::UserFn(f.clone()),
-      Object::Return(v) => Object::Return(v),
+      Object::Function(f) => Object::Function(f.clone()),
+      Object::Return(v) => Object::Return(v.clone()),
       Object::Break => Object::Break,
       Object::Continue => Object::Continue,
       Object::Future(f) => Object::Future(f.clone()),
@@ -168,23 +217,16 @@ impl<'ast> std::fmt::Debug for Object<'ast> {
       Object::Boolean(b) => write!(f, "Boolean({})", b),
       Object::String(s) => write!(f, "String(\"{}\")", s),
       Object::Array { elements, .. } => {
-        write!(f, "Array(")?;
-        Object::format_elements(f, elements, true)?;
-        write!(f, ")")
+        f.debug_tuple("Array").field(elements).finish()
       }
       Object::Tuple(elements) => {
-        write!(f, "Tuple(")?;
-        Object::format_elements(f, elements, true)?;
-        write!(f, ")")
+        f.debug_tuple("Tuple").field(elements).finish()
       }
       Object::Null => write!(f, "Null"),
       Object::Void => write!(f, "Void"),
       Object::Module(module) => f.debug_tuple("Module").field(module).finish(),
       Object::Global(g) => f.debug_tuple("Global").field(g).finish(),
-      Object::NativeFn(func) => {
-        f.debug_tuple("NativeFunction").field(&func.name).finish()
-      }
-      Object::UserFn(_) => write!(f, "[function]"),
+      Object::Function(func) => func.fmt(f),
       Object::Return(value) => f.debug_tuple("Return").field(value).finish(),
       Object::Break => write!(f, "Break"),
       Object::Continue => write!(f, "Continue"),
@@ -206,11 +248,12 @@ impl<'ast> PartialEq for Object<'ast> {
       (Object::Tuple(a), Object::Tuple(b)) => a == b,
       (Object::Null, Object::Null) => true,
       (Object::Void, Object::Void) => true,
-      (Object::NativeFn(a), Object::NativeFn(b)) => a == b,
-      (Object::UserFn(a), Object::UserFn(b)) => Rc::ptr_eq(a, b),
-      (Object::Return(a), Object::Return(b)) => **a == **b,
+      (Object::Function(a), Object::Function(b)) => a == b,
+      (Object::Return(a), Object::Return(b)) => *a == *b,
       (Object::Break, Object::Break) => true,
       (Object::Continue, Object::Continue) => true,
+      (Object::Module(a), Object::Module(b)) => Rc::ptr_eq(a, b),
+      (Object::Global(a), Object::Global(b)) => Rc::ptr_eq(a, b),
       (Object::Future(_), Object::Future(_)) => false,
       _ => false,
     }

@@ -18,6 +18,7 @@ use futures::future::FutureExt;
 use futures::future::LocalBoxFuture;
 use krama_core::ast::statement::Statement;
 use krama_core::error::Error;
+use krama_core::error::ErrorKind;
 use krama_core::object::Object;
 use krama_lexer::lexer::Lexer;
 use krama_parser::parser::Parser;
@@ -73,11 +74,8 @@ impl<'ast> Interpreter<'ast> {
       let mut result = Object::Void;
       for statement in statements {
         result = self.eval_statement(statement).await?;
-
-        result = self.resolve_object(result).await?;
-
-        if let Object::Return(value) = result {
-          return Ok(Object::Return(value));
+        if matches!(result, Object::Return(_)) {
+          return Ok(result);
         }
       }
       Ok(result)
@@ -94,17 +92,22 @@ impl<'ast> Interpreter<'ast> {
       match current_object {
         Object::Future(future_rc) => {
           if let Some(future) = future_rc.take() {
-            current_object = future.await?;
+            let result = future.await?;
+            let result_for_reinsertion = result.clone();
+            *future_rc.borrow_mut() =
+              Some(async move { Ok(result_for_reinsertion) }.boxed_local());
+            current_object = result;
           } else {
-            return Ok(Object::Void);
+            return Err(Error {
+              span: Default::default(),
+              kind: ErrorKind::RuntimeError(
+                "Future is already being awaited".to_string(),
+              ),
+            });
           }
         }
         _ => return Ok(current_object),
       }
     }
-  }
-
-  pub(super) fn is_truthy(&self, object: &Object) -> bool {
-    object.is_truthy()
   }
 }

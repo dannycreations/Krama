@@ -58,7 +58,9 @@ where
     {
       return Err(Error {
         span: self.current_token.as_ref().unwrap().span,
-        kind: ErrorKind::ParserError("Expected ')' after arguments"),
+        kind: ErrorKind::SyntaxError(
+          "Expected ')' after arguments".to_string(),
+        ),
       });
     }
     self.advance();

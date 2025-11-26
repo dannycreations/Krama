@@ -3,6 +3,7 @@ use krama_core::error::Error;
 use krama_core::error::ErrorKind;
 use krama_core::object::Object;
 use krama_core::span::Span;
+use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -15,7 +16,7 @@ impl<'ast> Interpreter<'ast> {
     let resolver = self.resolver.clone();
     let module = resolver.resolve(self, path).await.map_err(|e| Error {
       span,
-      kind: ErrorKind::ParserErrorOwned(e.to_string()),
+      kind: ErrorKind::SyntaxError(e.to_string()),
     })?;
     Ok(module)
   }
@@ -39,7 +40,7 @@ impl<'ast> Interpreter<'ast> {
       .await
       .map_err(|e| format!("Failed to evaluate module: {}", e))?;
 
-    let exports = new_interpreter
+    let exports: FxHashMap<_, _> = new_interpreter
       .environment
       .try_borrow()
       .unwrap()
@@ -50,7 +51,10 @@ impl<'ast> Interpreter<'ast> {
     let module =
       Object::Module(Rc::new(RefCell::new(krama_core::object::ModuleObject {
         name: self.arena.alloc_str(path),
-        exports,
+        exports: exports
+          .into_iter()
+          .map(|(k, v)| (k, (*v).clone()))
+          .collect(),
       })));
 
     self
