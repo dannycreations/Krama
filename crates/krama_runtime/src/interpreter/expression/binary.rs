@@ -52,7 +52,7 @@ impl<'ast> Interpreter<'ast> {
         BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
         _ => Err(Error {
           span,
-          kind: ErrorKind::SyntaxError(format!(
+          kind: ErrorKind::TypeError(format!(
             "Unsupported operator for strings: {:?}",
             operator
           )),
@@ -63,7 +63,7 @@ impl<'ast> Interpreter<'ast> {
         BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
         _ => Err(Error {
           span,
-          kind: ErrorKind::SyntaxError(format!(
+          kind: ErrorKind::TypeError(format!(
             "Unsupported operator for booleans: {:?}",
             operator
           )),
@@ -76,7 +76,7 @@ impl<'ast> Interpreter<'ast> {
         }
         _ => Err(Error {
           span,
-          kind: ErrorKind::SyntaxError(format!(
+          kind: ErrorKind::TypeError(format!(
             "Unsupported operator for modules: {:?}",
             operator
           )),
@@ -113,7 +113,7 @@ impl<'ast> Interpreter<'ast> {
       BinaryOperator::RightShift => Ok(Object::Integer(left >> right)),
       BinaryOperator::Assign => Err(Error {
         span,
-        kind: ErrorKind::SyntaxError(
+        kind: ErrorKind::TypeError(
           "Assign cannot be used in a binary expression".to_string(),
         ),
       }),
@@ -145,7 +145,7 @@ impl<'ast> Interpreter<'ast> {
       BinaryOperator::Exponent => Ok(Object::Float(left.powf(right))),
       BinaryOperator::Assign => Err(Error {
         span,
-        kind: ErrorKind::SyntaxError(
+        kind: ErrorKind::TypeError(
           "Assign cannot be used in a binary expression".to_string(),
         ),
       }),
@@ -160,7 +160,7 @@ impl<'ast> Interpreter<'ast> {
       }
       _ => Err(Error {
         span,
-        kind: ErrorKind::SyntaxError(format!(
+        kind: ErrorKind::TypeError(format!(
           "Unsupported operator for floats: {:?}",
           operator
         )),

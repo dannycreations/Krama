@@ -36,11 +36,11 @@ fn read_file<'ast>(
     let path = Path::new(*path_str);
     let contents = fs::read(path).await.map_err(|e| Error {
       span: Default::default(),
-      kind: ErrorKind::RuntimeError(e.to_string()),
+      kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
     let contents_str = str::from_utf8(&contents).map_err(|e| Error {
       span: Default::default(),
-      kind: ErrorKind::RuntimeError(e.to_string()),
+      kind: ErrorKind::TypeError(e.to_string()),
     })?;
     Ok(Object::String(arena.alloc_str(contents_str)))
   })
@@ -55,7 +55,7 @@ fn write_file<'ast>(
 
     fs::write(*path_str, *contents).await.map_err(|e| Error {
       span: Default::default(),
-      kind: ErrorKind::RuntimeError(e.to_string()),
+      kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
     Ok(Object::Void)
@@ -84,7 +84,7 @@ fn rm<'ast>(
 
     fs::remove_file(*path_str).await.map_err(|e| Error {
       span: Default::default(),
-      kind: ErrorKind::RuntimeError(e.to_string()),
+      kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
     Ok(Object::Void)
@@ -100,18 +100,18 @@ fn read_dir<'ast>(
 
     let mut paths = fs::read_dir(*path_str).await.map_err(|e| Error {
       span: Default::default(),
-      kind: ErrorKind::RuntimeError(e.to_string()),
+      kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
     let mut entries = BumpVec::new_in(arena);
     while let Some(path) = paths.next_entry().await.map_err(|e| Error {
       span: Default::default(),
-      kind: ErrorKind::RuntimeError(e.to_string()),
+      kind: ErrorKind::ReferenceError(e.to_string()),
     })? {
       let entry =
         path.file_name().into_string().map_err(|os_string| Error {
           span: Default::default(),
-          kind: ErrorKind::RuntimeError(format!(
+          kind: ErrorKind::TypeError(format!(
             "Invalid UTF-8 sequence in file name: {:?}",
             os_string
           )),
@@ -138,7 +138,7 @@ fn mkdir<'ast>(
 
     fs::create_dir_all(*path_str).await.map_err(|e| Error {
       span: Default::default(),
-      kind: ErrorKind::RuntimeError(e.to_string()),
+      kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
     Ok(Object::Void)
@@ -154,7 +154,7 @@ fn rmdir<'ast>(
 
     fs::remove_dir(*path_str).await.map_err(|e| Error {
       span: Default::default(),
-      kind: ErrorKind::RuntimeError(e.to_string()),
+      kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
     Ok(Object::Void)

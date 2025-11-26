@@ -33,7 +33,7 @@ test_eval!(
 test_eval_error!(
   should_error_on_invalid_string_op,
   "\"a\" * \"b\"",
-  ErrorKind::SyntaxError(_)
+  ErrorKind::TypeError(_)
 );
 
 test_eval!(
@@ -49,5 +49,5 @@ test_eval!(
 test_eval_error!(
   should_error_on_invalid_bool_op,
   "true + false",
-  ErrorKind::SyntaxError(_)
+  ErrorKind::TypeError(_)
 );

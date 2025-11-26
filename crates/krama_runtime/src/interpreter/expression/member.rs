@@ -21,7 +21,7 @@ impl<'ast> Interpreter<'ast> {
     } else {
       return Err(Error {
         span,
-        kind: ErrorKind::SyntaxError("Invalid member expression".to_string()),
+        kind: ErrorKind::TypeError("Invalid member expression".to_string()),
       });
     };
 
@@ -41,7 +41,7 @@ impl<'ast> Interpreter<'ast> {
     if let Object::Module(module) = resolved_object {
       let module = module.try_borrow().map_err(|e| Error {
         span,
-        kind: ErrorKind::RuntimeError(e.to_string()),
+        kind: ErrorKind::ReferenceError(e.to_string()),
       })?;
       if let Some(export) = module.exports.get(property_name) {
         Ok(export.clone())
@@ -54,7 +54,7 @@ impl<'ast> Interpreter<'ast> {
     } else {
       Err(Error {
         span,
-        kind: ErrorKind::SyntaxError(format!(
+        kind: ErrorKind::ReferenceError(format!(
           "Property '{}' not found for type '{}'",
           property_name, object_type
         )),
