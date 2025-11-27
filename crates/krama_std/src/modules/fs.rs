@@ -121,10 +121,7 @@ fn read_dir<'ast>(
 
     Ok(Object::Array {
       elements: Rc::new(entries),
-      kind: Type {
-        kind: TypeKind::Identifier("str"),
-        span: Default::default(),
-      },
+      kind: Type::new(TypeKind::Identifier("str"), Default::default()),
     })
   })
 }

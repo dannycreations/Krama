@@ -46,27 +46,27 @@ where
       self.advance();
       let else_block = self.parse_block_statement()?;
       let else_span = else_block.span;
-      Some(self.arena.alloc(Expression {
-        kind: ExpressionKind::Block(else_block),
-        span: else_span,
-      }))
+      Some(self.arena.alloc(Expression::new(
+        ExpressionKind::Block(else_block),
+        else_span,
+      )))
     } else if self.current_token.kind == TokenKind::Elif {
       Some(self.arena.alloc(self.parse_if_expression()?))
     } else {
       None
     };
 
-    Ok(Expression {
-      kind: ExpressionKind::If {
+    Ok(Expression::new(
+      ExpressionKind::If {
         condition: self.arena.alloc(condition),
-        then_branch: self.arena.alloc(Expression {
-          kind: ExpressionKind::Block(then_branch),
-          span: then_span,
-        }),
+        then_branch: self.arena.alloc(Expression::new(
+          ExpressionKind::Block(then_branch),
+          then_span,
+        )),
         else_branch: else_branch.map(|e| &*e),
       },
-      span: start_span,
-    })
+      start_span,
+    ))
   }
 
   pub(super) fn parse_match_expression(&mut self) -> ParseError<'ast> {
@@ -87,7 +87,7 @@ where
       return Err(Error {
         span: start_span,
         kind: ErrorKind::SyntaxError(
-          "Expected ')' after match subject".to_string(),
+          "Expected ')' after match subject'".to_string(),
         ),
       });
     }
@@ -123,13 +123,13 @@ where
 
     self.advance();
 
-    Ok(Expression {
-      kind: ExpressionKind::Match {
+    Ok(Expression::new(
+      ExpressionKind::Match {
         subject: self.arena.alloc(subject),
         arms,
       },
-      span: start_span,
-    })
+      start_span,
+    ))
   }
 
   fn parse_match_arm(&mut self) -> Result<MatchArm<'ast>, Error> {

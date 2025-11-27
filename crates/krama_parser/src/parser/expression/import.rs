@@ -57,9 +57,9 @@ where
     }
     self.advance();
 
-    Ok(Expression {
-      kind: ExpressionKind::Import { path, items: None },
-      span: start_span,
-    })
+    Ok(Expression::new(
+      ExpressionKind::Import { path, items: None },
+      start_span,
+    ))
   }
 }

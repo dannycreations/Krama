@@ -29,13 +29,13 @@ where
       }
     };
     let right = self.parse_expression(Precedence::Prefix)?;
-    Ok(Expression {
-      kind: ExpressionKind::Unary {
+    Ok(Expression::new(
+      ExpressionKind::Unary {
         operator,
         right: self.arena.alloc(right),
       },
-      span: token.span,
-    })
+      token.span,
+    ))
   }
 
   pub(super) fn parse_prefix_update_expression(&mut self) -> ParseError<'ast> {
@@ -53,13 +53,13 @@ where
     };
     let argument = self.parse_expression(Precedence::Prefix)?;
 
-    Ok(Expression {
-      kind: ExpressionKind::Update {
+    Ok(Expression::new(
+      ExpressionKind::Update {
         operator,
         argument: self.arena.alloc(argument),
         prefix: true,
       },
-      span: token.span,
-    })
+      token.span,
+    ))
   }
 }

@@ -9,7 +9,10 @@ mod statement;
 mod test;
 mod types;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+  cell::{RefCell, RefMut},
+  rc::Rc,
+};
 
 use bumpalo::Bump;
 use futures::future::{FutureExt, LocalBoxFuture};
@@ -17,6 +20,7 @@ use krama_core::{
   ast::statement::Statement,
   error::{Error, ErrorKind},
   object::Object,
+  span::Span,
 };
 use krama_lexer::lexer::Lexer;
 use krama_parser::parser::Parser;
@@ -84,14 +88,24 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Object<'ast>, Error> {
     let mut current_object = object;
     while let Object::Future(future_rc) = current_object {
-      let future = future_rc.take().ok_or_else(|| Error {
+      let future = future_rc.borrow_mut().take().ok_or_else(|| Error {
         span: Default::default(),
         kind: ErrorKind::RuntimeError(
-          "Future is already being awaited".to_string(),
+          "Future has already been consumed".to_string(),
         ),
       })?;
       current_object = future.await?;
     }
     Ok(current_object)
+  }
+
+  pub(super) fn env_mut(
+    &self,
+    span: Span,
+  ) -> Result<RefMut<'_, Environment<'ast>>, Error> {
+    self.environment.try_borrow_mut().map_err(|e| Error {
+      span,
+      kind: ErrorKind::RuntimeError(e.to_string()),
+    })
   }
 }

@@ -26,16 +26,13 @@ test_parser!(
   1,
   |statement: &Statement| {
     let arena = Bump::new();
-    let expected_type = Type {
-      span: Span::new(9, 14),
-      kind: TypeKind::Array {
-        element: arena.alloc(Type {
-          span: Span::new(9, 12),
-          kind: TypeKind::I32,
-        }),
+    let expected_type = Type::new(
+      TypeKind::Array {
+        element: arena.alloc(Type::new(TypeKind::I32, Span::new(9, 12))),
         size: None,
       },
-    };
+      Span::new(9, 14),
+    );
     expect_const_statement_with_type(statement, expected_type);
   }
 );
@@ -46,16 +43,13 @@ test_parser!(
   1,
   |statement: &Statement| {
     let arena = Bump::new();
-    let expected_type = Type {
-      span: Span::new(9, 15),
-      kind: TypeKind::Array {
-        element: arena.alloc(Type {
-          span: Span::new(9, 12),
-          kind: TypeKind::I32,
-        }),
+    let expected_type = Type::new(
+      TypeKind::Array {
+        element: arena.alloc(Type::new(TypeKind::I32, Span::new(9, 12))),
         size: Some(Literal::Integer(5)),
       },
-    };
+      Span::new(9, 15),
+    );
     expect_const_statement_with_type(statement, expected_type);
   }
 );
@@ -66,22 +60,16 @@ test_parser!(
   1,
   |statement: &Statement| {
     let arena = Bump::new();
-    let expected_type = Type {
-      span: Span::new(9, 20),
-      kind: TypeKind::Tuple(
+    let expected_type = Type::new(
+      TypeKind::Tuple(
         bumpalo::vec![in &arena;
-            Type {
-                span: Span::new(10, 13),
-                kind: TypeKind::I32,
-            },
-            Type {
-                span: Span::new(15, 19),
-                kind: TypeKind::Bool,
-            }
+            Type::new(TypeKind::I32, Span::new(10, 13)),
+            Type::new(TypeKind::Bool, Span::new(15, 19))
         ]
         .into(),
       ),
-    };
+      Span::new(9, 20),
+    );
     expect_const_statement_with_type(statement, expected_type);
   }
 );
@@ -92,22 +80,19 @@ test_parser!(
   1,
   |statement: &Statement| {
     let arena = Bump::new();
-    let expected_type = Type {
-      span: Span::new(9, 16),
-      kind: TypeKind::Array {
-        element: arena.alloc(Type {
-          span: Span::new(9, 14),
-          kind: TypeKind::Array {
-            element: arena.alloc(Type {
-              span: Span::new(9, 12),
-              kind: TypeKind::I32,
-            }),
+    let expected_type = Type::new(
+      TypeKind::Array {
+        element: arena.alloc(Type::new(
+          TypeKind::Array {
+            element: arena.alloc(Type::new(TypeKind::I32, Span::new(9, 12))),
             size: None,
           },
-        }),
+          Span::new(9, 14),
+        )),
         size: None,
       },
-    };
+      Span::new(9, 16),
+    );
     expect_const_statement_with_type(statement, expected_type);
   }
 );
@@ -118,34 +103,25 @@ test_parser!(
   1,
   |statement: &Statement| {
     let arena = Bump::new();
-    let expected_type = Type {
-      span: Span::new(9, 27),
-      kind: TypeKind::Tuple(
+    let expected_type = Type::new(
+      TypeKind::Tuple(
         bumpalo::vec![in &arena;
-        Type {
-            span: Span::new(10, 13),
-            kind: TypeKind::I32,
-        },
-        Type {
-            span: Span::new(15, 26),
-            kind: TypeKind::Tuple(
+        Type::new(TypeKind::I32, Span::new(10, 13)),
+        Type::new(
+            TypeKind::Tuple(
             bumpalo::vec![in &arena;
-                Type {
-                span: Span::new(16, 20),
-                kind: TypeKind::Bool,
-                },
-                Type {
-                span: Span::new(22, 25),
-                kind: TypeKind::Str,
-                }
+                Type::new(TypeKind::Bool, Span::new(16, 20)),
+                Type::new(TypeKind::Str, Span::new(22, 25))
             ]
             .into(),
             ),
-        }
+            Span::new(15, 26),
+        )
         ]
         .into(),
       ),
-    };
+      Span::new(9, 27),
+    );
     expect_const_statement_with_type(statement, expected_type);
   }
 );

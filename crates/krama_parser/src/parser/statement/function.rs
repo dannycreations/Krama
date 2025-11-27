@@ -39,16 +39,16 @@ where
     };
 
     let body = self.parse_block_statement()?;
-    Ok(Statement {
-      kind: StatementKind::Fn {
+    Ok(Statement::new(
+      StatementKind::Fn {
         public,
         name,
         parameters,
         body: self.arena.alloc(body),
         kind,
       },
-      span: start_span,
-    })
+      start_span,
+    ))
   }
 
   pub(crate) fn parse_fn_parameters(

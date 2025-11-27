@@ -33,13 +33,13 @@ where
       FunctionBody::Block(body_block)
     };
 
-    Ok(Expression {
-      kind: ExpressionKind::Fn {
+    Ok(Expression::new(
+      ExpressionKind::Fn {
         parameters,
         body,
         kind,
       },
-      span: start_span,
-    })
+      start_span,
+    ))
   }
 }

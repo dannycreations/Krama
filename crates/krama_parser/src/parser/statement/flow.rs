@@ -22,12 +22,12 @@ where
       None
     };
 
-    Ok(Statement {
-      kind: StatementKind::Return {
+    Ok(Statement::new(
+      StatementKind::Return {
         value: value.map(|v| self.arena.alloc(v) as &_),
       },
-      span: start_span,
-    })
+      start_span,
+    ))
   }
 
   pub(super) fn parse_break_statement(
@@ -35,10 +35,7 @@ where
   ) -> Result<Statement<'ast>, Error> {
     let start_span = self.current_token.span;
     self.advance();
-    Ok(Statement {
-      kind: StatementKind::Break,
-      span: start_span,
-    })
+    Ok(Statement::new(StatementKind::Break, start_span))
   }
 
   pub(super) fn parse_continue_statement(
@@ -46,9 +43,6 @@ where
   ) -> Result<Statement<'ast>, Error> {
     let start_span = self.current_token.span;
     self.advance();
-    Ok(Statement {
-      kind: StatementKind::Continue,
-      span: start_span,
-    })
+    Ok(Statement::new(StatementKind::Continue, start_span))
   }
 }

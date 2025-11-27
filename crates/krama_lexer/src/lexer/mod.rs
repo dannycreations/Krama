@@ -79,28 +79,15 @@ impl<'a> Lexer<'a> {
   pub(super) fn span(&self, start: usize) -> Span {
     Span::new(start, self.position)
   }
-}
 
-impl<'a> Iterator for Lexer<'a> {
-  type Item = Token<'a>;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    loop {
-      // Skip whitespace
-      while let Some(c) = self.peek() {
-        if c.is_whitespace() && c != '\n' {
-          self.advance();
-        } else {
-          break;
-        }
-      }
-
-      // Skip comments
-      if self.peek() == Some('/') {
+  fn skip_trivia(&mut self) {
+    while let Some(c) = self.peek() {
+      if c.is_whitespace() && c != '\n' {
+        self.advance();
+      } else if c == '/' {
         let mut iter = self.input.clone();
         iter.next();
         if iter.peek() == Some(&'/') {
-          // Consume the comment line
           self.advance(); // consume '/'
           self.advance(); // consume '/'
           while let Some(c) = self.peek() {
@@ -109,11 +96,21 @@ impl<'a> Iterator for Lexer<'a> {
             }
             self.advance();
           }
-          continue; // Restart loop to handle more whitespace/comments
+        } else {
+          break;
         }
+      } else {
+        break;
       }
-      break; // Proceed to tokenization
     }
+  }
+}
+
+impl<'a> Iterator for Lexer<'a> {
+  type Item = Token<'a>;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    self.skip_trivia();
 
     let start = self.position;
     let char = self.advance()?;

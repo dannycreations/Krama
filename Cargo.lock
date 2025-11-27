@@ -356,6 +356,8 @@ dependencies = [
  "krama_core",
  "krama_internal",
  "krama_runtime",
+ "once_cell",
+ "phf",
  "rustc-hash",
  "tokio",
 ]

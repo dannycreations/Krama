@@ -1,4 +1,7 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{
+  cell::RefCell,
+  rc::{Rc, Weak},
+};
 
 use krama_core::object::Object;
 use rustc_hash::FxHashMap;
@@ -6,7 +9,7 @@ use rustc_hash::FxHashMap;
 #[derive(Debug, Default, Clone)]
 pub struct Environment<'ast> {
   store: FxHashMap<&'ast str, (Object<'ast>, bool)>,
-  outer: Option<Rc<RefCell<Environment<'ast>>>>,
+  outer: Option<Weak<RefCell<Environment<'ast>>>>,
 }
 
 impl<'ast> Environment<'ast> {
@@ -16,7 +19,7 @@ impl<'ast> Environment<'ast> {
 
   pub fn new_enclosed(outer: Rc<RefCell<Environment<'ast>>>) -> Self {
     let mut env = Environment::new();
-    env.outer = Some(outer);
+    env.outer = Some(Rc::downgrade(&outer));
     env
   }
 
@@ -26,7 +29,9 @@ impl<'ast> Environment<'ast> {
     }
 
     if let Some(outer) = &self.outer {
-      return outer.borrow().get(name);
+      if let Some(outer) = outer.upgrade() {
+        return outer.borrow().get(name);
+      }
     }
 
     None

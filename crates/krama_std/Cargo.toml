@@ -13,6 +13,8 @@ doctest = false
 bumpalo.workspace = true
 futures.workspace = true
 krama_core = { path = "../krama_core" }
+once_cell.workspace = true
+phf.workspace = true
 rustc-hash.workspace = true
 tokio.workspace = true
 

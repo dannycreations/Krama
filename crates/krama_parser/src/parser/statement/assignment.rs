@@ -31,14 +31,14 @@ where
 
     let value = self.parse_expression(Precedence::Lowest)?;
 
-    Ok(Statement {
-      kind: StatementKind::Let {
+    Ok(Statement::new(
+      StatementKind::Let {
         name,
         kind,
         value: self.arena.alloc(value),
       },
-      span: start_span,
-    })
+      start_span,
+    ))
   }
 
   pub(super) fn parse_const_statement(
@@ -79,15 +79,15 @@ where
     self.advance();
 
     let value = self.parse_expression(Precedence::Lowest)?;
-    Ok(Statement {
-      kind: StatementKind::Const {
+    Ok(Statement::new(
+      StatementKind::Const {
         public,
         binding,
         kind,
         value: self.arena.alloc(value),
       },
-      span: start_span,
-    })
+      start_span,
+    ))
   }
 
   pub(super) fn parse_destructured_items(

@@ -16,12 +16,12 @@ where
     self.advance();
     let name = self.parse_expression(Precedence::Lowest)?;
     let body = self.parse_block_statement()?;
-    Ok(Statement {
-      kind: StatementKind::Test {
+    Ok(Statement::new(
+      StatementKind::Test {
         name: self.arena.alloc(name),
         body: self.arena.alloc(body),
       },
-      span: start_span,
-    })
+      start_span,
+    ))
   }
 }

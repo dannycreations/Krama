@@ -34,14 +34,7 @@ impl<'ast> Interpreter<'ast> {
             check_type(kind, &value)?;
           }
 
-          self
-            .environment
-            .try_borrow_mut()
-            .map_err(|e| Error {
-              span,
-              kind: ErrorKind::RuntimeError(e.to_string()),
-            })?
-            .set(name, value, false);
+          self.env_mut(span)?.set(name, value, false);
           Ok(Object::Void)
         }
         StatementKind::Test { name: _, body } => {
@@ -69,14 +62,7 @@ impl<'ast> Interpreter<'ast> {
 
           match binding {
             Binding::Identifier(name) => {
-              self
-                .environment
-                .try_borrow_mut()
-                .map_err(|e| Error {
-                  span,
-                  kind: ErrorKind::RuntimeError(e.to_string()),
-                })?
-                .set(name, value, *public);
+              self.env_mut(span)?.set(name, value, *public);
             }
             Binding::Destructure(items) => {
               if let Object::Module(module) = value {
@@ -87,14 +73,7 @@ impl<'ast> Interpreter<'ast> {
                 for item in items.iter() {
                   if let Some(export) = module.exports.get(item.name) {
                     let name = item.alias.unwrap_or(item.name);
-                    self
-                      .environment
-                      .try_borrow_mut()
-                      .map_err(|e| Error {
-                        span,
-                        kind: ErrorKind::RuntimeError(e.to_string()),
-                      })?
-                      .set(name, export.clone(), *public);
+                    self.env_mut(span)?.set(name, export.clone(), *public);
                   } else {
                     return Err(Error {
                       span,
@@ -117,12 +96,7 @@ impl<'ast> Interpreter<'ast> {
             } => {
               if let Object::Module(module_obj) = &value {
                 self
-                  .environment
-                  .try_borrow_mut()
-                  .map_err(|e| Error {
-                    span,
-                    kind: ErrorKind::RuntimeError(e.to_string()),
-                  })?
+                  .env_mut(span)?
                   .set(module_alias, value.clone(), *public);
                 let module = module_obj.try_borrow().map_err(|e| Error {
                   span,
@@ -131,14 +105,7 @@ impl<'ast> Interpreter<'ast> {
                 for item in items.iter() {
                   if let Some(export) = module.exports.get(item.name) {
                     let name = item.alias.unwrap_or(item.name);
-                    self
-                      .environment
-                      .try_borrow_mut()
-                      .map_err(|e| Error {
-                        span,
-                        kind: ErrorKind::RuntimeError(e.to_string()),
-                      })?
-                      .set(name, export.clone(), *public);
+                    self.env_mut(span)?.set(name, export.clone(), *public);
                   } else {
                     return Err(Error {
                       span,
@@ -170,14 +137,7 @@ impl<'ast> Interpreter<'ast> {
             body: FunctionBody::Block(body),
             kind: kind.clone(),
           })));
-          self
-            .environment
-            .try_borrow_mut()
-            .map_err(|e| Error {
-              span,
-              kind: ErrorKind::RuntimeError(e.to_string()),
-            })?
-            .set(name, function, *public);
+          self.env_mut(span)?.set(name, function, *public);
           Ok(Object::Void)
         }
         StatementKind::Return { value } => {

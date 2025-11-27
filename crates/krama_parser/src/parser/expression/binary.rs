@@ -31,14 +31,14 @@ where
     };
     self.advance();
 
-    Ok(Expression {
-      kind: ExpressionKind::Update {
+    Ok(Expression::new(
+      ExpressionKind::Update {
         operator,
         argument: self.arena.alloc(argument),
         prefix: false,
       },
-      span: token.span,
-    })
+      token.span,
+    ))
   }
 
   pub(super) fn parse_infix_expression(
@@ -93,24 +93,24 @@ where
     let right = self.parse_expression(precedence)?;
 
     if is_assignment {
-      Ok(Expression {
-        kind: ExpressionKind::Assignment {
+      Ok(Expression::new(
+        ExpressionKind::Assignment {
           left: self.arena.alloc(left),
           operator,
           right: self.arena.alloc(right),
         },
-        span: token.span,
-      })
+        token.span,
+      ))
     } else {
       let span = Span::new(left.span.start, right.span.end);
-      Ok(Expression {
-        kind: ExpressionKind::Binary {
+      Ok(Expression::new(
+        ExpressionKind::Binary {
           left: self.arena.alloc(left),
           operator,
           right: self.arena.alloc(right),
         },
         span,
-      })
+      ))
     }
   }
 }

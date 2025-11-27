@@ -16,12 +16,12 @@ where
     self.advance();
     let property = self.parse_expression(Precedence::Member)?;
     let span = Span::new(object.span.start, property.span.end);
-    Ok(Expression {
-      kind: ExpressionKind::Member {
+    Ok(Expression::new(
+      ExpressionKind::Member {
         object: self.arena.alloc(object),
         property: self.arena.alloc(property),
       },
       span,
-    })
+    ))
   }
 }

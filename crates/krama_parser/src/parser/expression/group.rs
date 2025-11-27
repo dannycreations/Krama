@@ -22,26 +22,26 @@ where
       if self.current_token.kind == TokenKind::Arrow {
         self.advance();
         let body = self.parse_expression(Precedence::Lowest)?;
-        return Ok(Expression {
-          kind: ExpressionKind::Fn {
+        return Ok(Expression::new(
+          ExpressionKind::Fn {
             parameters: BumpVec::new_in(self.arena),
             body: FunctionBody::Expression(self.arena.alloc(body)),
             kind: None,
           },
-          span: start_span,
-        });
+          start_span,
+        ));
       }
 
       if self.current_token.kind == TokenKind::LBrace {
         let body = self.arena.alloc(self.parse_block_statement()?);
-        return Ok(Expression {
-          kind: ExpressionKind::Fn {
+        return Ok(Expression::new(
+          ExpressionKind::Fn {
             parameters: BumpVec::new_in(self.arena),
             body: FunctionBody::Block(body),
             kind: None,
           },
-          span: start_span,
-        });
+          start_span,
+        ));
       }
 
       return Err(Error {
@@ -97,14 +97,14 @@ where
         None
       };
 
-      return Ok(Expression {
-        kind: ExpressionKind::Fn {
+      return Ok(Expression::new(
+        ExpressionKind::Fn {
           parameters,
           body,
           kind,
         },
-        span: start_span,
-      });
+        start_span,
+      ));
     }
 
     // It's not a function. It must be a grouped expression.

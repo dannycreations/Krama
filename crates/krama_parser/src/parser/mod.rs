@@ -55,15 +55,16 @@ where
   ) -> Result<(), Error> {
     if self.current_token.kind == expected_kind {
       self.advance();
-      return Ok(());
+      Ok(())
+    } else {
+      Err(Error {
+        span: self.current_token.span,
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected token {:?}, but got {:?}",
+          expected_kind, self.current_token.kind
+        )),
+      })
     }
-    Err(Error {
-      span: self.current_token.span,
-      kind: ErrorKind::SyntaxError(format!(
-        "Expected token {:?}, but got {:?}",
-        expected_kind, self.current_token.kind
-      )),
-    })
   }
 
   pub fn parse(&mut self) -> Result<Program<'ast>, Error> {
@@ -80,25 +81,21 @@ where
   }
 
   pub(super) fn parse_identifier(&mut self) -> Result<&'a str, Error> {
-    let token = self.current_token;
-
-    match token.kind {
-      TokenKind::Identifier(name) => {
-        self.advance();
-        Ok(name)
-      }
-      kind => {
-        let message = if kind.is_keyword() {
-          format!("Unexpected keyword: `{}`", kind)
-        } else {
-          format!("Expected identifier, but got `{:?}`", kind)
-        };
-        Err(Error {
-          span: token.span,
-          kind: ErrorKind::SyntaxError(message),
-        })
-      }
+    if let TokenKind::Identifier(name) = self.current_token.kind {
+      self.advance();
+      return Ok(name);
     }
+
+    let kind = self.current_token.kind;
+    let message = if kind.is_keyword() {
+      format!("Unexpected keyword: `{}`", kind)
+    } else {
+      format!("Expected identifier, but got `{:?}`", kind)
+    };
+    Err(Error {
+      span: self.current_token.span,
+      kind: ErrorKind::SyntaxError(message),
+    })
   }
 
   pub(super) fn current_precedence(&self) -> Precedence {

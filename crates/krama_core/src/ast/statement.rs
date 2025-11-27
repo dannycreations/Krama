@@ -1,13 +1,9 @@
 use bumpalo::collections::Vec as BumpVec;
 
-use super::{expression::Expression, types::Type};
+use super::{expression::Expression, node::Node, types::Type};
 use crate::span::Span;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Statement<'ast> {
-  pub kind: StatementKind<'ast>,
-  pub span: Span,
-}
+pub type Statement<'ast> = Node<'ast, StatementKind<'ast>>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockStatement<'ast> {

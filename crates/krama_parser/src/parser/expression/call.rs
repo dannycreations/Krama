@@ -17,13 +17,13 @@ where
   ) -> ParseError<'ast> {
     let token = self.current_token;
     let arguments = self.parse_call_arguments()?;
-    Ok(Expression {
-      kind: ExpressionKind::Call {
+    Ok(Expression::new(
+      ExpressionKind::Call {
         function: self.arena.alloc(function),
         arguments,
       },
-      span: token.span,
-    })
+      token.span,
+    ))
   }
 
   fn parse_call_arguments(

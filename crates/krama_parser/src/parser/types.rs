@@ -52,10 +52,10 @@ where
     let end_span = self.current_token.span;
     self.consume_token(TokenKind::RBracket)?;
 
-    Ok(Type {
-      kind: TypeKind::Tuple(types),
-      span: start_span.merge(&end_span),
-    })
+    Ok(Type::new(
+      TypeKind::Tuple(types),
+      start_span.merge(&end_span),
+    ))
   }
 
   fn parse_array_type(
@@ -91,13 +91,13 @@ where
     let end_span = self.current_token.span;
     self.consume_token(TokenKind::RBracket)?;
 
-    Ok(Type {
-      kind: TypeKind::Array {
+    Ok(Type::new(
+      TypeKind::Array {
         element: self.arena.alloc(element_type),
         size,
       },
-      span: span.merge(&end_span),
-    })
+      span.merge(&end_span),
+    ))
   }
 
   fn parse_base_type(&mut self) -> Result<Type<'ast>, Error> {
@@ -129,6 +129,6 @@ where
       }
     };
     self.advance();
-    Ok(Type { kind, span })
+    Ok(Type::new(kind, span))
   }
 }

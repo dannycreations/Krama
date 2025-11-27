@@ -29,12 +29,12 @@ where
   ) -> Result<Statement<'ast>, Error> {
     let expression = self.parse_expression(Precedence::Lowest)?;
     let span = expression.span;
-    Ok(Statement {
-      kind: StatementKind::Expression {
+    Ok(Statement::new(
+      StatementKind::Expression {
         expression: self.arena.alloc(expression),
       },
       span,
-    })
+    ))
   }
 
   pub(super) fn parse_expression(
@@ -89,10 +89,7 @@ where
       TokenKind::LBrace => {
         let block = self.parse_block_statement()?;
         let span = block.span;
-        Ok(Expression {
-          kind: ExpressionKind::Block(block),
-          span,
-        })
+        Ok(Expression::new(ExpressionKind::Block(block), span))
       }
       _ => Err(Error {
         span: token.span,

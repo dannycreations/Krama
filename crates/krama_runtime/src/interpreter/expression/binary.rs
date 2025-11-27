@@ -30,17 +30,44 @@ impl<'ast> Interpreter<'ast> {
       _ => {}
     }
     match (left, right) {
-      (Object::Integer(left), Object::Integer(right)) => {
-        self.eval_integer_binary_expression(operator, left, right, span)
-      }
+      (Object::Integer(left), Object::Integer(right)) => match operator {
+        BinaryOperator::Add => Ok(Object::Integer(left + right)),
+        BinaryOperator::Subtract => Ok(Object::Integer(left - right)),
+        BinaryOperator::Multiply => Ok(Object::Integer(left * right)),
+        BinaryOperator::Divide => Ok(Object::Integer(left / right)),
+        BinaryOperator::Modulo => Ok(Object::Integer(left % right)),
+        BinaryOperator::Exponent => Ok(Object::Integer(left.pow(right as u32))),
+        BinaryOperator::BitwiseAnd => Ok(Object::Integer(left & right)),
+        BinaryOperator::BitwiseOr => Ok(Object::Integer(left | right)),
+        BinaryOperator::BitwiseXor => Ok(Object::Integer(left ^ right)),
+        BinaryOperator::LeftShift => Ok(Object::Integer(left << right)),
+        BinaryOperator::RightShift => Ok(Object::Integer(left >> right)),
+        BinaryOperator::Assign => Err(Error {
+          span,
+          kind: ErrorKind::TypeError(
+            "Assign cannot be used in a binary expression".to_string(),
+          ),
+        }),
+        BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
+        BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
+        BinaryOperator::GreaterThan => Ok(Object::Boolean(left > right)),
+        BinaryOperator::GreaterThanOrEqual => {
+          Ok(Object::Boolean(left >= right))
+        }
+        BinaryOperator::LessThan => Ok(Object::Boolean(left < right)),
+        BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(left <= right)),
+        BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => {
+          unreachable!()
+        }
+      },
       (Object::Float(left), Object::Float(right)) => {
-        self.eval_float_binary_expression(operator, left, right, span)
+        Self::eval_float_binary_expression(operator, left, right, span)
       }
       (Object::Integer(left), Object::Float(right)) => {
-        self.eval_float_binary_expression(operator, left as f64, right, span)
+        Self::eval_float_binary_expression(operator, left as f64, right, span)
       }
       (Object::Float(left), Object::Integer(right)) => {
-        self.eval_float_binary_expression(operator, left, right as f64, span)
+        Self::eval_float_binary_expression(operator, left, right as f64, span)
       }
       (Object::String(left), Object::String(right)) => match operator {
         BinaryOperator::Add => {
@@ -92,45 +119,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  fn eval_integer_binary_expression(
-    &self,
-    operator: BinaryOperator,
-    left: i64,
-    right: i64,
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
-    match operator {
-      BinaryOperator::Add => Ok(Object::Integer(left + right)),
-      BinaryOperator::Subtract => Ok(Object::Integer(left - right)),
-      BinaryOperator::Multiply => Ok(Object::Integer(left * right)),
-      BinaryOperator::Divide => Ok(Object::Integer(left / right)),
-      BinaryOperator::Modulo => Ok(Object::Integer(left % right)),
-      BinaryOperator::Exponent => Ok(Object::Integer(left.pow(right as u32))),
-      BinaryOperator::BitwiseAnd => Ok(Object::Integer(left & right)),
-      BinaryOperator::BitwiseOr => Ok(Object::Integer(left | right)),
-      BinaryOperator::BitwiseXor => Ok(Object::Integer(left ^ right)),
-      BinaryOperator::LeftShift => Ok(Object::Integer(left << right)),
-      BinaryOperator::RightShift => Ok(Object::Integer(left >> right)),
-      BinaryOperator::Assign => Err(Error {
-        span,
-        kind: ErrorKind::TypeError(
-          "Assign cannot be used in a binary expression".to_string(),
-        ),
-      }),
-      BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
-      BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
-      BinaryOperator::GreaterThan => Ok(Object::Boolean(left > right)),
-      BinaryOperator::GreaterThanOrEqual => Ok(Object::Boolean(left >= right)),
-      BinaryOperator::LessThan => Ok(Object::Boolean(left < right)),
-      BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(left <= right)),
-      BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => {
-        unreachable!()
-      }
-    }
-  }
-
   fn eval_float_binary_expression(
-    &self,
     operator: BinaryOperator,
     left: f64,
     right: f64,

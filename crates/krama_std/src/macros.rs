@@ -36,16 +36,7 @@ macro_rules! parse_args {
                         )),
                     });
                 }
-                None => {
-                    return Err(Error {
-                        span: Default::default(),
-                        kind: ErrorKind::TypeError(format!(
-                            "Expected {} arguments, but got {}",
-                            EXPECTED_ARGS,
-                            $objects.len()
-                        )),
-                    });
-                }
+                None => unreachable!(),
             };
         )*
     };

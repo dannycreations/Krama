@@ -23,12 +23,12 @@ where
     self.consume_token(TokenKind::RParen)?;
     let body = self.parse_block_statement()?;
 
-    Ok(Statement {
-      kind: StatementKind::While {
+    Ok(Statement::new(
+      StatementKind::While {
         condition: self.arena.alloc(condition),
         body: self.arena.alloc(body),
       },
-      span: start_span,
-    })
+      start_span,
+    ))
   }
 }

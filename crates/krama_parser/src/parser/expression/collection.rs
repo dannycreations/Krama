@@ -20,10 +20,10 @@ where
     if self.current_token.kind == TokenKind::RBracket {
       let end_span = self.current_token.span;
       self.advance();
-      return Ok(Expression {
-        kind: ExpressionKind::Collection { elements },
-        span: start_span.merge(&end_span),
-      });
+      return Ok(Expression::new(
+        ExpressionKind::Collection { elements },
+        start_span.merge(&end_span),
+      ));
     }
 
     // Parse expressions
@@ -42,9 +42,9 @@ where
     let end_span = self.current_token.span;
     self.consume_token(TokenKind::RBracket)?;
 
-    Ok(Expression {
-      kind: ExpressionKind::Collection { elements },
-      span: start_span.merge(&end_span),
-    })
+    Ok(Expression::new(
+      ExpressionKind::Collection { elements },
+      start_span.merge(&end_span),
+    ))
   }
 }

@@ -1,13 +1,8 @@
 use bumpalo::collections::Vec as BumpVec;
 
-use super::literal::Literal;
-use crate::span::Span;
+use super::{literal::Literal, node::Node};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Type<'ast> {
-  pub kind: TypeKind<'ast>,
-  pub span: Span,
-}
+pub type Type<'ast> = Node<'ast, TypeKind<'ast>>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind<'ast> {
