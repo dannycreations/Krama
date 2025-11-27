@@ -5,7 +5,7 @@ use futures::future::LocalBoxFuture;
 use krama_core::{
   ast::expression::FunctionBody,
   error::{Error, ErrorKind},
-  object::{Function, NativeFn, Object, UserFn},
+  object::{Function, NativeFunction, Object, UserFunction},
   span::Span,
 };
 
@@ -41,7 +41,7 @@ impl<'ast> Interpreter<'ast> {
 
   async fn eval_native_function_call(
     &self,
-    native_fn: NativeFn<'ast>,
+    native_fn: NativeFunction<'ast>,
     arguments: BumpVec<'ast, Object<'ast>>,
   ) -> Result<Object<'ast>, Error> {
     (native_fn.callback)(self.arena, arguments).await
@@ -49,7 +49,7 @@ impl<'ast> Interpreter<'ast> {
 
   async fn eval_user_function_call(
     &self,
-    user_fn: Rc<UserFn<'ast>>,
+    user_fn: Rc<UserFunction<'ast>>,
     arguments: BumpVec<'ast, Object<'ast>>,
   ) -> Result<Object<'ast>, Error> {
     let new_interpreter = self.new_enclosed();
@@ -73,7 +73,7 @@ impl<'ast> Interpreter<'ast> {
     };
 
     if let Object::Return(value) = result {
-      Ok(value.clone())
+      Ok((*value).clone())
     } else {
       Ok(result)
     }

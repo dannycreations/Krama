@@ -1,3 +1,5 @@
+use std::str;
+
 use krama_core::token::{Token, TokenKind};
 
 use super::Lexer;
@@ -11,9 +13,10 @@ impl<'a> Lexer<'a> {
       if c == '_' || c.is_ascii_digit() {
         self.advance();
       } else if c == '.' && !is_float {
-        // Check for `..` to avoid lexing `1..10` as `1.`, `.`, `10`
-        if self.input[self.position..].starts_with("..") {
-          // This is a range, so we stop parsing the number.
+        if self.position + 1 >= self.input.len() {
+          break;
+        }
+        if self.input[self.position + 1] as char == '.' {
           break;
         }
         is_float = true;
@@ -30,7 +33,7 @@ impl<'a> Lexer<'a> {
     }
 
     let num_end = self.position;
-    let num_slice = &self.input[num_start..num_end];
+    let num_slice = str::from_utf8(&self.input[num_start..num_end]).unwrap();
 
     let token_kind = if is_float {
       TokenKind::Float(num_slice)

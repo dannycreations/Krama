@@ -1,4 +1,3 @@
-use bumpalo::Bump;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
   error::{Error, ErrorKind},
@@ -9,10 +8,9 @@ pub(super) fn length<'ast>(
   object: Object<'ast>,
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    let _arena = Bump::new();
     match object {
       Object::Array { elements, .. } => {
-        Ok(Object::Integer(elements.len() as i64))
+        Ok(Object::Integer(elements.borrow().len() as i64))
       }
       Object::Tuple(elements) => Ok(Object::Integer(elements.len() as i64)),
       Object::String(s) => Ok(Object::Integer(s.len() as i64)),

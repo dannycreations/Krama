@@ -8,10 +8,7 @@ use krama_core::{
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(in crate::parser) fn parse_block_statement(
     &mut self,
   ) -> Result<BlockStatement<'ast>, Error> {

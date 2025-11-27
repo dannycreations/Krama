@@ -1,25 +1,28 @@
 use std::rc::Rc;
 
 use bumpalo::collections::Vec as BumpVec;
-use futures::future::{FutureExt, LocalBoxFuture};
+use futures::future::LocalBoxFuture;
 use krama_core::{
   ast::{
     expression::FunctionBody,
-    statement::{Binding, BlockStatement, Statement, StatementKind},
+    statement::{
+      Binding, BlockStatement, DestructuredIdentifier, Statement, StatementKind,
+    },
   },
   error::{Error, ErrorKind},
-  object::{Function, Object, UserFn},
+  object::{Function, Object, UserFunction},
+  span::Span,
 };
 use tokio::task;
 
 use super::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) fn eval_statement<'s>(
+  pub fn eval_statement<'s>(
     &'s self,
     statement: &'s Statement<'ast>,
   ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
-    async move {
+    Box::pin(async move {
       let span = statement.span;
       match &statement.kind {
         StatementKind::Expression { expression } => {
@@ -38,11 +41,12 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
         StatementKind::Test { name: _, body } => {
-          let function = Object::Function(Function::User(Rc::new(UserFn {
-            parameters: BumpVec::new_in(self.arena),
-            body: FunctionBody::Block(body),
-            kind: None,
-          })));
+          let function =
+            Object::Function(Function::User(Rc::new(UserFunction {
+              parameters: BumpVec::new_in(self.arena),
+              body: FunctionBody::Block(body),
+              kind: None,
+            })));
           self
             .eval_call_expression(function, BumpVec::new_in(self.arena), span)
             .await
@@ -65,48 +69,19 @@ impl<'ast> Interpreter<'ast> {
               self.env_mut(span)?.set(name, Rc::new(value), *public);
             }
             Binding::Destructure(items) => {
-              if let Object::Scope(scope) = value {
-                for item in items.iter() {
-                  if let Some(export) = scope.bindings.get(item.name) {
-                    let name = item.alias.unwrap_or(item.name);
-                    self.env_mut(span)?.set(name, export.clone(), *public);
-                  } else {
-                    return Err(Error {
-                      span,
-                      kind: ErrorKind::ReferenceError(item.name.to_string()),
-                    });
-                  }
-                }
-              } else {
-                return Err(Error {
-                  span,
-                  kind: ErrorKind::TypeError(
-                    "Destructuring can only be done on modules".to_string(),
-                  ),
-                });
-              }
+              self.destructure_scope(span, &value, items, *public)?;
             }
             Binding::ModuleAndDestructure {
               module_alias,
               items,
             } => {
-              if let Object::Scope(scope_obj) = &value {
+              if let Object::Scope(_) = &value {
                 self.env_mut(span)?.set(
                   module_alias,
                   Rc::new(value.clone()),
                   *public,
                 );
-                for item in items.iter() {
-                  if let Some(export) = scope_obj.bindings.get(item.name) {
-                    let name = item.alias.unwrap_or(item.name);
-                    self.env_mut(span)?.set(name, export.clone(), *public);
-                  } else {
-                    return Err(Error {
-                      span,
-                      kind: ErrorKind::ReferenceError(item.name.to_string()),
-                    });
-                  }
-                }
+                self.destructure_scope(span, &value, items, *public)?;
               } else {
                 return Err(Error {
                   span,
@@ -126,11 +101,12 @@ impl<'ast> Interpreter<'ast> {
           public,
           kind,
         } => {
-          let function = Object::Function(Function::User(Rc::new(UserFn {
-            parameters: parameters.clone(),
-            body: FunctionBody::Block(body),
-            kind: kind.clone(),
-          })));
+          let function =
+            Object::Function(Function::User(Rc::new(UserFunction {
+              parameters: parameters.clone(),
+              body: FunctionBody::Block(body),
+              kind: kind.clone(),
+            })));
           self.env_mut(span)?.set(name, Rc::new(function), *public);
           Ok(Object::Void)
         }
@@ -140,7 +116,7 @@ impl<'ast> Interpreter<'ast> {
             None => Object::Void,
           };
           let value = self.resolve_object(value).await?;
-          Ok(Object::Return(self.arena.alloc(value)))
+          Ok(Object::Return(Rc::new(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),
@@ -168,31 +144,27 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
       }
-    }
-    .boxed_local()
+    })
   }
 
-  fn eval_statements<'s>(
+  async fn eval_statements<'s>(
     &'s self,
     statements: &'s [Statement<'ast>],
-  ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
-    async move {
-      let mut result = Object::Void;
+  ) -> Result<Object<'ast>, Error> {
+    let mut result = Object::Void;
 
-      for statement in statements {
-        result = self.eval_statement(statement).await?;
+    for statement in statements {
+      result = self.eval_statement(statement).await?;
 
-        if matches!(
-          &result,
-          Object::Return(_) | Object::Break | Object::Continue
-        ) {
-          return Ok(result);
-        }
+      if matches!(
+        &result,
+        Object::Return(_) | Object::Break | Object::Continue
+      ) {
+        return Ok(result);
       }
-
-      Ok(result)
     }
-    .boxed_local()
+
+    Ok(result)
   }
 
   pub(super) async fn eval_block_statement(
@@ -200,5 +172,35 @@ impl<'ast> Interpreter<'ast> {
     block: &BlockStatement<'ast>,
   ) -> Result<Object<'ast>, Error> {
     self.eval_statements(&block.statements).await
+  }
+
+  fn destructure_scope(
+    &self,
+    span: Span,
+    value: &Object<'ast>,
+    items: &BumpVec<'ast, DestructuredIdentifier<'ast>>,
+    public: bool,
+  ) -> Result<(), Error> {
+    if let Object::Scope(scope) = value {
+      for item in items.iter() {
+        if let Some(export) = scope.bindings.get(item.name) {
+          let name = item.alias.unwrap_or(item.name);
+          self.env_mut(span)?.set(name, export.clone(), public);
+        } else {
+          return Err(Error {
+            span,
+            kind: ErrorKind::ReferenceError(item.name.to_string()),
+          });
+        }
+      }
+    } else {
+      return Err(Error {
+        span,
+        kind: ErrorKind::TypeError(
+          "Destructuring can only be done on modules".to_string(),
+        ),
+      });
+    }
+    Ok(())
   }
 }

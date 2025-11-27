@@ -11,38 +11,19 @@ pub(super) mod member;
 pub(super) mod unary;
 
 use krama_core::{
-  ast::{
-    expression::{Expression, ExpressionKind},
-    statement::{Statement, StatementKind},
-  },
+  ast::expression::{Expression, ExpressionKind},
   error::Error,
   token::TokenKind,
 };
 
 use super::{precedence::Precedence, ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
-  pub(super) fn parse_expression_statement(
-    &mut self,
-  ) -> Result<Statement<'ast>, Error> {
-    let expression = self.parse_expression(Precedence::Lowest)?;
-    let span = expression.span;
-    Ok(Statement::new(
-      StatementKind::Expression {
-        expression: self.arena.alloc(expression),
-      },
-      span,
-    ))
-  }
-
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_expression(
     &mut self,
     precedence: Precedence,
   ) -> ParseError<'ast> {
-    let mut left = self.parse_prefix_expression()?;
+    let mut left = self.parse_pratt()?;
 
     while precedence < self.current_precedence() {
       if self.current_token.kind == TokenKind::Newline {
@@ -63,7 +44,7 @@ where
     Ok(left)
   }
 
-  fn parse_prefix_expression(&mut self) -> ParseError<'ast> {
+  fn parse_pratt(&mut self) -> ParseError<'ast> {
     let token = self.current_token;
 
     match token.kind {
@@ -87,7 +68,7 @@ where
       TokenKind::Match => self.parse_match_expression(),
       TokenKind::Fn => self.parse_fn_expression(),
       TokenKind::LBrace => {
-        let block = self.parse_block_statement()?;
+        let block = self.arena.alloc(self.parse_block_statement()?);
         let span = block.span;
         Ok(Expression::new(ExpressionKind::Block(block), span))
       }

@@ -2,8 +2,6 @@ mod identifier;
 mod number;
 mod string;
 
-use std::{iter::Peekable, str::CharIndices};
-
 use krama_core::{
   span::Span,
   token::{Token, TokenKind},
@@ -39,16 +37,14 @@ macro_rules! token_triple {
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
-  input: &'a str,
-  chars: Peekable<CharIndices<'a>>,
+  input: &'a [u8],
   position: usize,
 }
 
 impl<'a> Lexer<'a> {
   pub fn new(input: &'a str) -> Self {
     Self {
-      input,
-      chars: input.char_indices().peekable(),
+      input: input.as_bytes(),
       position: 0,
     }
   }
@@ -58,24 +54,31 @@ impl<'a> Lexer<'a> {
   }
 
   pub(super) fn peek(&mut self) -> Option<char> {
-    self.chars.peek().map(|&(_, c)| c)
+    if self.position >= self.input.len() {
+      return None;
+    }
+    Some(self.input[self.position] as char)
   }
 
   pub(super) fn advance(&mut self) -> Option<char> {
-    self.chars.next().map(|(pos, c)| {
-      self.position = pos + c.len_utf8();
-      c
-    })
+    if self.position >= self.input.len() {
+      return None;
+    }
+    let ch = self.input[self.position] as char;
+    self.position += 1;
+    Some(ch)
   }
 
   pub(super) fn advance_if(&mut self, expected: char) -> bool {
-    if let Some(&(_, c)) = self.chars.peek() {
-      if c == expected {
-        self.advance();
-        return true;
-      }
+    if self.position >= self.input.len() {
+      return false;
     }
-    false
+    if self.input[self.position] as char == expected {
+      self.position += 1;
+      true
+    } else {
+      false
+    }
   }
 
   pub(super) fn span(&self, start: usize) -> Span {
@@ -83,32 +86,40 @@ impl<'a> Lexer<'a> {
   }
 
   fn skip_trivia(&mut self) {
-    while let Some(c) = self.peek() {
-      if c.is_whitespace() && c != '\n' {
-        self.advance();
-        continue;
-      }
-
-      if self.input[self.position..].starts_with("//") {
-        self.advance();
-        self.advance();
-        while let Some(c) = self.peek() {
-          if c == '\n' {
-            break;
-          }
+    loop {
+      match self.peek() {
+        Some(c) if c.is_whitespace() && c != '\n' => {
           self.advance();
         }
-      } else if self.input[self.position..].starts_with("/*") {
-        self.advance();
-        self.advance();
-        while let Some(c) = self.advance() {
-          if c == '*' && self.peek() == Some('/') {
-            self.advance();
+        Some('/') => {
+          if self.position + 1 >= self.input.len() {
             break;
           }
+          match self.input[self.position + 1] as char {
+            '/' => {
+              self.advance();
+              self.advance();
+              while let Some(c) = self.peek() {
+                if c == '\n' {
+                  break;
+                }
+                self.advance();
+              }
+            }
+            '*' => {
+              self.advance();
+              self.advance();
+              while let Some(c) = self.advance() {
+                if c == '*' && self.peek() == Some('/') {
+                  self.advance();
+                  break;
+                }
+              }
+            }
+            _ => break,
+          }
         }
-      } else {
-        break;
+        _ => break,
       }
     }
   }

@@ -11,7 +11,6 @@ doctest = false
 
 [dependencies]
 krama_core = { path = "../krama_core" }
-once_cell.workspace = true
 phf.workspace = true
 
 [dev-dependencies]

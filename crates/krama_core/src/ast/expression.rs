@@ -2,12 +2,12 @@ use bumpalo::collections::Vec as BumpVec;
 
 use super::{
   literal::Literal,
-  node::Node,
   operator::{
     AssignmentOperator, BinaryOperator, UnaryOperator, UpdateOperator,
   },
   statement::{BlockStatement, Parameter},
   types::Type,
+  Node,
 };
 
 pub type Expression<'ast> = Node<'ast, ExpressionKind<'ast>>;
@@ -22,7 +22,7 @@ pub enum FunctionBody<'ast> {
 pub enum ExpressionKind<'ast> {
   Identifier(&'ast str),
   Literal(Literal<'ast>),
-  Block(BlockStatement<'ast>),
+  Block(&'ast BlockStatement<'ast>),
   Collection {
     elements: BumpVec<'ast, Expression<'ast>>,
   },

@@ -16,7 +16,7 @@ use crate::error::report_error;
 pub struct Repl;
 
 impl Repl {
-  pub async fn execute(&self, arena: &Bump) -> Result<()> {
+  pub async fn execute(&self, arena: &mut Bump) -> Result<()> {
     let interpreter = Interpreter::new(arena, None);
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();

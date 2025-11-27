@@ -5,10 +5,7 @@ use krama_core::{
 
 use crate::parser::{precedence::Precedence, ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_index_expression(
     &mut self,
     left: Expression<'ast>,

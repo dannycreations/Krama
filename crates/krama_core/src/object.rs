@@ -20,18 +20,18 @@ pub type ObjectFuture<'ast> =
   Rc<RefCell<Option<LocalBoxFuture<'ast, Result<Object<'ast>, Error>>>>>;
 
 #[derive(Clone)]
-pub struct NativeFn<'ast> {
+pub struct NativeFunction<'ast> {
   pub name: &'static str,
   pub callback: NativeFnCallback<'ast>,
 }
 
-impl<'ast> PartialEq for NativeFn<'ast> {
+impl<'ast> PartialEq for NativeFunction<'ast> {
   fn eq(&self, other: &Self) -> bool {
     self.name == other.name && self.callback as usize == other.callback as usize
   }
 }
 
-impl<'ast> fmt::Debug for NativeFn<'ast> {
+impl<'ast> fmt::Debug for NativeFunction<'ast> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("NativeFunction")
       .field("name", &self.name)
@@ -40,7 +40,7 @@ impl<'ast> fmt::Debug for NativeFn<'ast> {
 }
 
 #[derive(Debug, Clone)]
-pub struct UserFn<'ast> {
+pub struct UserFunction<'ast> {
   pub parameters: BumpVec<'ast, Parameter<'ast>>,
   pub body: FunctionBody<'ast>,
   pub kind: Option<Type<'ast>>,
@@ -48,8 +48,8 @@ pub struct UserFn<'ast> {
 
 #[derive(Clone)]
 pub enum Function<'ast> {
-  Native(NativeFn<'ast>),
-  User(Rc<UserFn<'ast>>),
+  Native(NativeFunction<'ast>),
+  User(Rc<UserFunction<'ast>>),
 }
 
 impl<'ast> PartialEq for Function<'ast> {
@@ -88,11 +88,11 @@ pub enum Object<'ast> {
   String(&'ast str),
   #[strum(props(name = "array"))]
   Array {
-    elements: &'ast [Object<'ast>],
+    elements: Rc<RefCell<BumpVec<'ast, Object<'ast>>>>,
     kind: Type<'ast>,
   },
   #[strum(props(name = "tuple"))]
-  Tuple(&'ast [Object<'ast>]),
+  Tuple(Rc<BumpVec<'ast, Object<'ast>>>),
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]
@@ -101,7 +101,7 @@ pub enum Object<'ast> {
   #[strum(props(name = "function"))]
   Function(Function<'ast>),
   #[strum(props(name = "return"))]
-  Return(&'ast Object<'ast>),
+  Return(Rc<Object<'ast>>),
   #[strum(props(name = "break"))]
   Break,
   #[strum(props(name = "continue"))]
@@ -130,7 +130,7 @@ impl<'ast> Object<'ast> {
       Object::Integer(i) => *i != 0,
       Object::Float(f) => *f != 0.0,
       Object::String(s) => !s.is_empty(),
-      Object::Array { elements, .. } => !elements.is_empty(),
+      Object::Array { elements, .. } => !elements.borrow().is_empty(),
       Object::Tuple(t) => !t.is_empty(),
       Object::Null | Object::Void => false,
       _ => true,
@@ -139,7 +139,7 @@ impl<'ast> Object<'ast> {
 
   fn format_elements(
     f: &mut fmt::Formatter,
-    elements: &[Object<'ast>],
+    elements: &BumpVec<'ast, Object<'ast>>,
     debug: bool,
   ) -> fmt::Result {
     write!(f, "[")?;
@@ -165,7 +165,7 @@ impl<'ast> fmt::Display for Object<'ast> {
       Object::Boolean(b) => write!(f, "{}", b),
       Object::String(s) => write!(f, "{}", s),
       Object::Array { elements, .. } => {
-        Object::format_elements(f, elements, false)
+        Object::format_elements(f, &elements.borrow(), false)
       }
       Object::Tuple(elements) => Object::format_elements(f, elements, false),
       Object::Null => write!(f, "null"),

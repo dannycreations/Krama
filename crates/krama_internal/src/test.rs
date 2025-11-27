@@ -6,12 +6,17 @@ macro_rules! resolve_future {
   ($result:expr) => {
     if let ::krama_core::object::Object::Future(future) = $result {
       if let Some(real_future) = future.take() {
-        real_future.await.unwrap()
+        real_future.await
       } else {
-        panic!("Future already resolved")
+        Err(::krama_core::error::Error {
+          span: Default::default(),
+          kind: ::krama_core::error::ErrorKind::RuntimeError(
+            "Future already resolved".to_string(),
+          ),
+        })
       }
     } else {
-      $result
+      Ok($result)
     }
   };
 }
@@ -41,7 +46,7 @@ macro_rules! test_eval_async {
         ::krama_runtime::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
-      let result = $crate::resolve_future!(result);
+      let result = $crate::resolve_future!(result).unwrap();
       assert_eq!(result, $expected);
     }
   };
@@ -57,7 +62,7 @@ macro_rules! test_eval_is_native_function {
         ::krama_runtime::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
-      let result = $crate::resolve_future!(result);
+      let result = $crate::resolve_future!(result).unwrap();
       assert!(matches!(
         result,
         ::krama_core::object::Object::Function(
@@ -105,7 +110,7 @@ macro_rules! test_eval_is_module {
         ::krama_runtime::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
-      let result = $crate::resolve_future!(result);
+      let result = $crate::resolve_future!(result).unwrap();
       if let ::krama_core::object::Object::Scope(module) = result {
         assert_eq!(module.name, $expected);
       } else {
@@ -127,7 +132,7 @@ macro_rules! test_eval_with_file {
 
       tokio::fs::write($filename, $file_content).await.unwrap();
       let evaluated = interpreter.eval(input).await.unwrap();
-      let evaluated = $crate::resolve_future!(evaluated);
+      let evaluated = $crate::resolve_future!(evaluated).unwrap();
       tokio::fs::remove_file($filename).await.unwrap();
 
       assert_eq!(evaluated, $expected);

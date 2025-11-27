@@ -9,10 +9,7 @@ use krama_core::{
 
 use super::{ParseError, Parser, Precedence};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_if_expression(&mut self) -> ParseError<'ast> {
     let start_span = self.current_token.span;
     self.advance();
@@ -39,12 +36,12 @@ where
     }
     self.advance();
 
-    let then_branch = self.parse_block_statement()?;
+    let then_branch = self.arena.alloc(self.parse_block_statement()?);
     let then_span = then_branch.span;
 
     let else_branch = if self.current_token.kind == TokenKind::Else {
       self.advance();
-      let else_block = self.parse_block_statement()?;
+      let else_block = self.arena.alloc(self.parse_block_statement()?);
       let else_span = else_block.span;
       Some(self.arena.alloc(Expression::new(
         ExpressionKind::Block(else_block),

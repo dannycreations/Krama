@@ -320,7 +320,6 @@ version = "0.1.0"
 dependencies = [
  "krama_core",
  "krama_internal",
- "once_cell",
  "phf",
 ]
 

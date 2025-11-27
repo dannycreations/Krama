@@ -9,10 +9,7 @@ use krama_core::{
 
 use super::{ParseError, Parser, Precedence};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_unary_expression(&mut self) -> ParseError<'ast> {
     let token = self.current_token;
     self.advance();

@@ -6,10 +6,7 @@ use krama_core::{
 
 use super::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_import_expression(&mut self) -> ParseError<'ast> {
     let start_span = self.current_token.span;
     self.advance();

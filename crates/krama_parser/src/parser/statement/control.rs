@@ -6,10 +6,7 @@ use krama_core::{
 
 use super::{super::precedence::Precedence, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_while_statement(
     &mut self,
   ) -> Result<Statement<'ast>, Error> {

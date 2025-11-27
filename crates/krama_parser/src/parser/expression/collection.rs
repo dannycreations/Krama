@@ -6,10 +6,7 @@ use krama_core::{
 
 use crate::parser::{precedence::Precedence, ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_collection_expression(&mut self) -> ParseError<'ast> {
     let start_span = self.current_token.span;
 

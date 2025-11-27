@@ -18,16 +18,16 @@ use self::precedence::Precedence;
 
 type ParseError<'a> = Result<Expression<'a>, Error>;
 
-pub struct Parser<'a, 'ast> {
+pub struct Parser<'a, 'ast>
+where
+  'a: 'ast,
+{
   lexer: Peekable<Lexer<'a>>,
   current_token: Token<'a>,
   arena: &'ast Bump,
 }
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub fn new(lexer: Lexer<'a>, arena: &'ast Bump) -> Self {
     let mut lexer = lexer.peekable();
     let eof_pos = lexer.peek().map_or(0, |t| t.span.end);

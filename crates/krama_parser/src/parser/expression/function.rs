@@ -5,15 +5,13 @@ use krama_core::{
     statement::Parameter,
   },
   error::{Error, ErrorKind},
+  span::Span,
   token::TokenKind,
 };
 
 use crate::parser::{precedence::Precedence, ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_fn_expression(&mut self) -> ParseError<'ast> {
     let start_span = self.current_token.span;
     self.advance();
@@ -96,5 +94,44 @@ where
     self.advance();
 
     Ok(parameters)
+  }
+
+  pub(super) fn parse_fn_expr_with_empty_params(
+    &mut self,
+    start_span: Span,
+  ) -> ParseError<'ast> {
+    let parameters = BumpVec::new_in(self.arena);
+    self.parse_fn_expr_with_params(start_span, parameters)
+  }
+
+  pub(super) fn parse_fn_expr_with_params(
+    &mut self,
+    start_span: Span,
+    parameters: BumpVec<'ast, Parameter<'ast>>,
+  ) -> ParseError<'ast> {
+    let body = if self.current_token.kind == TokenKind::Arrow {
+      self.advance();
+      let body_expr = self.parse_expression(Precedence::Lowest)?;
+      FunctionBody::Expression(self.arena.alloc(body_expr))
+    } else {
+      let body_block = self.arena.alloc(self.parse_block_statement()?);
+      FunctionBody::Block(body_block)
+    };
+
+    let kind = if self.current_token.kind == TokenKind::Colon {
+      self.advance();
+      Some(self.parse_type()?)
+    } else {
+      None
+    };
+
+    Ok(Expression::new(
+      ExpressionKind::Fn {
+        parameters,
+        body,
+        kind,
+      },
+      start_span,
+    ))
   }
 }

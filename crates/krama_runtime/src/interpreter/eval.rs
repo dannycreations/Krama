@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use bumpalo::collections::Vec as BumpVec;
 use futures::{
@@ -11,7 +11,7 @@ use krama_core::{
     types::{Type, TypeKind},
   },
   error::Error,
-  object::{Function, Object, UserFn},
+  object::{Function, Object, UserFunction},
 };
 
 use super::Interpreter;
@@ -105,7 +105,7 @@ impl<'ast> Interpreter<'ast> {
           parameters,
           body,
           kind,
-        } => Ok(Object::Function(Function::User(Rc::new(UserFn {
+        } => Ok(Object::Function(Function::User(Rc::new(UserFunction {
           parameters: parameters.clone(),
           body: body.clone(),
           kind: kind.clone(),
@@ -144,17 +144,17 @@ impl<'ast> Interpreter<'ast> {
             match hint.kind {
               TypeKind::Array { .. } => {
                 return Ok(Object::Array {
-                  elements: evaluated_elements.into_bump_slice(),
+                  elements: Rc::new(RefCell::new(evaluated_elements)),
                   kind: hint.clone(),
                 })
               }
               TypeKind::Tuple(_) => {
-                return Ok(Object::Tuple(evaluated_elements.into_bump_slice()))
+                return Ok(Object::Tuple(Rc::new(evaluated_elements)))
               }
               _ => {}
             }
           }
-          Ok(Object::Tuple(evaluated_elements.into_bump_slice()))
+          Ok(Object::Tuple(Rc::new(evaluated_elements)))
         }
       }
     }

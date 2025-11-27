@@ -6,13 +6,11 @@ mod identifier;
 mod import;
 mod literal;
 mod statement;
-mod test;
 mod types;
 
 use std::{cell::RefCell, rc::Rc};
 
 use bumpalo::Bump;
-use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
   ast::{expression::Expression, statement::Statement, Program},
   error::{Error, ErrorKind},
@@ -23,7 +21,6 @@ use krama_lexer::lexer::Lexer;
 use krama_parser::parser::Parser;
 use krama_std::{globals, props, props::PropFn};
 use rustc_hash::FxHashMap;
-pub use test::TestResult;
 
 use crate::{environment::Environment, resolver::Resolver};
 
@@ -76,7 +73,7 @@ impl<'ast> Interpreter<'ast> {
     self.eval_program_statements(&program.statements).await
   }
 
-  fn parse_and_resolve(
+  pub fn parse_and_resolve(
     &self,
     source: &'ast str,
   ) -> Result<Program<'ast>, Error> {
@@ -88,18 +85,15 @@ impl<'ast> Interpreter<'ast> {
     Ok(program)
   }
 
-  fn eval_program_statements<'s>(
+  pub async fn eval_program_statements<'s>(
     &'s self,
     statements: &'s [Statement<'ast>],
-  ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
-    async move {
-      let mut result = Object::Void;
-      for statement in statements {
-        result = self.eval_statement(statement).await?;
-      }
-      Ok(result)
+  ) -> Result<Object<'ast>, Error> {
+    let mut result = Object::Void;
+    for statement in statements {
+      result = self.eval_statement(statement).await?;
     }
-    .boxed_local()
+    Ok(result)
   }
 
   async fn resolve_object(

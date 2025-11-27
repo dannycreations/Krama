@@ -1,3 +1,5 @@
+use std::str;
+
 use krama_core::token::{Token, TokenKind};
 
 use super::Lexer;
@@ -25,7 +27,8 @@ impl<'a> Lexer<'a> {
     }
 
     let content_end = self.position;
-    let value = &self.input[content_start..content_end];
+    let value =
+      str::from_utf8(&self.input[content_start..content_end]).unwrap();
 
     self.advance();
 

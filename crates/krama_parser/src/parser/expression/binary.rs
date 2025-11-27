@@ -15,10 +15,7 @@ enum InfixOperator {
   Assignment(AssignmentOperator),
 }
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_postfix_expression(
     &mut self,
     argument: Expression<'ast>,

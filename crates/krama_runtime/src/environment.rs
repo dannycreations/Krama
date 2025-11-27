@@ -21,14 +21,13 @@ impl<'ast> Environment<'ast> {
   }
 
   pub fn get(&self, name: &str) -> Option<Rc<Object<'ast>>> {
-    if let Some((obj, _)) = self.store.get(name) {
-      return Some(obj.clone());
+    let mut env = Some(self);
+    while let Some(current_env) = env {
+      if let Some((obj, _)) = current_env.store.get(name) {
+        return Some(obj.clone());
+      }
+      env = current_env.outer.as_deref();
     }
-
-    if let Some(outer) = &self.outer {
-      return outer.get(name);
-    }
-
     None
   }
 
@@ -37,15 +36,15 @@ impl<'ast> Environment<'ast> {
     distance: usize,
     name: &str,
   ) -> Option<Rc<Object<'ast>>> {
-    if distance == 0 {
-      return self.get(name);
+    let mut env = Some(self);
+    for _ in 0..distance {
+      if let Some(current_env) = env {
+        env = current_env.outer.as_deref();
+      } else {
+        return None;
+      }
     }
-
-    if let Some(outer) = &self.outer {
-      outer.get_at(distance - 1, name)
-    } else {
-      None
-    }
+    env.and_then(|e| e.get(name))
   }
 
   pub fn set(

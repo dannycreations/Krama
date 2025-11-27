@@ -10,10 +10,7 @@ use krama_core::{
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_type(&mut self) -> Result<Type<'ast>, Error> {
     let mut kind = if self.current_token.kind == TokenKind::LBracket {
       self.parse_tuple_type()?

@@ -1,3 +1,4 @@
+use bumpalo::collections::Vec as BumpVec;
 use futures::future::LocalBoxFuture;
 use krama_core::{
   error::{Error, ErrorKind},
@@ -17,10 +18,14 @@ impl<'ast> Interpreter<'ast> {
     Box::pin(async move {
       match object {
         Object::Array { elements, .. } => {
-          Self::eval_index_expression_for_sequence(elements, index, span)
+          Self::eval_index_expression_for_sequence(
+            &elements.borrow(),
+            index,
+            span,
+          )
         }
         Object::Tuple(elements) => {
-          Self::eval_index_expression_for_sequence(elements, index, span)
+          Self::eval_index_expression_for_sequence(&elements, index, span)
         }
         Object::String(s) => {
           let idx = match index {
@@ -61,7 +66,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   fn eval_index_expression_for_sequence(
-    elements: &'ast [Object<'ast>],
+    elements: &BumpVec<'ast, Object<'ast>>,
     index: Object<'ast>,
     span: Span,
   ) -> Result<Object<'ast>, Error> {

@@ -1,6 +1,6 @@
 use krama_core::{ast::statement::Statement, error::Error, token::TokenKind};
 
-use super::Parser;
+use super::{Parser, Precedence};
 
 pub(super) mod assignment;
 pub(super) mod block;
@@ -10,10 +10,7 @@ pub(super) mod function;
 pub(super) mod public;
 pub(super) mod test;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_statement(&mut self) -> Result<Statement<'ast>, Error> {
     let token = self.current_token;
 
@@ -27,7 +24,15 @@ where
       TokenKind::Continue => self.parse_continue_statement(),
       TokenKind::Test => self.parse_test_statement(),
       TokenKind::While => self.parse_while_statement(),
-      _ => self.parse_expression_statement(),
+      _ => {
+        let expression = self.parse_expression(Precedence::Lowest)?;
+        let span = expression.span;
+        let statement_kind =
+          krama_core::ast::statement::StatementKind::Expression {
+            expression: self.arena.alloc(expression),
+          };
+        Ok(Statement::new(statement_kind, span))
+      }
     }?;
 
     if self.current_token.kind == TokenKind::Semicolon {

@@ -1,4 +1,4 @@
-use std::{path::Path, str};
+use std::{cell::RefCell, path::Path, rc::Rc, str};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
@@ -10,7 +10,51 @@ use krama_core::{
 use rustc_hash::FxHashMap;
 use tokio::fs;
 
-use crate::{build_native_functions, count_args, parse_args};
+use crate::build_native_functions;
+
+#[macro_export]
+macro_rules! count_args {
+    (@one $($t:tt)*) => { () };
+    ($($x:ident),*) => {
+        <[()]>::len(&[$(count_args!(@one $x)),*])
+    };
+}
+
+#[macro_export]
+macro_rules! parse_args {
+    ($objects:expr, $($arg:ident: $type:pat),*) => {
+        const EXPECTED_ARGS: usize = count_args!($($arg),*);
+        if $objects.len() != EXPECTED_ARGS {
+            return Err(Error {
+                span: Default::default(),
+                kind: ErrorKind::TypeError(format!(
+                    "Expected {} arguments, but got {}",
+                    EXPECTED_ARGS,
+                    $objects.len()
+                )),
+            });
+        }
+
+        let mut arg_iter = $objects.iter();
+        $(
+            let $arg = match arg_iter.next() {
+                Some($type) => $arg,
+                Some(other) => {
+                    return Err(Error {
+                        span: Default::default(),
+                        kind: ErrorKind::TypeError(format!(
+                            "Expected argument '{}' to be of type '{}', but got {}",
+                            stringify!($arg),
+                            stringify!($type),
+                            other.to_string()
+                        )),
+                    });
+                }
+                None => unreachable!(),
+            };
+        )*
+    };
+}
 
 pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
   let functions: &[(&'static str, NativeFnCallback<'ast>)] = &[
@@ -120,7 +164,7 @@ fn read_dir<'ast>(
     }
 
     Ok(Object::Array {
-      elements: entries.into_bump_slice(),
+      elements: Rc::new(RefCell::new(entries)),
       kind: Type::new(TypeKind::Identifier("str"), Default::default()),
     })
   })

@@ -7,10 +7,7 @@ use krama_core::{
 
 use super::{ParseError, Parser, Precedence};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'a: 'ast,
-{
+impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_call_expression(
     &mut self,
     function: Expression<'ast>,
