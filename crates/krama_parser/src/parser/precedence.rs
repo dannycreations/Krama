@@ -19,6 +19,7 @@ pub(crate) enum Precedence {
   Postfix,     // X++
   Call,        // myFunction(X)
   Member,      // myObject.property
+  Index,       // myArray[0]
 }
 
 impl Precedence {
@@ -54,6 +55,7 @@ impl Precedence {
       TokenKind::PlusPlus | TokenKind::MinusMinus => Precedence::Postfix,
       TokenKind::LParen => Precedence::Call,
       TokenKind::Dot => Precedence::Member,
+      TokenKind::LBracket => Precedence::Index,
       _ => Precedence::Lowest,
     }
   }

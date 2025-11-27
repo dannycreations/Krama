@@ -114,6 +114,13 @@ impl<'ast> Interpreter<'ast> {
           let object = self.eval_expression(object, None).await?;
           self.eval_member_expression(object, property, span).await
         }
+        ExpressionKind::Index { object, index } => {
+          let (object, index) = join!(
+            self.eval_expression(object, None),
+            self.eval_expression(index, None)
+          );
+          self.eval_index_expression(object?, index?, span).await
+        }
         ExpressionKind::Collection { elements } => {
           let mut element_kind = None;
 

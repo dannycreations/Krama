@@ -5,6 +5,7 @@ pub(super) mod control;
 pub(super) mod function;
 pub(super) mod group;
 pub(super) mod import;
+pub(super) mod index;
 pub(super) mod literal;
 pub(super) mod member;
 pub(super) mod unary;
@@ -51,6 +52,7 @@ where
       left = match self.current_token.kind {
         TokenKind::LParen => self.parse_call_expression(left)?,
         TokenKind::Dot => self.parse_member_expression(left)?,
+        TokenKind::LBracket => self.parse_index_expression(left)?,
         TokenKind::PlusPlus | TokenKind::MinusMinus => {
           self.parse_postfix_expression(left)?
         }
