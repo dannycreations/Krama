@@ -2,8 +2,6 @@ mod identifier;
 mod number;
 mod string;
 
-use std::{iter::Peekable, str::Chars};
-
 use krama_core::{
   span::Span,
   token::{Token, TokenKind},
@@ -39,7 +37,7 @@ macro_rules! token_triple {
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
-  pub(super) input: Peekable<Chars<'a>>,
+  pub(super) input: &'a [u8],
   pub(super) position: usize,
   pub(super) input_str: &'a str,
 }
@@ -47,33 +45,45 @@ pub struct Lexer<'a> {
 impl<'a> Lexer<'a> {
   pub fn new(input: &'a str) -> Self {
     Self {
-      input_str: input,
-      input: input.chars().peekable(),
+      input: input.as_bytes(),
       position: 0,
+      input_str: input,
     }
   }
 
   pub fn input_len(&self) -> usize {
-    self.input_str.len()
+    self.input.len()
   }
 
-  pub(super) fn peek(&mut self) -> Option<char> {
-    self.input.peek().copied()
+  fn current_char_and_width(&self) -> Option<(char, usize)> {
+    if self.position >= self.input.len() {
+      return None;
+    }
+    // This is safe because we are reading from the original string slice.
+    let s =
+      unsafe { std::str::from_utf8_unchecked(&self.input[self.position..]) };
+    s.chars().next().map(|c| (c, c.len_utf8()))
+  }
+
+  pub(super) fn peek(&self) -> Option<char> {
+    self.current_char_and_width().map(|(c, _)| c)
   }
 
   pub(super) fn advance(&mut self) -> Option<char> {
-    let char = self.input.next()?;
-    self.position += char.len_utf8();
-    Some(char)
+    self.current_char_and_width().map(|(c, width)| {
+      self.position += width;
+      c
+    })
   }
 
   pub(super) fn advance_if(&mut self, expected: char) -> bool {
-    if self.peek() == Some(expected) {
-      self.advance();
-      true
-    } else {
-      false
+    if let Some((c, width)) = self.current_char_and_width() {
+      if c == expected {
+        self.position += width;
+        return true;
+      }
     }
+    false
   }
 
   pub(super) fn span(&self, start: usize) -> Span {
@@ -85,9 +95,8 @@ impl<'a> Lexer<'a> {
       if c.is_whitespace() && c != '\n' {
         self.advance();
       } else if c == '/' {
-        let mut iter = self.input.clone();
-        iter.next();
-        if iter.peek() == Some(&'/') {
+        let next_pos = self.position + c.len_utf8();
+        if next_pos < self.input.len() && self.input[next_pos] == b'/' {
           self.advance(); // consume '/'
           self.advance(); // consume '/'
           while let Some(c) = self.peek() {
@@ -149,13 +158,15 @@ impl<'a> Iterator for Lexer<'a> {
         TokenKind::MinusEqual,
         TokenKind::Minus
       ),
-      '%' => token!(
-        self,
-        start,
-        TokenKind::Percent,
-        '=',
-        TokenKind::PercentEqual
-      ),
+      '%' => {
+        token!(
+          self,
+          start,
+          TokenKind::Percent,
+          '=',
+          TokenKind::PercentEqual
+        )
+      }
       '/' => token!(self, start, TokenKind::Slash, '=', TokenKind::SlashEqual),
       '*' => token_triple!(
         self,

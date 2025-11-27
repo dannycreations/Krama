@@ -1,5 +1,7 @@
 use std::fmt;
 
+use strum_macros::AsRefStr;
+
 use crate::span::Span;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -14,7 +16,8 @@ impl fmt::Display for Error {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, AsRefStr)]
+#[strum(serialize_all = "PascalCase")]
 pub enum ErrorKind {
   RuntimeError(String),
   SyntaxError(String),
@@ -25,10 +28,10 @@ pub enum ErrorKind {
 impl fmt::Display for ErrorKind {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     match self {
-      ErrorKind::RuntimeError(msg) => write!(f, "RuntimeError: {}", msg),
-      ErrorKind::SyntaxError(msg) => write!(f, "SyntaxError: {}", msg),
-      ErrorKind::TypeError(msg) => write!(f, "TypeError: {}", msg),
-      ErrorKind::ReferenceError(msg) => write!(f, "ReferenceError: {}", msg),
+      ErrorKind::RuntimeError(msg) => write!(f, "{}", msg),
+      ErrorKind::SyntaxError(msg) => write!(f, "{}", msg),
+      ErrorKind::TypeError(msg) => write!(f, "{}", msg),
+      ErrorKind::ReferenceError(msg) => write!(f, "{}", msg),
     }
   }
 }

@@ -12,9 +12,7 @@ impl<'a> Lexer<'a> {
         self.advance();
       } else if c == '.' && !is_float {
         // Check for `..` to avoid lexing `1..10` as `1.`, `.`, `10`
-        let mut iter = self.input.clone();
-        iter.next();
-        if iter.peek() == Some(&'.') {
+        if self.input.get(self.position + 1) == Some(&b'.') {
           // This is a range, so we stop parsing the number.
           break;
         }

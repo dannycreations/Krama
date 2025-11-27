@@ -1,116 +1,118 @@
-use std::{cell::RefCell, path::Path, rc::Rc};
-
 use krama_core::{
+  ast::{
+    expression::{Expression, ExpressionKind},
+    statement::{Binding, Statement, StatementKind},
+    Program,
+  },
   error::{Error, ErrorKind},
-  object::{ModuleObject, Object},
 };
-use krama_std::modules;
-use tokio::fs;
+use rustc_hash::FxHashMap;
 
-use crate::interpreter::Interpreter;
+/// The Resolver is responsible for resolving variable bindings.
+///
+/// It performs a static analysis pass over the AST, determining the scope
+/// of each variable declaration and usage. This allows the interpreter to
+/// look up variables with a constant-time operation, rather than a
+/// potentially slow walk up the environment chain.
+pub struct Resolver<'a> {
+  scopes: Vec<FxHashMap<&'a str, bool>>,
+}
 
-#[derive(Default, Clone)]
-pub struct Resolver;
+impl<'a> Default for Resolver<'a> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
 
-impl Resolver {
+impl<'a> Resolver<'a> {
   pub fn new() -> Self {
-    Self
+    Self {
+      scopes: vec![FxHashMap::default()],
+    }
   }
 
-  pub async fn resolve<'ast>(
-    &self,
-    interpreter: &Interpreter<'ast>,
-    path: &'ast str,
-  ) -> Result<Object<'ast>, Error> {
-    if let Ok(modules) = interpreter.modules.try_borrow() {
-      if let Some(module) = modules.get(path) {
-        return Ok(module.clone());
+  pub fn resolve(&mut self, program: &Program<'a>) -> Result<(), Error> {
+    for statement in &program.statements {
+      self.resolve_statement(statement)?;
+    }
+    Ok(())
+  }
+
+  fn resolve_statement(
+    &mut self,
+    statement: &Statement<'a>,
+  ) -> Result<(), Error> {
+    match &statement.kind {
+      StatementKind::Let { name, value, .. } => {
+        self.resolve_expression(value)?;
+        self.declare(name);
+        self.define(name);
       }
-    } else {
-      return Err(Error {
-        span: Default::default(),
-        kind: ErrorKind::RuntimeError(
-          "Failed to borrow modules cache".to_string(),
-        ),
-      });
+      StatementKind::Const { binding, value, .. } => {
+        self.resolve_expression(value)?;
+        match binding {
+          Binding::Identifier(name) => {
+            self.declare(name);
+            self.define(name);
+          }
+          Binding::Destructure(items) => {
+            for item in items {
+              self.declare(item.name);
+              self.define(item.name);
+            }
+          }
+          Binding::ModuleAndDestructure {
+            module_alias,
+            items,
+          } => {
+            self.declare(module_alias);
+            self.define(module_alias);
+            for item in items {
+              self.declare(item.name);
+              self.define(item.name);
+            }
+          }
+        }
+      }
+      StatementKind::Fn { name, .. } => {
+        self.declare(name);
+        self.define(name);
+      }
+      _ => {}
     }
-
-    let module = if path.starts_with("std:") {
-      self.resolve_std_module(path)?
-    } else {
-      self.resolve_file_module(interpreter, path).await?
-    };
-
-    if let Ok(mut modules) = interpreter.modules.try_borrow_mut() {
-      modules.insert(path.to_string(), module.clone());
-    } else {
-      return Err(Error {
-        span: Default::default(),
-        kind: ErrorKind::RuntimeError(
-          "Failed to mutably borrow modules cache".to_string(),
-        ),
-      });
-    }
-
-    Ok(module)
+    Ok(())
   }
 
-  fn resolve_std_module<'ast>(
-    &self,
-    path: &'ast str,
-  ) -> Result<Object<'ast>, Error> {
-    let module_name = path.strip_prefix("std:").ok_or_else(|| Error {
-      span: Default::default(),
-      kind: ErrorKind::ReferenceError(
-        "Invalid standard module path".to_string(),
-      ),
-    })?;
-    modules::get_modules(module_name)
-      .map(|exports| {
-        let module = ModuleObject {
-          name: module_name,
-          exports: exports.into_iter().collect(),
-        };
-        Object::Module(Rc::new(RefCell::new(module)))
-      })
-      .ok_or_else(|| Error {
-        span: Default::default(),
-        kind: ErrorKind::ReferenceError(format!(
-          "Standard module not found: {}",
-          module_name
-        )),
-      })
+  fn resolve_expression(
+    &mut self,
+    expression: &Expression<'a>,
+  ) -> Result<(), Error> {
+    if let ExpressionKind::Identifier(name) = &expression.kind {
+      if let Some(scope) = self.scopes.last() {
+        if let Some(defined) = scope.get(name) {
+          if !defined {
+            return Err(Error {
+              span: expression.span,
+              kind: ErrorKind::SyntaxError(
+                "Cannot read local variable in its own initializer".to_string(),
+              ),
+            });
+          }
+        }
+      }
+    }
+    Ok(())
   }
 
-  async fn resolve_file_module<'ast>(
-    &self,
-    interpreter: &Interpreter<'ast>,
-    path: &'ast str,
-  ) -> Result<Object<'ast>, Error> {
-    let base_path = interpreter
-      .path
-      .as_ref()
-      .and_then(|p| Path::new(p).parent())
-      .unwrap_or_else(|| Path::new(""));
-
-    let mut path_buf = base_path.join(path);
-    if path_buf.extension().is_none() {
-      path_buf.set_extension("km");
+  fn declare(&mut self, name: &'a str) {
+    if let Some(scope) = self.scopes.last_mut() {
+      scope.insert(name, false);
     }
-    let canonical_path =
-      fs::canonicalize(&path_buf).await.map_err(|e| Error {
-        span: Default::default(),
-        kind: ErrorKind::ReferenceError(format!(
-          "Failed to canonicalize path: {}",
-          e
-        )),
-      })?;
-    let path_str =
-      interpreter.alloc_str(canonical_path.to_str().ok_or_else(|| Error {
-        span: Default::default(),
-        kind: ErrorKind::ReferenceError("Invalid path encoding".to_string()),
-      })?);
+  }
 
-    interpreter.eval_and_cache(path_str).await
+  fn define(&mut self, name: &'a str) {
+    if let Some(scope) = self.scopes.last_mut() {
+      scope.insert(name, true);
+    }
   }
 }

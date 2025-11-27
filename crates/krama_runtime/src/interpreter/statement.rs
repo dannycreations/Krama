@@ -65,13 +65,13 @@ impl<'ast> Interpreter<'ast> {
               self.env_mut(span)?.set(name, value, *public);
             }
             Binding::Destructure(items) => {
-              if let Object::Module(module) = value {
-                let module = module.try_borrow().map_err(|e| Error {
+              if let Object::Scope(scope) = value {
+                let scope = scope.try_borrow().map_err(|e| Error {
                   span,
                   kind: ErrorKind::RuntimeError(e.to_string()),
                 })?;
                 for item in items.iter() {
-                  if let Some(export) = module.exports.get(item.name) {
+                  if let Some(export) = scope.bindings.get(item.name) {
                     let name = item.alias.unwrap_or(item.name);
                     self.env_mut(span)?.set(name, export.clone(), *public);
                   } else {
@@ -94,16 +94,16 @@ impl<'ast> Interpreter<'ast> {
               module_alias,
               items,
             } => {
-              if let Object::Module(module_obj) = &value {
+              if let Object::Scope(scope_obj) = &value {
                 self
                   .env_mut(span)?
                   .set(module_alias, value.clone(), *public);
-                let module = module_obj.try_borrow().map_err(|e| Error {
+                let scope = scope_obj.try_borrow().map_err(|e| Error {
                   span,
                   kind: ErrorKind::RuntimeError(e.to_string()),
                 })?;
                 for item in items.iter() {
-                  if let Some(export) = module.exports.get(item.name) {
+                  if let Some(export) = scope.bindings.get(item.name) {
                     let name = item.alias.unwrap_or(item.name);
                     self.env_mut(span)?.set(name, export.clone(), *public);
                   } else {

@@ -96,7 +96,7 @@ impl<'ast> Interpreter<'ast> {
           )),
         }),
       },
-      (Object::Module(left), Object::Module(right)) => match operator {
+      (Object::Scope(left), Object::Scope(right)) => match operator {
         BinaryOperator::Equal => Ok(Object::Boolean(Rc::ptr_eq(&left, &right))),
         BinaryOperator::NotEqual => {
           Ok(Object::Boolean(!Rc::ptr_eq(&left, &right)))

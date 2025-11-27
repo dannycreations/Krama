@@ -33,7 +33,6 @@ use crate::{environment::Environment, resolver::Resolver};
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
   pub environment: Rc<RefCell<Environment<'ast>>>,
-  resolver: Resolver,
   pub(super) modules: Rc<RefCell<FxHashMap<String, Object<'ast>>>>,
   pub(super) arena: &'ast Bump,
   pub path: Option<&'ast str>,
@@ -49,7 +48,6 @@ impl<'ast> Interpreter<'ast> {
 
     Self {
       environment: Rc::new(RefCell::new(env)),
-      resolver: Resolver::new(),
       modules: Rc::new(RefCell::new(FxHashMap::default())),
       arena,
       path,
@@ -65,6 +63,8 @@ impl<'ast> Interpreter<'ast> {
     let lexer = Lexer::new(source);
     let mut parser = Parser::new(lexer, self.arena);
     let program = parser.parse()?;
+    let mut resolver = Resolver::new();
+    resolver.resolve(&program)?;
     self.eval_program_statements(&program.statements).await
   }
 

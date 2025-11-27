@@ -87,8 +87,7 @@ pub enum Object<'ast> {
   Tuple(Rc<BumpVec<'ast, Object<'ast>>>),
   Null,
   Void,
-  Module(Rc<RefCell<ModuleObject<'ast>>>),
-  Global(Rc<RefCell<GlobalObject<'ast>>>),
+  Scope(Rc<RefCell<Scope<'ast>>>),
   Function(Function<'ast>),
   Return(Rc<Object<'ast>>),
   Break,
@@ -107,8 +106,17 @@ impl<'ast> Object<'ast> {
       Object::Tuple(_) => "tuple",
       Object::Null => "null",
       Object::Void => "void",
-      Object::Module(_) => "module",
-      Object::Global(_) => "global",
+      Object::Scope(scope) => {
+        if let Ok(guard) = scope.try_borrow() {
+          if guard.name.is_some() {
+            "module"
+          } else {
+            "global"
+          }
+        } else {
+          "scope"
+        }
+      }
       Object::Function(_) => "function",
       Object::Return(_) => "return",
       Object::Break => "break",
@@ -163,14 +171,17 @@ impl<'ast> fmt::Display for Object<'ast> {
       Object::Tuple(elements) => Object::format_elements(f, elements, false),
       Object::Null => write!(f, "null"),
       Object::Void => write!(f, "void"),
-      Object::Module(module) => {
-        if let Ok(guard) = module.try_borrow() {
-          write!(f, "module {}", guard.name)
+      Object::Scope(scope) => {
+        if let Ok(guard) = scope.try_borrow() {
+          if let Some(name) = guard.name {
+            write!(f, "module {}", name)
+          } else {
+            write!(f, "global")
+          }
         } else {
-          write!(f, "module <locked>")
+          write!(f, "scope <locked>")
         }
       }
-      Object::Global(_) => write!(f, "global"),
       Object::Function(func) => match func {
         Function::Native(_) => write!(f, "[native function]"),
         Function::User(_) => write!(f, "[function]"),
@@ -198,8 +209,7 @@ impl<'ast> fmt::Debug for Object<'ast> {
       }
       Object::Null => write!(f, "Null"),
       Object::Void => write!(f, "Void"),
-      Object::Module(module) => f.debug_tuple("Module").field(module).finish(),
-      Object::Global(g) => f.debug_tuple("Global").field(g).finish(),
+      Object::Scope(scope) => f.debug_tuple("Scope").field(scope).finish(),
       Object::Function(func) => func.fmt(f),
       Object::Return(value) => f.debug_tuple("Return").field(value).finish(),
       Object::Break => write!(f, "Break"),
@@ -226,20 +236,14 @@ impl<'ast> PartialEq for Object<'ast> {
       (Object::Return(a), Object::Return(b)) => a == b,
       (Object::Break, Object::Break) => true,
       (Object::Continue, Object::Continue) => true,
-      (Object::Module(a), Object::Module(b)) => Rc::ptr_eq(a, b),
-      (Object::Global(a), Object::Global(b)) => Rc::ptr_eq(a, b),
+      (Object::Scope(a), Object::Scope(b)) => Rc::ptr_eq(a, b),
       (Object::Future(_), Object::Future(_)) => false,
       _ => false,
     }
   }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct ModuleObject<'ast> {
-  pub name: &'ast str,
-  pub exports: FxHashMap<&'ast str, Object<'ast>>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct GlobalObject<'ast> {
+pub struct Scope<'ast> {
+  pub name: Option<&'ast str>,
   pub bindings: FxHashMap<&'ast str, Object<'ast>>,
 }

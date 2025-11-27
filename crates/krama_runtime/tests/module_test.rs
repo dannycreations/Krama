@@ -20,7 +20,7 @@ test_eval_is_module!(
         const assert = @import("std:assert")
         assert
     "#,
-  "assert"
+  Some("assert")
 );
 
 test_eval_is_native_function!(

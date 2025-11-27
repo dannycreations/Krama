@@ -14,7 +14,7 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Object<'ast>, Error> {
     self.environment.borrow().get(name).ok_or_else(|| Error {
       span,
-      kind: ErrorKind::ReferenceError(name.to_string()),
+      kind: ErrorKind::ReferenceError(format!("'{}' is not defined", name)),
     })
   }
 }

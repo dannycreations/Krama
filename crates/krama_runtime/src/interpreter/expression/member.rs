@@ -38,27 +38,26 @@ impl<'ast> Interpreter<'ast> {
       }
     }
 
-    if let Object::Module(module) = resolved_object {
-      let module = module.try_borrow().map_err(|e| Error {
+    if let Object::Scope(ref scope) = resolved_object {
+      let scope = scope.try_borrow().map_err(|e| Error {
         span,
         kind: ErrorKind::ReferenceError(e.to_string()),
       })?;
-      if let Some(export) = module.exports.get(property_name) {
-        Ok(export.clone())
-      } else {
-        Err(Error {
-          span,
-          kind: ErrorKind::ReferenceError(property_name.to_string()),
-        })
+
+      if scope.name.is_some() {
+        if let Some(export) = scope.bindings.get(property_name) {
+          return Ok(export.clone());
+        }
       }
-    } else {
-      Err(Error {
-        span,
-        kind: ErrorKind::ReferenceError(format!(
-          "Property '{}' not found for type '{}'",
-          property_name, object_type
-        )),
-      })
     }
+
+    Err(Error {
+      span,
+      kind: ErrorKind::ReferenceError(format!(
+        "Property '{}' not found for type '{}'",
+        property_name,
+        resolved_object.type_name()
+      )),
+    })
   }
 }

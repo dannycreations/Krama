@@ -27,18 +27,18 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'a: 'ast,
 {
-  pub fn new(lexer: Lexer<'a>, arena: &'ast Bump) -> Self {
+  pub fn new(mut lexer: Lexer<'a>, arena: &'ast Bump) -> Self {
     let eof_pos = lexer.input_len();
     let eof_token = Token::new(TokenKind::Eof, Span::new(eof_pos, eof_pos));
-    let mut parser = Self {
+    let current_token = lexer.next().unwrap_or(eof_token);
+    let peek_token = lexer.next().unwrap_or(eof_token);
+
+    Self {
       lexer,
-      current_token: eof_token,
-      peek_token: eof_token,
+      current_token,
+      peek_token,
       arena,
-    };
-    parser.advance();
-    parser.advance();
-    parser
+    }
   }
 
   pub(super) fn advance(&mut self) {
