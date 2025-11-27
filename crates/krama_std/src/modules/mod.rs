@@ -6,7 +6,7 @@ use once_cell::sync::Lazy;
 use phf::phf_map;
 use rustc_hash::FxHashMap;
 
-use crate::Transmute;
+use crate::transmute_static_object_to_ast;
 
 type ModuleGetter = fn() -> FxHashMap<&'static str, Object<'static>>;
 
@@ -22,6 +22,9 @@ pub fn get_modules<'ast>(
 ) -> Option<FxHashMap<&'static str, Object<'ast>>> {
   MODULES.get(name).map(|get_exports| {
     let map: FxHashMap<&'static str, Object> = get_exports();
-    map.into_iter().map(|(k, v)| (k, v.transmute())).collect()
+    map
+      .into_iter()
+      .map(|(k, v)| (k, unsafe { transmute_static_object_to_ast(v) }))
+      .collect()
   })
 }

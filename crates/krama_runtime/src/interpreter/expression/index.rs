@@ -1,9 +1,7 @@
-use std::rc::Rc;
-
 use futures::future::LocalBoxFuture;
 use krama_core::{
   error::{Error, ErrorKind},
-  object::{BumpVec, Object},
+  object::Object,
   span::Span,
 };
 
@@ -63,7 +61,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   fn eval_index_expression_for_sequence(
-    elements: Rc<BumpVec<'ast, Object<'ast>>>,
+    elements: &'ast [Object<'ast>],
     index: Object<'ast>,
     span: Span,
   ) -> Result<Object<'ast>, Error> {

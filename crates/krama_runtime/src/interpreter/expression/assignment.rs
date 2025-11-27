@@ -3,7 +3,7 @@ use std::rc::Rc;
 use krama_core::{
   ast::{
     expression::{Expression, ExpressionKind},
-    operator::{BinaryOperator, UpdateOperator},
+    operator::{AssignmentOperator, BinaryOperator, UpdateOperator},
   },
   error::{Error, ErrorKind},
   object::Object,
@@ -16,7 +16,7 @@ impl<'ast> Interpreter<'ast> {
   pub(crate) async fn eval_assignment_expression(
     &self,
     left: &Expression<'ast>,
-    operator: BinaryOperator,
+    operator: AssignmentOperator,
     right: &Expression<'ast>,
     span: Span,
   ) -> Result<Object<'ast>, Error> {
@@ -32,34 +32,49 @@ impl<'ast> Interpreter<'ast> {
     };
 
     let right_val = self.eval_expression(right, None).await?;
-    if operator == BinaryOperator::Assign {
-      let right_val = self.resolve_object(right_val).await?;
-      self.environment.borrow_mut().set(
+    let resolved_right_val = self.resolve_object(right_val).await?;
+
+    if operator == AssignmentOperator::Assign {
+      self.env_mut(span)?.set(
         ident,
-        Rc::new(right_val.clone()),
+        Rc::new(resolved_right_val.clone()),
         false,
       );
-      return Ok(right_val);
+      return Ok(resolved_right_val);
     }
-    let right_val = self.resolve_object(right_val).await?;
 
-    let left_val =
-      self.environment.borrow().get(ident).ok_or_else(|| Error {
-        span,
-        kind: ErrorKind::ReferenceError(ident.to_string()),
-      })?;
+    let left_val = self.env_mut(span)?.get(ident).ok_or_else(|| Error {
+      span,
+      kind: ErrorKind::ReferenceError(ident.to_string()),
+    })?;
+
+    let binary_op = match operator {
+      AssignmentOperator::AddAssign => BinaryOperator::Add,
+      AssignmentOperator::SubtractAssign => BinaryOperator::Subtract,
+      AssignmentOperator::MultiplyAssign => BinaryOperator::Multiply,
+      AssignmentOperator::DivideAssign => BinaryOperator::Divide,
+      AssignmentOperator::ModuloAssign => BinaryOperator::Modulo,
+      AssignmentOperator::BitwiseAndAssign => BinaryOperator::BitwiseAnd,
+      AssignmentOperator::BitwiseOrAssign => BinaryOperator::BitwiseOr,
+      AssignmentOperator::BitwiseXorAssign => BinaryOperator::BitwiseXor,
+      AssignmentOperator::LeftShiftAssign => BinaryOperator::LeftShift,
+      AssignmentOperator::RightShiftAssign => BinaryOperator::RightShift,
+      AssignmentOperator::Assign => unreachable!(),
+    };
+
     let new_val = self
       .eval_binary_expression(
-        operator,
+        binary_op,
         left_val.as_ref().clone(),
-        right_val,
+        resolved_right_val,
         span,
       )
       .await?;
+
     self
-      .environment
-      .borrow_mut()
+      .env_mut(span)?
       .set(ident, Rc::new(new_val.clone()), false);
+
     Ok(new_val)
   }
 

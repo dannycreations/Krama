@@ -18,3 +18,4 @@ futures.workspace = true
 krama_core = { path = "../krama_core" }
 krama_runtime = { path = "../krama_runtime" }
 tokio.workspace = true
+walkdir.workspace = true

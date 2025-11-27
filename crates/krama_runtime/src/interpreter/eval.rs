@@ -144,17 +144,17 @@ impl<'ast> Interpreter<'ast> {
             match hint.kind {
               TypeKind::Array { .. } => {
                 return Ok(Object::Array {
-                  elements: Rc::new(evaluated_elements),
+                  elements: evaluated_elements.into_bump_slice(),
                   kind: hint.clone(),
                 })
               }
               TypeKind::Tuple(_) => {
-                return Ok(Object::Tuple(Rc::new(evaluated_elements)))
+                return Ok(Object::Tuple(evaluated_elements.into_bump_slice()))
               }
               _ => {}
             }
           }
-          Ok(Object::Tuple(Rc::new(evaluated_elements)))
+          Ok(Object::Tuple(evaluated_elements.into_bump_slice()))
         }
       }
     }

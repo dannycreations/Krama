@@ -27,11 +27,12 @@ pub enum ErrorKind {
 
 impl fmt::Display for ErrorKind {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    match self {
-      ErrorKind::RuntimeError(msg) => write!(f, "{}", msg),
-      ErrorKind::SyntaxError(msg) => write!(f, "{}", msg),
-      ErrorKind::TypeError(msg) => write!(f, "{}", msg),
-      ErrorKind::ReferenceError(msg) => write!(f, "{}", msg),
-    }
+    let (variant, msg) = match self {
+      ErrorKind::RuntimeError(msg) => (self.as_ref(), msg),
+      ErrorKind::SyntaxError(msg) => (self.as_ref(), msg),
+      ErrorKind::TypeError(msg) => (self.as_ref(), msg),
+      ErrorKind::ReferenceError(msg) => (self.as_ref(), msg),
+    };
+    write!(f, "{}: {}", variant, msg)
   }
 }

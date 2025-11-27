@@ -42,12 +42,6 @@ impl<'ast> Interpreter<'ast> {
         BinaryOperator::BitwiseXor => Ok(Object::Integer(left ^ right)),
         BinaryOperator::LeftShift => Ok(Object::Integer(left << right)),
         BinaryOperator::RightShift => Ok(Object::Integer(left >> right)),
-        BinaryOperator::Assign => Err(Error {
-          span,
-          kind: ErrorKind::TypeError(
-            "Assign cannot be used in a binary expression".to_string(),
-          ),
-        }),
         BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
         BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
         BinaryOperator::GreaterThan => Ok(Object::Boolean(left > right)),
@@ -132,12 +126,6 @@ impl<'ast> Interpreter<'ast> {
       BinaryOperator::Divide => Ok(Object::Float(left / right)),
       BinaryOperator::Modulo => Ok(Object::Float(left % right)),
       BinaryOperator::Exponent => Ok(Object::Float(left.powf(right))),
-      BinaryOperator::Assign => Err(Error {
-        span,
-        kind: ErrorKind::TypeError(
-          "Assign cannot be used in a binary expression".to_string(),
-        ),
-      }),
       BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
       BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
       BinaryOperator::GreaterThan => Ok(Object::Boolean(left > right)),

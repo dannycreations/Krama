@@ -9,7 +9,7 @@ use krama_core::{
   span::Span,
 };
 
-use crate::{environment::Environment, interpreter::Interpreter};
+use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub(super) fn eval_call_expression<'s>(
@@ -52,10 +52,7 @@ impl<'ast> Interpreter<'ast> {
     user_fn: Rc<UserFn<'ast>>,
     arguments: BumpVec<'ast, Object<'ast>>,
   ) -> Result<Object<'ast>, Error> {
-    let new_interpreter = self.clone();
-    let new_env =
-      Environment::new_enclosed(self.environment.borrow().clone().into());
-    new_interpreter.environment.replace(new_env);
+    let new_interpreter = self.new_enclosed();
 
     for (i, param) in user_fn.parameters.iter().enumerate() {
       let value = arguments.get(i).unwrap_or(&Object::Null);

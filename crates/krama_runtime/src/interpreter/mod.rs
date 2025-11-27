@@ -9,7 +9,7 @@ mod statement;
 mod test;
 mod types;
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use bumpalo::Bump;
 use futures::future::{FutureExt, LocalBoxFuture};
@@ -34,7 +34,7 @@ pub struct Interpreter<'ast> {
   pub(super) arena: &'ast Bump,
   pub path: Option<&'ast str>,
   pub(super) props: Rc<FxHashMap<(&'static str, &'static str), PropFn<'ast>>>,
-  locals: RefCell<HashMap<Span, usize>>,
+  locals: RefCell<FxHashMap<Span, usize>>,
 }
 
 impl<'ast> Interpreter<'ast> {
@@ -50,7 +50,20 @@ impl<'ast> Interpreter<'ast> {
       arena,
       path,
       props: Rc::new(props::get_props()),
-      locals: RefCell::new(HashMap::new()),
+      locals: RefCell::new(FxHashMap::default()),
+    }
+  }
+
+  fn new_enclosed(&self) -> Self {
+    Self {
+      environment: Rc::new(RefCell::new(Environment::new_enclosed(
+        self.environment.borrow().clone().into(),
+      ))),
+      modules: self.modules.clone(),
+      arena: self.arena,
+      path: self.path,
+      props: self.props.clone(),
+      locals: self.locals.clone(),
     }
   }
 

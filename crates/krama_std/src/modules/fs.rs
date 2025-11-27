@@ -1,4 +1,4 @@
-use std::{path::Path, rc::Rc, str};
+use std::{path::Path, str};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
@@ -120,7 +120,7 @@ fn read_dir<'ast>(
     }
 
     Ok(Object::Array {
-      elements: Rc::new(entries),
+      elements: entries.into_bump_slice(),
       kind: Type::new(TypeKind::Identifier("str"), Default::default()),
     })
   })

@@ -7,9 +7,9 @@ use std::{
 use anyhow::{Context, Result};
 use bumpalo::Bump;
 use clap::Parser;
-use futures::{future::BoxFuture, FutureExt};
 use krama_runtime::interpreter::Interpreter;
 use tokio::fs;
+use walkdir::WalkDir;
 
 use crate::error::report_error;
 
@@ -19,23 +19,16 @@ pub struct Test {
   pub path: String,
 }
 
-fn find_test_files<'a>(
-  path: &'a Path,
-  test_files: &'a mut Vec<PathBuf>,
-) -> BoxFuture<'a, Result<(), Error>> {
-  async move {
-    let mut entries = fs::read_dir(path).await?;
-    while let Some(entry) = entries.next_entry().await? {
-      let path = entry.path();
-      if path.is_dir() {
-        find_test_files(&path, test_files).await?;
-      } else if path.is_file() && path.to_string_lossy().ends_with("_test.km") {
-        test_files.push(path);
-      }
+fn find_test_files(path: &Path) -> Result<Vec<PathBuf>, Error> {
+  let mut test_files = Vec::new();
+  for entry in WalkDir::new(path) {
+    let entry = entry?;
+    let path = entry.path();
+    if path.is_file() && path.to_string_lossy().ends_with("_test.km") {
+      test_files.push(path.to_path_buf());
     }
-    Ok(())
   }
-  .boxed()
+  Ok(test_files)
 }
 
 impl Test {
@@ -43,14 +36,12 @@ impl Test {
     let mut passed = 0;
     let mut failed = 0;
 
-    let mut test_files = Vec::new();
-
     let root_path = env::current_dir()?;
     let mut path_buf = root_path;
     path_buf.push(&self.path);
     let path = path_buf.as_path();
 
-    find_test_files(path, &mut test_files).await?;
+    let test_files = find_test_files(path)?;
 
     for path_buf in test_files {
       let path = path_buf.as_path();

@@ -3,7 +3,9 @@ use bumpalo::collections::Vec as BumpVec;
 use super::{
   literal::Literal,
   node::Node,
-  operator::{BinaryOperator, UnaryOperator, UpdateOperator},
+  operator::{
+    AssignmentOperator, BinaryOperator, UnaryOperator, UpdateOperator,
+  },
   statement::{BlockStatement, Parameter},
   types::Type,
 };
@@ -26,7 +28,7 @@ pub enum ExpressionKind<'ast> {
   },
   Assignment {
     left: &'ast Expression<'ast>,
-    operator: BinaryOperator,
+    operator: AssignmentOperator,
     right: &'ast Expression<'ast>,
   },
   Binary {

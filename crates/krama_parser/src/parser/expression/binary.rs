@@ -1,7 +1,7 @@
 use krama_core::{
   ast::{
     expression::{Expression, ExpressionKind},
-    operator::{BinaryOperator, UpdateOperator},
+    operator::{AssignmentOperator, BinaryOperator, UpdateOperator},
   },
   error::{Error, ErrorKind},
   span::Span,
@@ -9,6 +9,11 @@ use krama_core::{
 };
 
 use super::{ParseError, Parser};
+
+enum InfixOperator {
+  Binary(BinaryOperator),
+  Assignment(AssignmentOperator),
+}
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -48,39 +53,69 @@ where
     let precedence = self.current_precedence();
     let token = self.current_token;
 
-    let (operator, is_assignment) = match token.kind {
-      TokenKind::Plus => (BinaryOperator::Add, false),
-      TokenKind::Minus => (BinaryOperator::Subtract, false),
-      TokenKind::Star => (BinaryOperator::Multiply, false),
-      TokenKind::StarStar => (BinaryOperator::Exponent, false),
-      TokenKind::Slash => (BinaryOperator::Divide, false),
-      TokenKind::Percent => (BinaryOperator::Modulo, false),
-      TokenKind::EqualEqual => (BinaryOperator::Equal, false),
-      TokenKind::BangEqual => (BinaryOperator::NotEqual, false),
-      TokenKind::LessThan => (BinaryOperator::LessThan, false),
-      TokenKind::LessThanEqual => (BinaryOperator::LessThanOrEqual, false),
-      TokenKind::GreaterThan => (BinaryOperator::GreaterThan, false),
-      TokenKind::GreaterThanEqual => {
-        (BinaryOperator::GreaterThanOrEqual, false)
+    let operator = match token.kind {
+      TokenKind::Plus => InfixOperator::Binary(BinaryOperator::Add),
+      TokenKind::Minus => InfixOperator::Binary(BinaryOperator::Subtract),
+      TokenKind::Star => InfixOperator::Binary(BinaryOperator::Multiply),
+      TokenKind::StarStar => InfixOperator::Binary(BinaryOperator::Exponent),
+      TokenKind::Slash => InfixOperator::Binary(BinaryOperator::Divide),
+      TokenKind::Percent => InfixOperator::Binary(BinaryOperator::Modulo),
+      TokenKind::EqualEqual => InfixOperator::Binary(BinaryOperator::Equal),
+      TokenKind::BangEqual => InfixOperator::Binary(BinaryOperator::NotEqual),
+      TokenKind::LessThan => InfixOperator::Binary(BinaryOperator::LessThan),
+      TokenKind::LessThanEqual => {
+        InfixOperator::Binary(BinaryOperator::LessThanOrEqual)
       }
-      TokenKind::AmpersandAmpersand => (BinaryOperator::LogicalAnd, false),
-      TokenKind::PipePipe => (BinaryOperator::LogicalOr, false),
-      TokenKind::Ampersand => (BinaryOperator::BitwiseAnd, false),
-      TokenKind::Pipe => (BinaryOperator::BitwiseOr, false),
-      TokenKind::Caret => (BinaryOperator::BitwiseXor, false),
-      TokenKind::LessLess => (BinaryOperator::LeftShift, false),
-      TokenKind::GreaterGreater => (BinaryOperator::RightShift, false),
-      TokenKind::Equal => (BinaryOperator::Assign, true),
-      TokenKind::PlusEqual => (BinaryOperator::Add, true),
-      TokenKind::MinusEqual => (BinaryOperator::Subtract, true),
-      TokenKind::StarEqual => (BinaryOperator::Multiply, true),
-      TokenKind::SlashEqual => (BinaryOperator::Divide, true),
-      TokenKind::PercentEqual => (BinaryOperator::Modulo, true),
-      TokenKind::AmpersandEqual => (BinaryOperator::BitwiseAnd, true),
-      TokenKind::PipeEqual => (BinaryOperator::BitwiseOr, true),
-      TokenKind::CaretEqual => (BinaryOperator::BitwiseXor, true),
-      TokenKind::LessLessEqual => (BinaryOperator::LeftShift, true),
-      TokenKind::GreaterGreaterEqual => (BinaryOperator::RightShift, true),
+      TokenKind::GreaterThan => {
+        InfixOperator::Binary(BinaryOperator::GreaterThan)
+      }
+      TokenKind::GreaterThanEqual => {
+        InfixOperator::Binary(BinaryOperator::GreaterThanOrEqual)
+      }
+      TokenKind::AmpersandAmpersand => {
+        InfixOperator::Binary(BinaryOperator::LogicalAnd)
+      }
+      TokenKind::PipePipe => InfixOperator::Binary(BinaryOperator::LogicalOr),
+      TokenKind::Ampersand => InfixOperator::Binary(BinaryOperator::BitwiseAnd),
+      TokenKind::Pipe => InfixOperator::Binary(BinaryOperator::BitwiseOr),
+      TokenKind::Caret => InfixOperator::Binary(BinaryOperator::BitwiseXor),
+      TokenKind::LessLess => InfixOperator::Binary(BinaryOperator::LeftShift),
+      TokenKind::GreaterGreater => {
+        InfixOperator::Binary(BinaryOperator::RightShift)
+      }
+
+      // Assignments
+      TokenKind::Equal => InfixOperator::Assignment(AssignmentOperator::Assign),
+      TokenKind::PlusEqual => {
+        InfixOperator::Assignment(AssignmentOperator::AddAssign)
+      }
+      TokenKind::MinusEqual => {
+        InfixOperator::Assignment(AssignmentOperator::SubtractAssign)
+      }
+      TokenKind::StarEqual => {
+        InfixOperator::Assignment(AssignmentOperator::MultiplyAssign)
+      }
+      TokenKind::SlashEqual => {
+        InfixOperator::Assignment(AssignmentOperator::DivideAssign)
+      }
+      TokenKind::PercentEqual => {
+        InfixOperator::Assignment(AssignmentOperator::ModuloAssign)
+      }
+      TokenKind::AmpersandEqual => {
+        InfixOperator::Assignment(AssignmentOperator::BitwiseAndAssign)
+      }
+      TokenKind::PipeEqual => {
+        InfixOperator::Assignment(AssignmentOperator::BitwiseOrAssign)
+      }
+      TokenKind::CaretEqual => {
+        InfixOperator::Assignment(AssignmentOperator::BitwiseXorAssign)
+      }
+      TokenKind::LessLessEqual => {
+        InfixOperator::Assignment(AssignmentOperator::LeftShiftAssign)
+      }
+      TokenKind::GreaterGreaterEqual => {
+        InfixOperator::Assignment(AssignmentOperator::RightShiftAssign)
+      }
       _ => {
         return Err(Error {
           span: token.span,
@@ -92,25 +127,26 @@ where
     self.advance();
     let right = self.parse_expression(precedence)?;
 
-    if is_assignment {
-      Ok(Expression::new(
+    match operator {
+      InfixOperator::Assignment(op) => Ok(Expression::new(
         ExpressionKind::Assignment {
           left: self.arena.alloc(left),
-          operator,
+          operator: op,
           right: self.arena.alloc(right),
         },
         token.span,
-      ))
-    } else {
-      let span = Span::new(left.span.start, right.span.end);
-      Ok(Expression::new(
-        ExpressionKind::Binary {
-          left: self.arena.alloc(left),
-          operator,
-          right: self.arena.alloc(right),
-        },
-        span,
-      ))
+      )),
+      InfixOperator::Binary(op) => {
+        let span = Span::new(left.span.start, right.span.end);
+        Ok(Expression::new(
+          ExpressionKind::Binary {
+            left: self.arena.alloc(left),
+            operator: op,
+            right: self.arena.alloc(right),
+          },
+          span,
+        ))
+      }
     }
   }
 }

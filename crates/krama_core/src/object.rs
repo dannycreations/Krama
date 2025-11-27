@@ -88,11 +88,11 @@ pub enum Object<'ast> {
   String(&'ast str),
   #[strum(props(name = "array"))]
   Array {
-    elements: Rc<BumpVec<'ast, Object<'ast>>>,
+    elements: &'ast [Object<'ast>],
     kind: Type<'ast>,
   },
   #[strum(props(name = "tuple"))]
-  Tuple(Rc<BumpVec<'ast, Object<'ast>>>),
+  Tuple(&'ast [Object<'ast>]),
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]

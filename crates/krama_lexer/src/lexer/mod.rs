@@ -86,11 +86,10 @@ impl<'a> Lexer<'a> {
     while let Some(c) = self.peek() {
       if c.is_whitespace() && c != '\n' {
         self.advance();
-      } else if c == '/' && {
-        let mut chars_clone = self.chars.clone();
-        chars_clone.next();
-        matches!(chars_clone.peek(), Some((_, '/')))
-      } {
+        continue;
+      }
+
+      if self.input[self.position..].starts_with("//") {
         self.advance();
         self.advance();
         while let Some(c) = self.peek() {
@@ -98,6 +97,15 @@ impl<'a> Lexer<'a> {
             break;
           }
           self.advance();
+        }
+      } else if self.input[self.position..].starts_with("/*") {
+        self.advance();
+        self.advance();
+        while let Some(c) = self.advance() {
+          if c == '*' && self.peek() == Some('/') {
+            self.advance();
+            break;
+          }
         }
       } else {
         break;

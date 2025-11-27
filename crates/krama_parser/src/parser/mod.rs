@@ -87,13 +87,13 @@ where
 
     let kind = self.current_token.kind;
     let message = if kind.is_keyword() {
-      format!("Unexpected keyword: `{}`", kind)
+      "Unexpected keyword"
     } else {
-      format!("Expected identifier, but got `{:?}`", kind)
+      "Expected identifier"
     };
     Err(Error {
       span: self.current_token.span,
-      kind: ErrorKind::SyntaxError(message),
+      kind: ErrorKind::SyntaxError(message.to_string()),
     })
   }
 
