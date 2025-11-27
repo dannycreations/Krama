@@ -25,9 +25,9 @@ impl<'a> Lexer<'a> {
     }
 
     let content_end = self.position;
-    let value = &self.input_str[content_start..content_end];
+    let value = &self.input[content_start..content_end];
 
-    self.advance(); // consume closing quote
+    self.advance();
 
     Token::new(TokenKind::String(value), self.span(start))
   }

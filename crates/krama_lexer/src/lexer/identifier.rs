@@ -53,7 +53,7 @@ impl<'a> Lexer<'a> {
       }
     }
 
-    let value = &self.input_str[start..self.position];
+    let value = &self.input[start..self.position];
 
     let kind = KEYWORDS
       .get(value)

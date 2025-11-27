@@ -3,6 +3,8 @@ mod precedence;
 pub mod statement;
 pub mod types;
 
+use std::iter::Peekable;
+
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use krama_core::{
   ast::{expression::Expression, Program},
@@ -17,9 +19,8 @@ use self::precedence::Precedence;
 type ParseError<'a> = Result<Expression<'a>, Error>;
 
 pub struct Parser<'a, 'ast> {
-  lexer: Lexer<'a>,
+  lexer: Peekable<Lexer<'a>>,
   current_token: Token<'a>,
-  peek_token: Token<'a>,
   arena: &'ast Bump,
 }
 
@@ -27,24 +28,22 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'a: 'ast,
 {
-  pub fn new(mut lexer: Lexer<'a>, arena: &'ast Bump) -> Self {
-    let eof_pos = lexer.input_len();
+  pub fn new(lexer: Lexer<'a>, arena: &'ast Bump) -> Self {
+    let mut lexer = lexer.peekable();
+    let eof_pos = lexer.peek().map_or(0, |t| t.span.end);
     let eof_token = Token::new(TokenKind::Eof, Span::new(eof_pos, eof_pos));
     let current_token = lexer.next().unwrap_or(eof_token);
-    let peek_token = lexer.next().unwrap_or(eof_token);
 
     Self {
       lexer,
       current_token,
-      peek_token,
       arena,
     }
   }
 
   pub(super) fn advance(&mut self) {
-    self.current_token = self.peek_token;
-    self.peek_token = self.lexer.next().unwrap_or_else(|| {
-      let eof_pos = self.lexer.input_len();
+    self.current_token = self.lexer.next().unwrap_or_else(|| {
+      let eof_pos = self.current_token.span.end;
       Token::new(TokenKind::Eof, Span::new(eof_pos, eof_pos))
     });
   }

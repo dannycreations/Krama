@@ -44,13 +44,11 @@ where
     let mut left = self.parse_prefix_expression()?;
 
     while precedence < self.current_precedence() {
-      let token = self.current_token;
-
-      if token.kind == TokenKind::Newline {
+      if self.current_token.kind == TokenKind::Newline {
         break;
       }
 
-      left = match token.kind {
+      left = match self.current_token.kind {
         TokenKind::LParen => self.parse_call_expression(left)?,
         TokenKind::Dot => self.parse_member_expression(left)?,
         TokenKind::PlusPlus | TokenKind::MinusMinus => {

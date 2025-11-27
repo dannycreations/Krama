@@ -19,7 +19,9 @@ where
     self.advance();
     let mut statements = BumpVec::new_in(self.arena);
 
-    while self.current_token.kind != TokenKind::RBrace {
+    while self.current_token.kind != TokenKind::RBrace
+      && self.current_token.kind != TokenKind::Eof
+    {
       while self.current_token.kind == TokenKind::Newline {
         self.advance();
       }

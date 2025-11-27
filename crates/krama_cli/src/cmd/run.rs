@@ -13,7 +13,7 @@ pub struct Run {
 }
 
 impl Run {
-  pub async fn execute(&self, arena: &mut Bump) -> Result<()> {
+  pub async fn execute(&self, arena: &Bump) -> Result<()> {
     let interpreter = Interpreter::new(arena, Some(&self.file));
     let content = fs::read_to_string(&self.file).await?;
     let content_in_arena = arena.alloc_str(&content);

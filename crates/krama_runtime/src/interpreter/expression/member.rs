@@ -25,28 +25,16 @@ impl<'ast> Interpreter<'ast> {
       });
     };
 
-    let object_type = match &resolved_object {
-      Object::Array { .. } => "array",
-      Object::String(_) => "string",
-      Object::Tuple(_) => "tuple",
-      _ => "",
-    };
+    let object_type = resolved_object.type_name();
 
-    if !object_type.is_empty() {
-      if let Some(prop) = self.props.get(&(object_type, property_name)) {
-        return prop(resolved_object).await;
-      }
+    if let Some(prop) = self.props.get(&(object_type, property_name)) {
+      return prop(resolved_object).await;
     }
 
     if let Object::Scope(ref scope) = resolved_object {
-      let scope = scope.try_borrow().map_err(|e| Error {
-        span,
-        kind: ErrorKind::ReferenceError(e.to_string()),
-      })?;
-
       if scope.name.is_some() {
         if let Some(export) = scope.bindings.get(property_name) {
-          return Ok(export.clone());
+          return Ok(export.as_ref().clone());
         }
       }
     }

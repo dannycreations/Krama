@@ -17,7 +17,7 @@ enum Command {
 }
 
 impl Command {
-  async fn execute(self, arena: &mut Bump) -> Result<()> {
+  async fn execute(self, arena: &Bump) -> Result<()> {
     match self {
       Command::Run(run) => run.execute(arena).await,
       Command::Test(test) => test.execute(arena).await,
@@ -30,8 +30,11 @@ async fn main() -> Result<()> {
   let args = Args::parse();
   let mut arena = Bump::new();
 
-  match args.command {
-    Some(command) => command.execute(&mut arena).await,
+  let result = match args.command {
+    Some(command) => command.execute(&arena).await,
     None => Repl.execute(&arena).await,
-  }
+  };
+
+  arena.reset();
+  result
 }

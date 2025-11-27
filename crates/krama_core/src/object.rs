@@ -4,6 +4,8 @@ pub use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
 use rustc_hash::FxHashMap;
+use strum::EnumProperty;
+use strum_macros::EnumProperty as EnumPropertyMacro;
 
 use super::ast::{expression::FunctionBody, statement::Parameter, types::Type};
 use crate::error::Error;
@@ -74,54 +76,51 @@ impl<'ast> fmt::Debug for Function<'ast> {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, EnumPropertyMacro)]
 pub enum Object<'ast> {
+  #[strum(props(name = "integer"))]
   Integer(i64),
+  #[strum(props(name = "float"))]
   Float(f64),
+  #[strum(props(name = "boolean"))]
   Boolean(bool),
+  #[strum(props(name = "string"))]
   String(&'ast str),
+  #[strum(props(name = "array"))]
   Array {
     elements: Rc<BumpVec<'ast, Object<'ast>>>,
     kind: Type<'ast>,
   },
+  #[strum(props(name = "tuple"))]
   Tuple(Rc<BumpVec<'ast, Object<'ast>>>),
+  #[strum(props(name = "null"))]
   Null,
+  #[strum(props(name = "void"))]
   Void,
-  Scope(Rc<RefCell<Scope<'ast>>>),
+  Scope(Rc<Scope<'ast>>),
+  #[strum(props(name = "function"))]
   Function(Function<'ast>),
-  Return(Rc<Object<'ast>>),
+  #[strum(props(name = "return"))]
+  Return(&'ast Object<'ast>),
+  #[strum(props(name = "break"))]
   Break,
+  #[strum(props(name = "continue"))]
   Continue,
+  #[strum(props(name = "future"))]
   Future(ObjectFuture<'ast>),
 }
 
 impl<'ast> Object<'ast> {
   pub fn type_name(&self) -> &'static str {
     match self {
-      Object::Integer(_) => "integer",
-      Object::Float(_) => "float",
-      Object::Boolean(_) => "boolean",
-      Object::String(_) => "string",
-      Object::Array { .. } => "array",
-      Object::Tuple(_) => "tuple",
-      Object::Null => "null",
-      Object::Void => "void",
       Object::Scope(scope) => {
-        if let Ok(guard) = scope.try_borrow() {
-          if guard.name.is_some() {
-            "module"
-          } else {
-            "global"
-          }
+        if scope.name.is_some() {
+          "module"
         } else {
-          "scope"
+          "global"
         }
       }
-      Object::Function(_) => "function",
-      Object::Return(_) => "return",
-      Object::Break => "break",
-      Object::Continue => "continue",
-      Object::Future(_) => "future",
+      _ => self.get_str("name").unwrap(),
     }
   }
 
@@ -172,14 +171,10 @@ impl<'ast> fmt::Display for Object<'ast> {
       Object::Null => write!(f, "null"),
       Object::Void => write!(f, "void"),
       Object::Scope(scope) => {
-        if let Ok(guard) = scope.try_borrow() {
-          if let Some(name) = guard.name {
-            write!(f, "module {}", name)
-          } else {
-            write!(f, "global")
-          }
+        if let Some(name) = scope.name {
+          write!(f, "module {}", name)
         } else {
-          write!(f, "scope <locked>")
+          write!(f, "global")
         }
       }
       Object::Function(func) => match func {
@@ -245,5 +240,5 @@ impl<'ast> PartialEq for Object<'ast> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope<'ast> {
   pub name: Option<&'ast str>,
-  pub bindings: FxHashMap<&'ast str, Object<'ast>>,
+  pub bindings: FxHashMap<&'ast str, Rc<Object<'ast>>>,
 }

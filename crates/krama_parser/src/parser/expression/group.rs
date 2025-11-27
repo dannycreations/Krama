@@ -85,7 +85,6 @@ where
         let body_expr = self.parse_expression(Precedence::Lowest)?;
         FunctionBody::Expression(self.arena.alloc(body_expr))
       } else {
-        // is_block_func
         let body_block = self.arena.alloc(self.parse_block_statement()?);
         FunctionBody::Block(body_block)
       };

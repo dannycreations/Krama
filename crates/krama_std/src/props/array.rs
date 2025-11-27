@@ -1,36 +1,11 @@
-use futures::future::{FutureExt, LocalBoxFuture};
-use krama_core::{
-  error::{Error, ErrorKind},
-  object::Object,
-};
 use rustc_hash::FxHashMap;
 
-use super::PropFn;
+use super::{length::length, PropFn};
 
-pub fn get_props() -> FxHashMap<(&'static str, &'static str), PropFn> {
+pub fn get_props<'ast>() -> FxHashMap<(&'static str, &'static str), PropFn<'ast>>
+{
   let mut props = FxHashMap::default();
-  props.insert(("array", "length"), length as PropFn);
-  props.insert(("tuple", "length"), length as PropFn);
+  props.insert(("array", "length"), length as PropFn<'ast>);
+  props.insert(("tuple", "length"), length as PropFn<'ast>);
   props
-}
-
-fn length<'ast>(
-  object: Object<'ast>,
-) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  async move {
-    match object {
-      Object::Array { elements, .. } => {
-        Ok(Object::Integer(elements.len() as i64))
-      }
-      Object::Tuple(elements) => Ok(Object::Integer(elements.len() as i64)),
-      _ => Err(Error {
-        span: Default::default(),
-        kind: ErrorKind::TypeError(format!(
-          "Cannot get length of type `{}`",
-          object.type_name()
-        )),
-      }),
-    }
-  }
-  .boxed_local()
 }

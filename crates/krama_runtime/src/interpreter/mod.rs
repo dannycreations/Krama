@@ -9,15 +9,12 @@ mod statement;
 mod test;
 mod types;
 
-use std::{
-  cell::{RefCell, RefMut},
-  rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use bumpalo::Bump;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  ast::statement::Statement,
+  ast::{expression::Expression, statement::Statement, Program},
   error::{Error, ErrorKind},
   object::Object,
   span::Span,
@@ -33,17 +30,18 @@ use crate::{environment::Environment, resolver::Resolver};
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
   pub environment: Rc<RefCell<Environment<'ast>>>,
-  pub(super) modules: Rc<RefCell<FxHashMap<String, Object<'ast>>>>,
+  pub(super) modules: Rc<RefCell<FxHashMap<String, Rc<Object<'ast>>>>>,
   pub(super) arena: &'ast Bump,
   pub path: Option<&'ast str>,
-  pub(super) props: Rc<FxHashMap<(&'static str, &'static str), PropFn>>,
+  pub(super) props: Rc<FxHashMap<(&'static str, &'static str), PropFn<'ast>>>,
+  locals: RefCell<HashMap<Span, usize>>,
 }
 
 impl<'ast> Interpreter<'ast> {
   pub fn new(arena: &'ast Bump, path: Option<&'ast str>) -> Self {
     let mut env = Environment::new();
     for (name, function) in globals::get_globals() {
-      env.set(name, function, true);
+      env.set(name, Rc::new(function), true);
     }
 
     Self {
@@ -52,6 +50,7 @@ impl<'ast> Interpreter<'ast> {
       arena,
       path,
       props: Rc::new(props::get_props()),
+      locals: RefCell::new(HashMap::new()),
     }
   }
 
@@ -60,12 +59,20 @@ impl<'ast> Interpreter<'ast> {
   }
 
   pub async fn eval(&self, source: &'ast str) -> Result<Object<'ast>, Error> {
+    let program = self.parse_and_resolve(source)?;
+    self.eval_program_statements(&program.statements).await
+  }
+
+  fn parse_and_resolve(
+    &self,
+    source: &'ast str,
+  ) -> Result<Program<'ast>, Error> {
     let lexer = Lexer::new(source);
     let mut parser = Parser::new(lexer, self.arena);
     let program = parser.parse()?;
-    let mut resolver = Resolver::new();
+    let mut resolver = Resolver::new(self);
     resolver.resolve(&program)?;
-    self.eval_program_statements(&program.statements).await
+    Ok(program)
   }
 
   fn eval_program_statements<'s>(
@@ -102,10 +109,14 @@ impl<'ast> Interpreter<'ast> {
   pub(super) fn env_mut(
     &self,
     span: Span,
-  ) -> Result<RefMut<'_, Environment<'ast>>, Error> {
+  ) -> Result<std::cell::RefMut<'_, Environment<'ast>>, Error> {
     self.environment.try_borrow_mut().map_err(|e| Error {
       span,
       kind: ErrorKind::RuntimeError(e.to_string()),
     })
+  }
+
+  pub(crate) fn resolve(&self, expr: &Expression<'ast>, depth: usize) {
+    self.locals.borrow_mut().insert(expr.span, depth);
   }
 }

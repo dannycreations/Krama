@@ -8,30 +8,22 @@ use krama_core::{
 };
 use rustc_hash::FxHashMap;
 
-/// The Resolver is responsible for resolving variable bindings.
-///
-/// It performs a static analysis pass over the AST, determining the scope
-/// of each variable declaration and usage. This allows the interpreter to
-/// look up variables with a constant-time operation, rather than a
-/// potentially slow walk up the environment chain.
-pub struct Resolver<'a> {
+use crate::interpreter::Interpreter;
+
+pub struct Resolver<'a, 'ast> {
+  interpreter: &'a Interpreter<'ast>,
   scopes: Vec<FxHashMap<&'a str, bool>>,
 }
 
-impl<'a> Default for Resolver<'a> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-impl<'a> Resolver<'a> {
-  pub fn new() -> Self {
+impl<'a, 'ast> Resolver<'a, 'ast> {
+  pub fn new(interpreter: &'a Interpreter<'ast>) -> Self {
     Self {
+      interpreter,
       scopes: vec![FxHashMap::default()],
     }
   }
 
-  pub fn resolve(&mut self, program: &Program<'a>) -> Result<(), Error> {
+  pub fn resolve(&mut self, program: &Program<'ast>) -> Result<(), Error> {
     for statement in &program.statements {
       self.resolve_statement(statement)?;
     }
@@ -40,7 +32,7 @@ impl<'a> Resolver<'a> {
 
   fn resolve_statement(
     &mut self,
-    statement: &Statement<'a>,
+    statement: &Statement<'ast>,
   ) -> Result<(), Error> {
     match &statement.kind {
       StatementKind::Let { name, value, .. } => {
@@ -85,7 +77,7 @@ impl<'a> Resolver<'a> {
 
   fn resolve_expression(
     &mut self,
-    expression: &Expression<'a>,
+    expression: &Expression<'ast>,
   ) -> Result<(), Error> {
     if let ExpressionKind::Identifier(name) = &expression.kind {
       if let Some(scope) = self.scopes.last() {
@@ -100,17 +92,29 @@ impl<'a> Resolver<'a> {
           }
         }
       }
+      self.resolve_local(expression, name);
     }
     Ok(())
   }
 
-  fn declare(&mut self, name: &'a str) {
+  fn resolve_local(&self, expression: &Expression<'ast>, name: &str) {
+    for (i, scope) in self.scopes.iter().enumerate().rev() {
+      if scope.contains_key(name) {
+        self
+          .interpreter
+          .resolve(expression, self.scopes.len() - 1 - i);
+        return;
+      }
+    }
+  }
+
+  fn declare(&mut self, name: &'ast str) {
     if let Some(scope) = self.scopes.last_mut() {
       scope.insert(name, false);
     }
   }
 
-  fn define(&mut self, name: &'a str) {
+  fn define(&mut self, name: &'ast str) {
     if let Some(scope) = self.scopes.last_mut() {
       scope.insert(name, true);
     }

@@ -1,15 +1,12 @@
-use std::{
-  cell::RefCell,
-  rc::{Rc, Weak},
-};
+use std::rc::Rc;
 
 use krama_core::object::Object;
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, Default, Clone)]
 pub struct Environment<'ast> {
-  store: FxHashMap<&'ast str, (Object<'ast>, bool)>,
-  outer: Option<Weak<RefCell<Environment<'ast>>>>,
+  store: FxHashMap<&'ast str, (Rc<Object<'ast>>, bool)>,
+  outer: Option<Rc<Environment<'ast>>>,
 }
 
 impl<'ast> Environment<'ast> {
@@ -17,31 +14,50 @@ impl<'ast> Environment<'ast> {
     Default::default()
   }
 
-  pub fn new_enclosed(outer: Rc<RefCell<Environment<'ast>>>) -> Self {
+  pub fn new_enclosed(outer: Rc<Environment<'ast>>) -> Self {
     let mut env = Environment::new();
-    env.outer = Some(Rc::downgrade(&outer));
+    env.outer = Some(outer);
     env
   }
 
-  pub fn get(&self, name: &str) -> Option<Object<'ast>> {
+  pub fn get(&self, name: &str) -> Option<Rc<Object<'ast>>> {
     if let Some((obj, _)) = self.store.get(name) {
       return Some(obj.clone());
     }
 
     if let Some(outer) = &self.outer {
-      if let Some(outer) = outer.upgrade() {
-        return outer.borrow().get(name);
-      }
+      return outer.get(name);
     }
 
     None
   }
 
-  pub fn set(&mut self, name: &'ast str, value: Object<'ast>, public: bool) {
+  pub fn get_at(
+    &self,
+    distance: usize,
+    name: &str,
+  ) -> Option<Rc<Object<'ast>>> {
+    if distance == 0 {
+      return self.get(name);
+    }
+
+    if let Some(outer) = &self.outer {
+      outer.get_at(distance - 1, name)
+    } else {
+      None
+    }
+  }
+
+  pub fn set(
+    &mut self,
+    name: &'ast str,
+    value: Rc<Object<'ast>>,
+    public: bool,
+  ) {
     self.store.insert(name, (value, public));
   }
 
-  pub fn get_public_bindings(&self) -> FxHashMap<&'ast str, Object<'ast>> {
+  pub fn get_public_bindings(&self) -> FxHashMap<&'ast str, Rc<Object<'ast>>> {
     self
       .store
       .iter()

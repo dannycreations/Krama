@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use krama_core::{
   ast::{
     expression::{Expression, ExpressionKind},
@@ -32,10 +34,11 @@ impl<'ast> Interpreter<'ast> {
     let right_val = self.eval_expression(right, None).await?;
     if operator == BinaryOperator::Assign {
       let right_val = self.resolve_object(right_val).await?;
-      self
-        .environment
-        .borrow_mut()
-        .set(ident, right_val.clone(), false);
+      self.environment.borrow_mut().set(
+        ident,
+        Rc::new(right_val.clone()),
+        false,
+      );
       return Ok(right_val);
     }
     let right_val = self.resolve_object(right_val).await?;
@@ -46,12 +49,17 @@ impl<'ast> Interpreter<'ast> {
         kind: ErrorKind::ReferenceError(ident.to_string()),
       })?;
     let new_val = self
-      .eval_binary_expression(operator, left_val.clone(), right_val, span)
+      .eval_binary_expression(
+        operator,
+        left_val.as_ref().clone(),
+        right_val,
+        span,
+      )
       .await?;
     self
       .environment
       .borrow_mut()
-      .set(ident, new_val.clone(), false);
+      .set(ident, Rc::new(new_val.clone()), false);
     Ok(new_val)
   }
 
@@ -79,7 +87,7 @@ impl<'ast> Interpreter<'ast> {
         kind: ErrorKind::ReferenceError(ident.to_string()),
       })?;
     let resolved_original_value =
-      self.resolve_object(original_value.clone()).await?;
+      self.resolve_object(original_value.as_ref().clone()).await?;
     let new_value = match (operator, resolved_original_value.clone()) {
       (UpdateOperator::Increment, Object::Integer(i)) => Object::Integer(i + 1),
       (UpdateOperator::Decrement, Object::Integer(i)) => Object::Integer(i - 1),
@@ -98,7 +106,7 @@ impl<'ast> Interpreter<'ast> {
     self
       .environment
       .borrow_mut()
-      .set(ident, new_value.clone(), false);
+      .set(ident, Rc::new(new_value.clone()), false);
 
     if prefix {
       Ok(new_value)

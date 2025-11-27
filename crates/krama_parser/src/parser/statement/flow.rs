@@ -16,7 +16,13 @@ where
     let start_span = self.current_token.span;
     self.advance();
 
-    let value = if self.current_token.kind != TokenKind::Newline {
+    let value = if !matches!(
+      self.current_token.kind,
+      TokenKind::Semicolon
+        | TokenKind::Newline
+        | TokenKind::RBrace
+        | TokenKind::Eof
+    ) {
       Some(self.parse_expression(Precedence::Lowest)?)
     } else {
       None

@@ -34,7 +34,7 @@ impl<'ast> Interpreter<'ast> {
             check_type(kind, &value)?;
           }
 
-          self.env_mut(span)?.set(name, value, false);
+          self.env_mut(span)?.set(name, Rc::new(value), false);
           Ok(Object::Void)
         }
         StatementKind::Test { name: _, body } => {
@@ -62,14 +62,10 @@ impl<'ast> Interpreter<'ast> {
 
           match binding {
             Binding::Identifier(name) => {
-              self.env_mut(span)?.set(name, value, *public);
+              self.env_mut(span)?.set(name, Rc::new(value), *public);
             }
             Binding::Destructure(items) => {
               if let Object::Scope(scope) = value {
-                let scope = scope.try_borrow().map_err(|e| Error {
-                  span,
-                  kind: ErrorKind::RuntimeError(e.to_string()),
-                })?;
                 for item in items.iter() {
                   if let Some(export) = scope.bindings.get(item.name) {
                     let name = item.alias.unwrap_or(item.name);
@@ -95,15 +91,13 @@ impl<'ast> Interpreter<'ast> {
               items,
             } => {
               if let Object::Scope(scope_obj) = &value {
-                self
-                  .env_mut(span)?
-                  .set(module_alias, value.clone(), *public);
-                let scope = scope_obj.try_borrow().map_err(|e| Error {
-                  span,
-                  kind: ErrorKind::RuntimeError(e.to_string()),
-                })?;
+                self.env_mut(span)?.set(
+                  module_alias,
+                  Rc::new(value.clone()),
+                  *public,
+                );
                 for item in items.iter() {
-                  if let Some(export) = scope.bindings.get(item.name) {
+                  if let Some(export) = scope_obj.bindings.get(item.name) {
                     let name = item.alias.unwrap_or(item.name);
                     self.env_mut(span)?.set(name, export.clone(), *public);
                   } else {
@@ -137,7 +131,7 @@ impl<'ast> Interpreter<'ast> {
             body: FunctionBody::Block(body),
             kind: kind.clone(),
           })));
-          self.env_mut(span)?.set(name, function, *public);
+          self.env_mut(span)?.set(name, Rc::new(function), *public);
           Ok(Object::Void)
         }
         StatementKind::Return { value } => {
@@ -146,7 +140,7 @@ impl<'ast> Interpreter<'ast> {
             None => Object::Void,
           };
           let value = self.resolve_object(value).await?;
-          Ok(Object::Return(Rc::new(value)))
+          Ok(Object::Return(self.arena.alloc(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),

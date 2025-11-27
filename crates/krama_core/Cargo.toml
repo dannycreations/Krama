@@ -13,4 +13,5 @@ doctest = false
 bumpalo.workspace = true
 futures.workspace = true
 rustc-hash.workspace = true
+strum.workspace = true
 strum_macros.workspace = true

@@ -1,7 +1,6 @@
 use krama_core::{error::ErrorKind, object::Object};
 use krama_internal::{test_eval, test_eval_error};
 
-// Unary Expression Tests
 test_eval!(should_eval_not_operator, "!true", Object::Boolean(false));
 test_eval_error!(
   should_error_negate_non_numeric,
@@ -14,7 +13,6 @@ test_eval_error!(
   ErrorKind::TypeError(_)
 );
 
-// Binary Expression Tests
 test_eval!(
   should_concatenate_strings,
   "\"hello\" + \" world\"",

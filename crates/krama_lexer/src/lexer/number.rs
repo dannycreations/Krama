@@ -12,7 +12,7 @@ impl<'a> Lexer<'a> {
         self.advance();
       } else if c == '.' && !is_float {
         // Check for `..` to avoid lexing `1..10` as `1.`, `.`, `10`
-        if self.input.get(self.position + 1) == Some(&b'.') {
+        if self.input[self.position..].starts_with("..") {
           // This is a range, so we stop parsing the number.
           break;
         }
@@ -30,7 +30,7 @@ impl<'a> Lexer<'a> {
     }
 
     let num_end = self.position;
-    let num_slice = &self.input_str[num_start..num_end];
+    let num_slice = &self.input[num_start..num_end];
 
     let token_kind = if is_float {
       TokenKind::Float(num_slice)

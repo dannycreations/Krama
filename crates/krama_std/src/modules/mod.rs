@@ -6,6 +6,8 @@ use once_cell::sync::Lazy;
 use phf::phf_map;
 use rustc_hash::FxHashMap;
 
+use crate::Transmute;
+
 type ModuleGetter = fn() -> FxHashMap<&'static str, Object<'static>>;
 
 static MODULES: Lazy<phf::Map<&'static str, ModuleGetter>> = Lazy::new(|| {
@@ -20,13 +22,6 @@ pub fn get_modules<'ast>(
 ) -> Option<FxHashMap<&'static str, Object<'ast>>> {
   MODULES.get(name).map(|get_exports| {
     let map: FxHashMap<&'static str, Object> = get_exports();
-    map
-      .into_iter()
-      .map(|(k, v)| {
-        (k, unsafe {
-          std::mem::transmute::<Object<'static>, Object<'ast>>(v)
-        })
-      })
-      .collect()
+    map.into_iter().map(|(k, v)| (k, v.transmute())).collect()
   })
 }

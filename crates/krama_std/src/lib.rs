@@ -22,3 +22,13 @@ pub(crate) fn build_native_functions<'ast>(
     })
     .collect()
 }
+
+pub trait Transmute<'a, 'b, T> {
+  fn transmute(self) -> T;
+}
+
+impl<'a, 'b> Transmute<'a, 'b, Object<'b>> for Object<'a> {
+  fn transmute(self) -> Object<'b> {
+    unsafe { std::mem::transmute(self) }
+  }
+}

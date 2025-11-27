@@ -27,7 +27,7 @@ impl<'ast> Interpreter<'ast> {
       match &expression.kind {
         ExpressionKind::Literal(literal) => self.eval_literal(*literal).await,
         ExpressionKind::Identifier(name) => {
-          self.eval_identifier(name, span).await
+          self.eval_identifier(expression, name, span).await
         }
         ExpressionKind::Unary { operator, right } => {
           let right = self.eval_expression(right, None).await?;

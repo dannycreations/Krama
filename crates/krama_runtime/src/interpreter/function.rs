@@ -1,93 +1,84 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use bumpalo::collections::Vec as BumpVec;
-use futures::FutureExt;
+use futures::future::LocalBoxFuture;
 use krama_core::{
   ast::expression::FunctionBody,
   error::{Error, ErrorKind},
-  object::{Function, Object, ObjectFuture},
+  object::{Function, NativeFn, Object, UserFn},
   span::Span,
 };
 
-use super::{types::check_type, Interpreter};
-use crate::environment::Environment;
+use crate::{environment::Environment, interpreter::Interpreter};
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) async fn eval_call_expression(
-    &self,
+  pub(super) fn eval_call_expression<'s>(
+    &'s self,
     function: Object<'ast>,
     arguments: BumpVec<'ast, Object<'ast>>,
     span: Span,
+  ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
+    Box::pin(async move {
+      match function {
+        Object::Function(function) => match function {
+          Function::Native(native_fn) => {
+            self.eval_native_function_call(native_fn, arguments).await
+          }
+          Function::User(user_fn) => {
+            self.eval_user_function_call(user_fn, arguments).await
+          }
+        },
+        _ => Err(Error {
+          span,
+          kind: ErrorKind::TypeError(format!(
+            "Expected a function, but got {}",
+            function.type_name()
+          )),
+        }),
+      }
+    })
+  }
+
+  async fn eval_native_function_call(
+    &self,
+    native_fn: NativeFn<'ast>,
+    arguments: BumpVec<'ast, Object<'ast>>,
   ) -> Result<Object<'ast>, Error> {
-    match function {
-      Object::Function(function) => match function {
-        Function::Native(function) => {
-          let future = (function.callback)(self.arena, arguments);
-          let object_future: ObjectFuture =
-            Rc::new(RefCell::new(Some(future.boxed_local())));
-          Ok(Object::Future(object_future))
-        }
-        Function::User(function) => {
-          let mut new_interpreter = self.clone();
-          let future = async move {
-            if function.parameters.len() != arguments.len() {
-              return Err(Error {
-                span,
-                kind: ErrorKind::TypeError(format!(
-                  "Expected {} arguments, but got {}",
-                  function.parameters.len(),
-                  arguments.len()
-                )),
-              });
-            }
-            let new_env = Rc::new(RefCell::new(Environment::new_enclosed(
-              new_interpreter.environment.clone(),
-            )));
-            for (param, arg) in function.parameters.iter().zip(arguments) {
-              if let Some(kind) = &param.kind {
-                check_type(kind, &arg)?;
-              }
-              new_env
-                .try_borrow_mut()
-                .map_err(|e| Error {
-                  span,
-                  kind: ErrorKind::RuntimeError(e.to_string()),
-                })?
-                .set(param.name, arg, false);
-            }
-            new_interpreter.environment = new_env;
+    (native_fn.callback)(self.arena, arguments).await
+  }
 
-            let result = match &function.body {
-              FunctionBody::Block(block) => {
-                new_interpreter.eval_block_statement(block).await
-              }
-              FunctionBody::Expression(expr) => {
-                new_interpreter
-                  .eval_expression(expr, function.kind.as_ref())
-                  .await
-              }
-            };
+  async fn eval_user_function_call(
+    &self,
+    user_fn: Rc<UserFn<'ast>>,
+    arguments: BumpVec<'ast, Object<'ast>>,
+  ) -> Result<Object<'ast>, Error> {
+    let new_interpreter = self.clone();
+    let new_env =
+      Environment::new_enclosed(self.environment.borrow().clone().into());
+    new_interpreter.environment.replace(new_env);
 
-            if let Ok(Object::Return(value)) = result {
-              if let Some(kind) = &function.kind {
-                check_type(kind, &value)?;
-              }
-              return Ok(value.as_ref().clone());
-            }
-            result
-          };
-          let object_future: ObjectFuture =
-            Rc::new(RefCell::new(Some(future.boxed_local())));
-          Ok(Object::Future(object_future))
-        }
-      },
-      _ => Err(Error {
-        span,
-        kind: ErrorKind::TypeError(format!(
-          "Object of type '{}' is not callable",
-          function.type_name()
-        )),
-      }),
+    for (i, param) in user_fn.parameters.iter().enumerate() {
+      let value = arguments.get(i).unwrap_or(&Object::Null);
+      new_interpreter.environment.borrow_mut().set(
+        param.name,
+        Rc::new(value.clone()),
+        false,
+      );
+    }
+
+    let result = match &user_fn.body {
+      FunctionBody::Block(block) => {
+        new_interpreter.eval_block_statement(block).await?
+      }
+      FunctionBody::Expression(expr) => {
+        new_interpreter.eval_expression(expr, None).await?
+      }
+    };
+
+    if let Object::Return(value) = result {
+      Ok(value.clone())
+    } else {
+      Ok(result)
     }
   }
 }

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use krama_core::{
   error::{Error, ErrorKind},
@@ -21,16 +21,19 @@ impl<'ast> Interpreter<'ast> {
       let module_name = path.strip_prefix("std:").unwrap();
       if let Ok(modules) = self.modules.try_borrow() {
         if let Some(module) = modules.get(module_name) {
-          return Ok(module.clone());
+          return Ok(module.as_ref().clone());
         }
       }
       let module = modules::get_modules(module_name)
         .map(|bindings| {
           let module = Scope {
             name: Some(module_name),
-            bindings: bindings.into_iter().collect(),
+            bindings: bindings
+              .into_iter()
+              .map(|(k, v)| (k, Rc::new(v)))
+              .collect(),
           };
-          Object::Scope(Rc::new(RefCell::new(module)))
+          Object::Scope(Rc::new(module))
         })
         .ok_or_else(|| Error {
           span: Default::default(),
@@ -46,7 +49,7 @@ impl<'ast> Interpreter<'ast> {
           span: Default::default(),
           kind: ErrorKind::RuntimeError(e.to_string()),
         })?
-        .insert(module_name.to_string(), module.clone());
+        .insert(module_name.to_string(), Rc::new(module.clone()));
       return Ok(module);
     }
     self.eval_and_cache(path).await
@@ -58,7 +61,7 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Object<'ast>, Error> {
     if let Ok(modules) = self.modules.try_borrow() {
       if let Some(module) = modules.get(path) {
-        return Ok(module.clone());
+        return Ok(module.as_ref().clone());
       }
     } else {
       return Err(Error {
@@ -92,10 +95,10 @@ impl<'ast> Interpreter<'ast> {
       .into_iter()
       .collect();
 
-    let module = Object::Scope(Rc::new(RefCell::new(Scope {
+    let module = Object::Scope(Rc::new(Scope {
       name: Some(self.arena.alloc_str(path)),
-      bindings: bindings.into_iter().map(|(k, v)| (k, v.clone())).collect(),
-    })));
+      bindings: bindings.into_iter().collect(),
+    }));
 
     self
       .modules
@@ -104,7 +107,7 @@ impl<'ast> Interpreter<'ast> {
         span: Default::default(),
         kind: ErrorKind::RuntimeError(e.to_string()),
       })?
-      .insert(path.to_string(), module.clone());
+      .insert(path.to_string(), Rc::new(module.clone()));
 
     Ok(module)
   }

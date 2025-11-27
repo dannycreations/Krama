@@ -107,7 +107,7 @@ macro_rules! test_eval_is_module {
       let result = interpreter.eval(source).await.unwrap();
       let result = $crate::resolve_future!(result);
       if let ::krama_core::object::Object::Scope(module) = result {
-        assert_eq!(module.try_borrow().unwrap().name, $expected);
+        assert_eq!(module.name, $expected);
       } else {
         panic!("Expected a module object, but got {:?}", result);
       }
