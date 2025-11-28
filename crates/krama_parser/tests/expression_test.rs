@@ -11,11 +11,11 @@ test_parser!(parse_call_expression, "add(1, 2)", 1);
 
 test_parser!(parse_match_expression, "match (x) { 1 => 2 }", 1);
 
-test_parser!(parse_import_expression, r#"@import("std:fs")"#, 1);
+test_parser!(parse_import_expression, r#"import("std:fs")"#, 1);
 
 test_parser!(
   parse_destructuring_import_expression,
-  r#"const { a, b } = @import("std:fs")"#,
+  r#"const { a, b } = import("std:fs")"#,
   1
 );
 

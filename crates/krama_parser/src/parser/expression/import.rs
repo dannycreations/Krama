@@ -10,20 +10,11 @@ impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_import_expression(&mut self) -> ParseError<'ast> {
     let start_span = self.current_token.span;
     self.advance();
-    if self.current_token.kind != TokenKind::Import {
-      return Err(Error {
-        span: start_span,
-        kind: ErrorKind::SyntaxError("Expected 'import' after '@'".to_string()),
-      });
-    }
-    self.advance();
 
     if self.current_token.kind != TokenKind::LParen {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::SyntaxError(
-          "Expected '(' after '@import'".to_string(),
-        ),
+        kind: ErrorKind::SyntaxError("Expected '(' after 'import'".to_string()),
       });
     }
     self.advance();

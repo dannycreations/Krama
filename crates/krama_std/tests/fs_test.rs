@@ -4,8 +4,8 @@ use krama_internal::test_eval;
 test_eval!(
   eval_fs_read_and_write,
   r#"
-        const fs = @import("std:fs")
-        const { assertEqual, assert } = @import("std:assert")
+        const fs = import("std:fs")
+        const { assertEqual, assert } = import("std:assert")
 
         const filePath = "test.txt"
         const fileContent = "Hello, Krama!"
@@ -28,8 +28,8 @@ test_eval!(
 test_eval!(
   eval_fs_mkdir_and_rmdir,
   r#"
-        const fs = @import("std:fs")
-        const { assert } = @import("std:assert")
+        const fs = import("std:fs")
+        const { assert } = import("std:assert")
 
         const dirPath = "test_dir"
 
@@ -47,8 +47,8 @@ test_eval!(
 test_eval!(
   eval_fs_read_dir,
   r#"
-        const fs = @import("std:fs")
-        const { assert, assertEqual } = @import("std:assert")
+        const fs = import("std:fs")
+        const { assert, assertEqual } = import("std:assert")
 
         const dirPath = "test_read_dir"
         const filePath1 = "test_read_dir/file1.txt"

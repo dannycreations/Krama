@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use krama_core::{
   error::{Error, ErrorKind},
   object::Object,
@@ -49,6 +51,7 @@ impl<'ast> Interpreter<'ast> {
         .insert(module_name, module.clone());
       return Ok(module);
     }
+
     self.eval_and_cache(path).await
   }
 
@@ -56,8 +59,39 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &'ast str,
   ) -> Result<Object<'ast>, Error> {
+    // Try to resolve path and get source content.
+    // First try the path as is, then with a `.km` extension.
+    let path = self
+      .path
+      .and_then(|current_path| {
+        Path::new(current_path).parent().map(|p| p.join(path))
+      })
+      .map(|p| self.arena.alloc_str(p.to_str().unwrap()))
+      .map_or(path, |v| v);
+    let (source, resolved_path) = match fs::read_to_string(path).await {
+      Ok(source) => (source, path),
+      Err(e1) => {
+        let path_with_ext_str = format!("{}.km", path);
+        let path_with_ext: &str = self.arena.alloc_str(&path_with_ext_str);
+        match fs::read_to_string(path_with_ext).await {
+          Ok(source) => (source, path_with_ext),
+          Err(_) => {
+            // On second failure, return the first, more relevant error.
+            return Err(Error {
+              span: Default::default(),
+              kind: ErrorKind::ReferenceError(format!(
+                "Failed to read module file: {}",
+                e1
+              )),
+            });
+          }
+        }
+      }
+    };
+
+    // Now that we have the correctly resolved path, check the cache.
     if let Ok(modules) = self.modules.try_borrow() {
-      if let Some(module) = modules.get(path) {
+      if let Some(module) = modules.get(resolved_path) {
         return Ok(module.clone());
       }
     } else {
@@ -69,16 +103,10 @@ impl<'ast> Interpreter<'ast> {
       });
     }
 
-    let source = fs::read_to_string(path).await.map_err(|e| Error {
-      span: Default::default(),
-      kind: ErrorKind::ReferenceError(format!(
-        "Failed to read module file: {}",
-        e
-      )),
-    })?;
+    // We have the source from the resolution step, so just allocate it.
     let source_str = self.arena.alloc_str(&source);
 
-    let new_interpreter = Interpreter::new(self.arena, Some(path));
+    let new_interpreter = Interpreter::new(self.arena, Some(resolved_path));
     let _ = new_interpreter.eval(source_str).await?;
 
     let bindings: FxHashMap<_, _> = new_interpreter
@@ -93,7 +121,7 @@ impl<'ast> Interpreter<'ast> {
       .collect();
 
     let module = Object::Scope(self.arena.alloc(Scope {
-      name: Some(self.arena.alloc_str(path)),
+      name: Some(resolved_path),
       bindings,
     }));
 
@@ -104,7 +132,7 @@ impl<'ast> Interpreter<'ast> {
         span: Default::default(),
         kind: ErrorKind::RuntimeError(e.to_string()),
       })?
-      .insert(path, module.clone());
+      .insert(resolved_path, module.clone());
 
     Ok(module)
   }

@@ -66,7 +66,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       }
       TokenKind::LParen => self.parse_paren_expression(),
       TokenKind::LBracket => self.parse_collection_expression(),
-      TokenKind::At => self.parse_import_expression(),
+      TokenKind::Import => self.parse_import_expression(),
       TokenKind::If => self.parse_if_expression(),
       TokenKind::Match => self.parse_match_expression(),
       TokenKind::Fn => self.parse_fn_expression(),

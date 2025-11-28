@@ -132,7 +132,6 @@ impl<'a> Iterator for Lexer<'a> {
       '[' => token!(self, start, TokenKind::LBracket),
       ']' => token!(self, start, TokenKind::RBracket),
       ',' => token!(self, start, TokenKind::Comma),
-      '@' => token!(self, start, TokenKind::At),
       ':' => token!(self, start, TokenKind::Colon),
       ';' => token!(self, start, TokenKind::Semicolon),
       '~' => token!(self, start, TokenKind::Tilde),

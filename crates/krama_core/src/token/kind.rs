@@ -180,8 +180,6 @@ define_token_enum! {
             DotDot,
             #[strum(to_string = "=>")]
             Arrow,
-            #[strum(to_string = "@")]
-            At,
             #[strum(to_string = ":")]
             Colon,
             #[strum(to_string = ";")]

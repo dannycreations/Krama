@@ -24,7 +24,7 @@ test_lexer!(
 
 test_lexer!(
   lex_single_character_tokens,
-  "(){},+-*/@[];",
+  "(){},+-*/[];",
   vec![
     TokenKind::LParen,
     TokenKind::RParen,
@@ -35,7 +35,6 @@ test_lexer!(
     TokenKind::Minus,
     TokenKind::Star,
     TokenKind::Slash,
-    TokenKind::At,
     TokenKind::LBracket,
     TokenKind::RBracket,
     TokenKind::Semicolon
@@ -54,12 +53,6 @@ test_lexer!(
     TokenKind::Arrow,
     TokenKind::DotDot,
   ]
-);
-
-test_lexer!(
-  lex_at_import_token,
-  "@import",
-  vec![TokenKind::At, TokenKind::Import]
 );
 
 test_lexer!(

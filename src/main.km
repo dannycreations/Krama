@@ -1,6 +1,3 @@
-fn hello(count) {
-  print("Hello", "World!", count)
-}
+import("./util")
 
-hello(1)
-hello(2)
+print("hello from main.km")
