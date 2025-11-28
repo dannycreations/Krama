@@ -169,6 +169,14 @@ impl<'ast> Interpreter<'ast> {
     self.eval_statements(&block.statements).await
   }
 
+  pub(super) async fn eval_block_statement_with_new_scope(
+    &self,
+    block: &BlockStatement<'ast>,
+  ) -> Result<Object<'ast>, Error> {
+    let new_interpreter = self.new_enclosed();
+    new_interpreter.eval_statements(&block.statements).await
+  }
+
   fn destructure_scope(
     &self,
     span: Span,

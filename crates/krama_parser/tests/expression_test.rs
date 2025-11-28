@@ -3,24 +3,24 @@ use krama_internal::test_parser;
 use krama_lexer::lexer::Lexer;
 use krama_parser::parser::Parser;
 
-test_parser!(should_parse_unary_exprs, "!true", 1);
+test_parser!(parse_unary_expression, "!true", 1);
 
-test_parser!(should_parse_binary_exprs, "1 + 2", 1);
+test_parser!(parse_binary_expression, "1 + 2", 1);
 
-test_parser!(should_parse_call_expr, "add(1, 2)", 1);
+test_parser!(parse_call_expression, "add(1, 2)", 1);
 
-test_parser!(should_parse_match_expr, "match (x) { 1 => 2 }", 1);
+test_parser!(parse_match_expression, "match (x) { 1 => 2 }", 1);
 
-test_parser!(should_parse_import_expr, r#"@import("std:fs")"#, 1);
+test_parser!(parse_import_expression, r#"@import("std:fs")"#, 1);
 
 test_parser!(
-  should_parse_destructuring_import_expr,
+  parse_destructuring_import_expression,
   r#"const { a, b } = @import("std:fs")"#,
   1
 );
 
 #[test]
-fn should_empty_paren_error() {
+fn parse_empty_paren_error() {
   let source = "()";
   let arena = Bump::new();
   let lexer = Lexer::new(source);
@@ -29,7 +29,7 @@ fn should_empty_paren_error() {
 }
 
 #[test]
-fn should_invalid_grouped_expression_error() {
+fn parse_invalid_grouped_expression_error() {
   let source = "(1, 2)";
   let arena = Bump::new();
   let lexer = Lexer::new(source);
@@ -38,7 +38,7 @@ fn should_invalid_grouped_expression_error() {
 }
 
 #[test]
-fn should_parse_arrow_function_no_params() {
+fn parse_arrow_function_with_no_parameters() {
   let source = "() => 1";
   let arena = Bump::new();
   let lexer = Lexer::new(source);
@@ -48,7 +48,7 @@ fn should_parse_arrow_function_no_params() {
 }
 
 #[test]
-fn should_parse_block_function_no_params() {
+fn parse_block_function_with_no_parameters() {
   let source = "() => {}";
   let arena = Bump::new();
   let lexer = Lexer::new(source);
@@ -58,7 +58,7 @@ fn should_parse_block_function_no_params() {
 }
 
 #[test]
-fn should_parse_grouped_expression() {
+fn parse_grouped_expression() {
   let source = "(5 + 5)";
   let arena = Bump::new();
   let lexer = Lexer::new(source);
@@ -68,7 +68,7 @@ fn should_parse_grouped_expression() {
 }
 
 #[test]
-fn should_parse_complex_grouped_expression() {
+fn parse_complex_grouped_expression() {
   let source = "(5 + (10 - 2))";
   let arena = Bump::new();
   let lexer = Lexer::new(source);

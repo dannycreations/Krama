@@ -17,7 +17,7 @@ impl<'ast> Interpreter<'ast> {
     match (pattern, subject) {
       (MatchPattern::Expression(expression), _) => {
         if let ExpressionKind::Literal(literal) = expression.kind {
-          let pattern = self.eval_literal(literal).await?;
+          let pattern = self.eval_literal(literal)?;
           Ok(pattern == *subject)
         } else {
           let pattern = self.eval_expression(expression, None).await?;

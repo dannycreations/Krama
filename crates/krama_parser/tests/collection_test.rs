@@ -6,7 +6,7 @@ use krama_core::ast::{
 use krama_internal::test_parser;
 
 test_parser!(
-  should_parse_empty_array,
+  parse_empty_collection_expression,
   "[]",
   1,
   |statement: &Statement| {
@@ -24,7 +24,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_tuple_with_one_element,
+  parse_collection_expression_with_one_element,
   "[1]",
   1,
   |statement: &Statement| {
@@ -48,7 +48,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_tuple_with_multiple_elements,
+  parse_collection_expression_with_multiple_elements,
   "[1, true, \"hello\"]",
   1,
   |statement: &Statement| {

@@ -24,13 +24,14 @@ impl<'ast> Interpreter<'ast> {
     async move {
       let span = expression.span;
       match &expression.kind {
-        ExpressionKind::Literal(literal) => self.eval_literal(*literal).await,
+        ExpressionKind::Literal(literal) => self.eval_literal(*literal),
         ExpressionKind::Identifier(name) => {
           self.eval_identifier(expression, name, span).await
         }
         ExpressionKind::Unary { operator, right } => {
           let right = self.eval_expression(right, None).await?;
-          self.eval_unary_expression(*operator, right, span).await
+          let right = self.resolve_object(right).await?;
+          self.eval_unary_expression(*operator, right, span)
         }
         ExpressionKind::Binary {
           left,
@@ -59,9 +60,11 @@ impl<'ast> Interpreter<'ast> {
             self.eval_expression(left, None),
             self.eval_expression(right, None)
           );
-          self
-            .eval_binary_expression(*operator, left?, right?, span)
-            .await
+          let (left, right) = (
+            self.resolve_object(left?).await?,
+            self.resolve_object(right?).await?,
+          );
+          self.eval_binary_expression(*operator, left, right, span)
         }
         ExpressionKind::Assignment {
           left,
@@ -121,7 +124,9 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Match { subject, arms } => {
           self.eval_match_expression(subject, arms, span).await
         }
-        ExpressionKind::Block(block) => self.eval_block_statement(block).await,
+        ExpressionKind::Block(block) => {
+          self.eval_block_statement_with_new_scope(block).await
+        }
         ExpressionKind::Fn {
           parameters,
           body,
@@ -136,6 +141,7 @@ impl<'ast> Interpreter<'ast> {
         }
         ExpressionKind::Member { object, property } => {
           let object = self.eval_expression(object, None).await?;
+          let object = self.resolve_object(object).await?;
           self.eval_member_expression(object, property, span).await
         }
         ExpressionKind::Index { object, index } => {
@@ -143,7 +149,11 @@ impl<'ast> Interpreter<'ast> {
             self.eval_expression(object, None),
             self.eval_expression(index, None)
           );
-          self.eval_index_expression(object?, index?, span).await
+          let (object, index) = (
+            self.resolve_object(object?).await?,
+            self.resolve_object(index?).await?,
+          );
+          self.eval_index_expression(object, index, span).await
         }
         ExpressionKind::Collection { elements } => {
           let mut element_kind = None;

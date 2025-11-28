@@ -69,14 +69,12 @@ impl<'ast> Interpreter<'ast> {
       AssignmentOperator::Assign => unreachable!(),
     };
 
-    let new_val = self
-      .eval_binary_expression(
-        binary_op,
-        left_val.clone(),
-        resolved_right_val,
-        span,
-      )
-      .await?;
+    let new_val = self.eval_binary_expression(
+      binary_op,
+      left_val.clone(),
+      resolved_right_val,
+      span,
+    )?;
 
     if let Some(distance) = distance {
       self.assign_at(distance, ident, new_val.clone());

@@ -5,7 +5,7 @@ use krama_internal::{
 };
 
 test_eval!(
-  should_cache_mods,
+  eval_module_caching,
   r#"
         const assert1 = @import("std:assert")
         const assert2 = @import("std:assert")
@@ -15,7 +15,7 @@ test_eval!(
 );
 
 test_eval_is_module!(
-  should_handle_aliasing_import,
+  eval_module_import_with_aliasing,
   r#"
         const assert = @import("std:assert")
         assert
@@ -24,7 +24,7 @@ test_eval_is_module!(
 );
 
 test_eval_is_native_function!(
-  should_handle_destructuring_import,
+  eval_module_import_with_destructuring,
   r#"
         const { assertEqual } = @import("std:assert")
         assertEqual
@@ -32,7 +32,7 @@ test_eval_is_native_function!(
 );
 
 test_eval_is_native_function!(
-  should_handle_aliasing_destructuring_import,
+  eval_module_import_with_aliasing_and_destructuring,
   r#"
         const assert, { assertEqual as assert_equal } = @import("std:assert")
         assert_equal
@@ -40,7 +40,7 @@ test_eval_is_native_function!(
 );
 
 test_eval_is_native_function!(
-  should_eval_member_expr_on_mod,
+  eval_member_expression_on_module,
   r#"
             const std = @import("std:assert")
             std.assert
@@ -48,7 +48,7 @@ test_eval_is_native_function!(
 );
 
 test_eval_with_file!(
-  should_import_file_mod,
+  eval_file_module_import,
   "math.kr",
   "pub fn add(a, b) { a + b }",
   r#"

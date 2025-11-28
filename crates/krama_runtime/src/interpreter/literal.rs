@@ -3,7 +3,7 @@ use krama_core::{ast::literal::Literal, error::Error, object::Object};
 use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) async fn eval_literal(
+  pub(super) fn eval_literal(
     &self,
     literal: Literal<'ast>,
   ) -> Result<Object<'ast>, Error> {

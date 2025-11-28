@@ -2,19 +2,19 @@ use krama_core::object::Object;
 use krama_internal::test_eval;
 
 test_eval!(
-  should_eval_match_expr_lit_pattern,
+  eval_match_expression_with_literal_pattern,
   "match (0) { 0 => 1, else => 2 }",
   Object::Integer(1)
 );
 
 test_eval!(
-  should_eval_match_expr_else_clause,
+  eval_match_expression_with_else_clause,
   "match (1) { 0 => 1, else => 2 }",
   Object::Integer(2)
 );
 
 test_eval!(
-  should_eval_match_expr_block_pattern,
+  eval_match_expression_with_block_pattern,
   r#"
             match (1) {
                 0 => 1,
@@ -30,43 +30,43 @@ test_eval!(
 );
 
 test_eval!(
-  should_eval_match_expr_multiple_patterns,
+  eval_match_expression_with_multiple_patterns,
   "match (2) { 0 => 1, 1, 2, 3 => 2, else => 3 }",
   Object::Integer(2)
 );
 
 test_eval!(
-  should_eval_match_expr_range_pattern,
+  eval_match_expression_with_range_pattern,
   "match (5) { 0..10 => 1, else => 2 }",
   Object::Integer(1)
 );
 
 test_eval!(
-  should_eval_match_expr_range_else,
+  eval_match_expression_with_range_and_else,
   "match (11) { 0..10 => 1, else => 2 }",
   Object::Integer(2)
 );
 
 test_eval!(
-  should_eval_match_expr_char_range_pattern,
+  eval_match_expression_with_char_range_pattern,
   r#"match ("b") { "a".."z" => 1, else => 2 }"#,
   Object::Integer(1)
 );
 
 test_eval!(
-  should_eval_match_expr_multiple_char_ranges,
+  eval_match_expression_with_multiple_char_ranges,
   r#"match ("B") { "a".."z" => 1, "A".."Z" => 2, else => 3 }"#,
   Object::Integer(2)
 );
 
 test_eval!(
-  should_eval_match_expr_assignment,
+  eval_match_expression_with_assignment,
   "const x = match (5) { 0..10 => 1, else => 2 }\nx",
   Object::Integer(1)
 );
 
 test_eval!(
-  should_eval_match_return_stmt,
+  eval_match_with_return_statement,
   r#"
         fn my_test() {
             match (true) {
@@ -80,7 +80,7 @@ test_eval!(
 );
 
 test_eval!(
-  should_eval_match_break_stmt,
+  eval_match_with_break_statement,
   r#"
         let x = 0
         match (true) {

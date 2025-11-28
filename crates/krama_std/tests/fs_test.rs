@@ -2,7 +2,7 @@ use krama_core::object::Object;
 use krama_internal::test_eval;
 
 test_eval!(
-  should_fs_read_write,
+  eval_fs_read_and_write,
   r#"
         const fs = @import("std:fs")
         const { assertEqual, assert } = @import("std:assert")
@@ -26,7 +26,7 @@ test_eval!(
 );
 
 test_eval!(
-  should_fs_mkdir_rmdir,
+  eval_fs_mkdir_and_rmdir,
   r#"
         const fs = @import("std:fs")
         const { assert } = @import("std:assert")
@@ -45,7 +45,7 @@ test_eval!(
 );
 
 test_eval!(
-  should_fs_read_dir,
+  eval_fs_read_dir,
   r#"
         const fs = @import("std:fs")
         const { assert, assertEqual } = @import("std:assert")

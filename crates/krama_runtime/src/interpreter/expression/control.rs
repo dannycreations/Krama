@@ -41,16 +41,14 @@ impl<'ast> Interpreter<'ast> {
 
     for arm in arms {
       for pattern in &arm.patterns {
-        let new_interpreter = self.new_enclosed();
-        let matched = new_interpreter
-          .eval_match_pattern(&subject, pattern, span)
-          .await?;
+        let matched = self.eval_match_pattern(&subject, pattern, span).await?;
         if matched {
           return match &arm.body {
             FunctionBody::Block(block) => {
-              new_interpreter.eval_block_statement(block).await
+              self.eval_block_statement_with_new_scope(block).await
             }
             FunctionBody::Expression(expression) => {
+              let new_interpreter = self.new_enclosed();
               new_interpreter.eval_expression(expression, None).await
             }
           };

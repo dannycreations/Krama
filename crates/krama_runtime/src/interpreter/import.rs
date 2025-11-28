@@ -17,7 +17,8 @@ impl<'ast> Interpreter<'ast> {
     _span: Span,
   ) -> Result<Object<'ast>, Error> {
     if path.starts_with("std:") {
-      let module_name = path.strip_prefix("std:").unwrap();
+      let module_name =
+        self.arena.alloc_str(path.strip_prefix("std:").unwrap());
       if let Ok(modules) = self.modules.try_borrow() {
         if let Some(module) = modules.get(module_name) {
           return Ok(module.clone());
@@ -45,7 +46,7 @@ impl<'ast> Interpreter<'ast> {
           span: Default::default(),
           kind: ErrorKind::RuntimeError(e.to_string()),
         })?
-        .insert(module_name.to_string(), module.clone());
+        .insert(module_name, module.clone());
       return Ok(module);
     }
     self.eval_and_cache(path).await
@@ -103,7 +104,7 @@ impl<'ast> Interpreter<'ast> {
         span: Default::default(),
         kind: ErrorKind::RuntimeError(e.to_string()),
       })?
-      .insert(path.to_string(), module.clone());
+      .insert(path, module.clone());
 
     Ok(module)
   }

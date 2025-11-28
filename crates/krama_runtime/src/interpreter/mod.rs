@@ -27,7 +27,7 @@ use crate::{environment::Environment, resolver::Resolver};
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
   pub environment: &'ast RefCell<Environment<'ast>>,
-  pub(super) modules: &'ast RefCell<FxHashMap<String, Object<'ast>>>,
+  pub(super) modules: &'ast RefCell<FxHashMap<&'ast str, Object<'ast>>>,
   pub(super) arena: &'ast Bump,
   pub path: Option<&'ast str>,
   pub(super) props:

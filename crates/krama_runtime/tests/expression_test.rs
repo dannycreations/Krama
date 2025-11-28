@@ -1,51 +1,50 @@
 use krama_core::{error::ErrorKind, object::Object};
 use krama_internal::{test_eval, test_eval_error};
 
-test_eval!(should_eval_not_operator, "!true", Object::Boolean(false));
+test_eval!(eval_not_operator, "!true", Object::Boolean(false));
+
+test_eval_error!(eval_negate_non_numeric, "-true", ErrorKind::TypeError(_));
+
 test_eval_error!(
-  should_error_negate_non_numeric,
-  "-true",
-  ErrorKind::TypeError(_)
-);
-test_eval_error!(
-  should_error_bitwise_not_non_integer,
+  eval_bitwise_not_non_integer,
   "~true",
   ErrorKind::TypeError(_)
 );
 
 test_eval!(
-  should_concatenate_strings,
+  eval_string_concatenation,
   "\"hello\" + \" world\"",
   Object::String("hello world")
 );
+
 test_eval!(
-  should_compare_strings_for_equality,
+  eval_string_equality,
   "\"a\" == \"a\"",
   Object::Boolean(true)
 );
+
 test_eval!(
-  should_compare_strings_for_inequality,
+  eval_string_inequality,
   "\"a\" != \"b\"",
   Object::Boolean(true)
 );
+
 test_eval_error!(
-  should_error_on_invalid_string_op,
+  eval_invalid_string_operator,
   "\"a\" * \"b\"",
   ErrorKind::TypeError(_)
 );
 
+test_eval!(eval_boolean_equality, "true == true", Object::Boolean(true));
+
 test_eval!(
-  should_compare_booleans_for_equality,
-  "true == true",
-  Object::Boolean(true)
-);
-test_eval!(
-  should_compare_booleans_for_inequality,
+  eval_boolean_inequality,
   "true != false",
   Object::Boolean(true)
 );
+
 test_eval_error!(
-  should_error_on_invalid_bool_op,
+  eval_invalid_boolean_operator,
   "true + false",
   ErrorKind::TypeError(_)
 );

@@ -2,7 +2,7 @@ use krama_core::token::TokenKind;
 use krama_internal::test_lexer;
 
 test_lexer!(
-  should_lex_all_keywords,
+  lex_keyword_tokens,
   "const fn let if elif else match return break pub test true false import",
   vec![
     TokenKind::Const,
@@ -23,7 +23,7 @@ test_lexer!(
 );
 
 test_lexer!(
-  should_lex_single_char_tokens,
+  lex_single_character_tokens,
   "(){},+-*/@[];",
   vec![
     TokenKind::LParen,
@@ -43,7 +43,7 @@ test_lexer!(
 );
 
 test_lexer!(
-  should_lex_multi_char_tokens,
+  lex_multi_character_tokens,
   "== != >= <= += => ..",
   vec![
     TokenKind::EqualEqual,
@@ -57,13 +57,13 @@ test_lexer!(
 );
 
 test_lexer!(
-  should_lex_at_import_token,
+  lex_at_import_token,
   "@import",
   vec![TokenKind::At, TokenKind::Import]
 );
 
 test_lexer!(
-  should_lex_single_line_comment,
+  lex_single_line_comment,
   r#"
 // this is a comment
 123 // number with a comment
@@ -73,7 +73,7 @@ test_lexer!(
 );
 
 test_lexer!(
-  should_lex_multi_line_comment,
+  lex_multi_line_comment,
   r#"
 /*
    this is a 

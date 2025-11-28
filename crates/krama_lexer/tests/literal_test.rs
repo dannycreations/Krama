@@ -2,7 +2,7 @@ use krama_core::token::TokenKind;
 use krama_internal::{test_lexer, test_lexer_single};
 
 test_lexer!(
-  should_lex_nums,
+  lex_integer_literals,
   "123 456 789",
   vec![
     TokenKind::Integer("123"),
@@ -12,19 +12,19 @@ test_lexer!(
 );
 
 test_lexer_single!(
-  should_lex_string_lit,
+  lex_string_literal,
   r#""hello world""#,
   TokenKind::String("hello world")
 );
 
 test_lexer_single!(
-  should_lex_string_lit_escapes,
+  lex_string_literal_with_escapes,
   r#""hello \"world\"""#,
   TokenKind::String(r#"hello \"world\""#)
 );
 
 test_lexer_single!(
-  should_lex_unterminated_string_lit,
+  lex_unterminated_string_literal,
   r#""hello"#,
   TokenKind::Unknown
 );

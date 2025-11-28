@@ -2,7 +2,7 @@ use krama_core::ast::statement::{Binding, Statement, StatementKind};
 use krama_internal::test_parser;
 
 test_parser!(
-  should_parse_let_stmts,
+  parse_let_statement,
   "let x = 5",
   1,
   |statement: &Statement| {
@@ -16,7 +16,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_const_stmts,
+  parse_const_statement,
   "const x = 5",
   1,
   |statement: &Statement| {
@@ -33,7 +33,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_pub_const_stmt,
+  parse_public_const_statement,
   "pub const x = 5",
   1,
   |statement: &Statement| {
@@ -52,7 +52,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_fn_stmt,
+  parse_function_statement,
   "fn add(a, b) { a + b }",
   1,
   |statement: &Statement| {
@@ -66,7 +66,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_pub_fn_stmt,
+  parse_public_function_statement,
   "pub fn add(a, b) { a + b }",
   1,
   |statement: &Statement| {
@@ -81,7 +81,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_return_stmt,
+  parse_return_statement,
   "return 5",
   1,
   |statement: &Statement| {
@@ -93,7 +93,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_break_stmt,
+  parse_break_statement,
   "break",
   1,
   |statement: &Statement| {
@@ -105,7 +105,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_continue_stmt,
+  parse_continue_statement,
   "continue",
   1,
   |statement: &Statement| {
@@ -117,7 +117,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_while_stmt,
+  parse_while_statement,
   "while (true) { }",
   1,
   |statement: &Statement| {

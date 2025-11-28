@@ -21,7 +21,7 @@ fn expect_const_statement_with_type<'ast>(
 }
 
 test_parser!(
-  should_parse_array_type,
+  parse_array_type,
   "const a: i32[] = []",
   1,
   |statement: &Statement| {
@@ -38,7 +38,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_array_type_with_size,
+  parse_array_type_with_size,
   "const a: i32[5] = []",
   1,
   |statement: &Statement| {
@@ -55,7 +55,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_tuple_type,
+  parse_tuple_type,
   "const a: [i32, bool] = [1, true]",
   1,
   |statement: &Statement| {
@@ -75,7 +75,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_nested_array_type,
+  parse_nested_array_type,
   "const a: i32[][] = []",
   1,
   |statement: &Statement| {
@@ -98,7 +98,7 @@ test_parser!(
 );
 
 test_parser!(
-  should_parse_nested_tuple_type,
+  parse_nested_tuple_type,
   "const a: [i32, [bool, str]] = [1, [true, \"a\"]]",
   1,
   |statement: &Statement| {

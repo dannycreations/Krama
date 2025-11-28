@@ -2,7 +2,7 @@ use krama_core::object::Object;
 use krama_internal::test_eval;
 
 test_eval!(
-  should_eval_while_loop,
+  eval_while_loop,
   r#"
     let i = 0
     let result = 0
@@ -16,7 +16,7 @@ test_eval!(
 );
 
 test_eval!(
-  should_eval_while_loop_break,
+  eval_while_loop_with_break,
   r#"
     let i = 0
     while (i < 10) {
@@ -31,7 +31,7 @@ test_eval!(
 );
 
 test_eval!(
-  should_eval_while_loop_continue,
+  eval_while_loop_with_continue,
   r#"
     let i = 0
     let result = 0
@@ -48,7 +48,7 @@ test_eval!(
 );
 
 test_eval!(
-  should_eval_while_loop_return,
+  eval_while_loop_with_return,
   r#"
     fn looper() {
         let i = 0

@@ -8,13 +8,12 @@ use krama_core::{
 use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) async fn eval_unary_expression(
+  pub(crate) fn eval_unary_expression(
     &self,
     operator: UnaryOperator,
     right: Object<'ast>,
     span: Span,
   ) -> Result<Object<'ast>, Error> {
-    let right = self.resolve_object(right).await?;
     match operator {
       UnaryOperator::Not => Ok(Object::Boolean(!right.is_truthy())),
       UnaryOperator::Negate => match right {

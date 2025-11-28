@@ -65,16 +65,13 @@ macro_rules! gen_numeric_binary_expr {
 }
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) async fn eval_binary_expression(
+  pub(crate) fn eval_binary_expression(
     &self,
     operator: BinaryOperator,
     left: Object<'ast>,
     right: Object<'ast>,
     span: Span,
   ) -> Result<Object<'ast>, Error> {
-    let left = self.resolve_object(left).await?;
-    let right = self.resolve_object(right).await?;
-
     match (left, right) {
       (Object::Integer(left), Object::Integer(right)) => {
         gen_numeric_binary_expr!(operator, left, right, span, Int)
