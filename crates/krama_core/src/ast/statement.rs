@@ -35,6 +35,7 @@ pub enum Binding<'ast> {
 pub struct Parameter<'ast> {
   pub name: &'ast str,
   pub kind: Option<Type<'ast>>,
+  pub default: Option<&'ast Expression<'ast>>,
   pub span: Span,
 }
 

@@ -25,7 +25,7 @@ impl<'ast> Interpreter<'ast> {
             self.eval_native_function_call(native_fn, arguments).await
           }
           Function::User(user_fn) => {
-            self.eval_user_function_call(user_fn, arguments).await
+            self.eval_user_function_call(user_fn, arguments, span).await
           }
         },
         _ => Err(Error {
@@ -51,11 +51,34 @@ impl<'ast> Interpreter<'ast> {
     &self,
     user_fn: Rc<UserFunction<'ast>>,
     arguments: BumpVec<'ast, Object<'ast>>,
+    span: Span,
   ) -> Result<Object<'ast>, Error> {
+    if arguments.len() > user_fn.parameters.len() {
+      return Err(Error {
+        span,
+        kind: ErrorKind::TypeError(format!(
+          "Expected {} arguments, but got {}",
+          user_fn.parameters.len(),
+          arguments.len()
+        )),
+      });
+    }
     let new_interpreter = self.new_enclosed();
 
     for (i, param) in user_fn.parameters.iter().enumerate() {
-      let value = arguments.get(i).unwrap_or(&Object::Null);
+      let value = if let Some(arg) = arguments.get(i) {
+        arg.clone()
+      } else if let Some(default) = param.default {
+        new_interpreter.eval_expression(default, None).await?
+      } else {
+        return Err(Error {
+          span,
+          kind: ErrorKind::TypeError(format!(
+            "Missing argument for parameter '{}'",
+            param.name
+          )),
+        });
+      };
       new_interpreter.environment.borrow_mut().set(
         param.name,
         Rc::new(value.clone()),

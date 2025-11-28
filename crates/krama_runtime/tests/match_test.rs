@@ -1,5 +1,5 @@
 use krama_core::object::Object;
-use krama_internal::{test_eval, test_eval_async};
+use krama_internal::test_eval;
 
 test_eval!(
   should_eval_match_expr_lit_pattern,
@@ -65,7 +65,7 @@ test_eval!(
   Object::Integer(1)
 );
 
-test_eval_async!(
+test_eval!(
   should_eval_match_return_stmt,
   r#"
         fn my_test() {

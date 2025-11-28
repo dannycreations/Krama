@@ -28,21 +28,6 @@ macro_rules! test_eval {
         ::krama_runtime::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
-      assert_eq!(result, $expected);
-    }
-  };
-}
-
-#[macro_export]
-macro_rules! test_eval_async {
-  ($name:ident, $source:expr, $expected:expr) => {
-    #[tokio::test]
-    async fn $name() {
-      let arena = ::bumpalo::Bump::new();
-      let interpreter =
-        ::krama_runtime::interpreter::Interpreter::new(&arena, None);
-      let source = arena.alloc_str($source);
-      let result = interpreter.eval(source).await.unwrap();
       let result = $crate::resolve_future!(result).unwrap();
       assert_eq!(result, $expected);
     }

@@ -1,5 +1,5 @@
 use krama_core::object::Object;
-use krama_internal::{test_eval, test_eval_async};
+use krama_internal::test_eval;
 
 test_eval!(
   should_eval_while_loop,
@@ -47,7 +47,7 @@ test_eval!(
   Object::Integer(25)
 );
 
-test_eval_async!(
+test_eval!(
   should_eval_while_loop_return,
   r#"
     fn looper() {

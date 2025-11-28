@@ -75,8 +75,20 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         None
       };
 
+      let default = if self.current_token.kind == TokenKind::Equal {
+        self.advance();
+        Some(self.arena.alloc(self.parse_expression(Precedence::Lowest)?))
+      } else {
+        None
+      };
+
       let span = param_span_start;
-      parameters.push(Parameter { name, kind, span });
+      parameters.push(Parameter {
+        name,
+        kind,
+        default: default.map(|expr| &*expr),
+        span,
+      });
 
       if self.current_token.kind != TokenKind::Comma {
         break;
