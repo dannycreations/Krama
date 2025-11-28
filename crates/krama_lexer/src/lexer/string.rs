@@ -8,10 +8,11 @@ impl<'a> Lexer<'a> {
 
     while let Some(c) = self.peek() {
       if c == '\\' {
-        // If we see a backslash, consume it and the next character,
-        // treating it as an escape sequence.
+        // If we see a backslash, consume it and check for a valid escape sequence.
         self.advance();
-        self.advance();
+        if let Some('n' | 'r' | 't' | '\\' | '"') = self.peek() {
+          self.advance();
+        }
       } else if c == '"' {
         // This is the end of the string.
         break;

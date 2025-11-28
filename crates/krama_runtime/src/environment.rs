@@ -1,12 +1,12 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use krama_core::object::Object;
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, Default, Clone)]
 pub struct Environment<'ast> {
-  store: FxHashMap<&'ast str, (Rc<Object<'ast>>, bool)>,
-  outer: Option<Rc<Environment<'ast>>>,
+  pub store: FxHashMap<&'ast str, (Rc<Object<'ast>>, bool)>,
+  pub outer: Option<Rc<RefCell<Environment<'ast>>>>,
 }
 
 impl<'ast> Environment<'ast> {
@@ -14,37 +14,23 @@ impl<'ast> Environment<'ast> {
     Default::default()
   }
 
-  pub fn new_enclosed(outer: Rc<Environment<'ast>>) -> Self {
-    let mut env = Environment::new();
-    env.outer = Some(outer);
-    env
+  pub fn new_enclosed(outer: Rc<RefCell<Environment<'ast>>>) -> Self {
+    Environment {
+      store: FxHashMap::default(),
+      outer: Some(outer),
+    }
   }
 
   pub fn get(&self, name: &str) -> Option<Rc<Object<'ast>>> {
-    let mut env = Some(self);
-    while let Some(current_env) = env {
-      if let Some((obj, _)) = current_env.store.get(name) {
-        return Some(obj.clone());
-      }
-      env = current_env.outer.as_deref();
+    if let Some((obj, _)) = self.store.get(name) {
+      return Some(obj.clone());
     }
-    None
-  }
 
-  pub fn get_at(
-    &self,
-    distance: usize,
-    name: &str,
-  ) -> Option<Rc<Object<'ast>>> {
-    let mut env = Some(self);
-    for _ in 0..distance {
-      if let Some(current_env) = env {
-        env = current_env.outer.as_deref();
-      } else {
-        return None;
-      }
+    if let Some(outer) = &self.outer {
+      return outer.borrow().get(name);
     }
-    env.and_then(|e| e.get(name))
+
+    None
   }
 
   pub fn set(

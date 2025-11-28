@@ -11,10 +11,7 @@ impl<'a> Lexer<'a> {
       if c == '_' || c.is_ascii_digit() {
         self.advance();
       } else if c == '.' && !is_float {
-        if self.position + 1 >= self.input.len() {
-          break;
-        }
-        if self.input[self.position + 1] as char == '.' {
+        if self.peek_next() == Some('.') {
           break;
         }
         is_float = true;

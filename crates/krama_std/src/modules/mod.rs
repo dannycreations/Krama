@@ -21,7 +21,7 @@ macro_rules! parse_args {
         if $objects.len() != EXPECTED_ARGS {
             return Err(Error {
                 span: Default::default(),
-                kind: ErrorKind::TypeError(format!(
+                kind: ErrorKind::ArgumentError(format!(
                     "Expected {} arguments, but got {}",
                     EXPECTED_ARGS,
                     $objects.len()
@@ -36,7 +36,7 @@ macro_rules! parse_args {
                 Some(other) => {
                      return Err(Error {
                         span: Default::default(),
-                        kind: ErrorKind::TypeError(format!(
+                        kind: ErrorKind::ArgumentError(format!(
                             "Expected argument '{}' to be of type '{}', but got '{}'",
                             stringify!($arg),
                             stringify!($type),

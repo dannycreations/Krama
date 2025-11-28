@@ -6,12 +6,11 @@ use std::{
 pub use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
-use rustc_hash::FxHashMap;
 use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
 
 use super::ast::{expression::FunctionBody, statement::Parameter, types::Type};
-use crate::error::Error;
+use crate::{error::Error, scope::Scope};
 
 pub type NativeFunctionCb<'ast> =
   fn(
@@ -141,21 +140,16 @@ impl<'ast> Object<'ast> {
     }
   }
 
-  fn format_elements(
+  fn format_array(
     f: &mut Formatter,
     elements: &BumpVec<'ast, Object<'ast>>,
-    debug: bool,
   ) -> FmtResult {
     write!(f, "[")?;
     for (i, element) in elements.iter().enumerate() {
       if i > 0 {
         write!(f, ", ")?;
       }
-      if debug {
-        write!(f, "{:?}", element)?;
-      } else {
-        write!(f, "{}", element)?;
-      }
+      write!(f, "{}", element)?;
     }
     write!(f, "]")
   }
@@ -168,10 +162,8 @@ impl<'ast> Display for Object<'ast> {
       Object::Float(fl) => write!(f, "{}", fl),
       Object::Boolean(b) => write!(f, "{}", b),
       Object::String(s) => write!(f, "{}", s),
-      Object::Array { elements, .. } => {
-        Object::format_elements(f, elements, false)
-      }
-      Object::Tuple { elements } => Object::format_elements(f, elements, false),
+      Object::Array { elements, .. } => Object::format_array(f, elements),
+      Object::Tuple { elements } => Object::format_array(f, elements),
       Object::Null => write!(f, "null"),
       Object::Void => write!(f, "void"),
       Object::Scope(scope) => {
@@ -227,8 +219,10 @@ impl<'ast> PartialEq for Object<'ast> {
       (
         Object::Array { elements: a, .. },
         Object::Array { elements: b, .. },
-      ) => a == b,
-      (Object::Tuple { elements: a }, Object::Tuple { elements: b }) => a == b,
+      )
+      | (Object::Tuple { elements: a }, Object::Tuple { elements: b }) => {
+        a == b
+      }
       (Object::Null, Object::Null) => true,
       (Object::Void, Object::Void) => true,
       (Object::Function(a), Object::Function(b)) => a == b,
@@ -240,9 +234,4 @@ impl<'ast> PartialEq for Object<'ast> {
       _ => false,
     }
   }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct Scope<'ast> {
-  pub name: Option<&'ast str>,
-  pub bindings: FxHashMap<&'ast str, Rc<Object<'ast>>>,
 }

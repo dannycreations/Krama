@@ -1,7 +1,11 @@
 use krama_core::{
-  ast::{expression::Expression, types::Type},
+  ast::{
+    expression::{Expression, FunctionBody, MatchArm},
+    types::Type,
+  },
   error::Error,
   object::Object,
+  span::Span,
 };
 
 use crate::interpreter::Interpreter;
@@ -24,5 +28,36 @@ impl<'ast> Interpreter<'ast> {
     } else {
       Ok(Object::Void)
     }
+  }
+
+  pub(crate) async fn eval_match_expression(
+    &self,
+    subject: &Expression<'ast>,
+    arms: &[MatchArm<'ast>],
+    span: Span,
+  ) -> Result<Object<'ast>, Error> {
+    let subject = self.eval_expression(subject, None).await?;
+    let subject = self.resolve_object(subject).await?;
+
+    for arm in arms {
+      for pattern in &arm.patterns {
+        let new_interpreter = self.new_enclosed();
+        let matched = new_interpreter
+          .eval_match_pattern(&subject, pattern, span)
+          .await?;
+        if matched {
+          return match &arm.body {
+            FunctionBody::Block(block) => {
+              new_interpreter.eval_block_statement(block).await
+            }
+            FunctionBody::Expression(expression) => {
+              new_interpreter.eval_expression(expression, None).await
+            }
+          };
+        }
+      }
+    }
+
+    Ok(Object::Void)
   }
 }

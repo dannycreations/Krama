@@ -104,7 +104,7 @@ impl<'ast> Interpreter<'ast> {
           let function =
             Object::Function(Function::User(Rc::new(UserFunction {
               parameters: parameters.clone(),
-              body: FunctionBody::Block(body),
+              body: body.clone(),
               kind: kind.clone(),
             })));
           self.env_mut(span)?.set(name, Rc::new(function), *public);
@@ -189,7 +189,11 @@ impl<'ast> Interpreter<'ast> {
         } else {
           return Err(Error {
             span,
-            kind: ErrorKind::ReferenceError(item.name.to_string()),
+            kind: ErrorKind::ReferenceError(format!(
+              "'{}' is not exported from module '{}'",
+              item.name,
+              scope.name.unwrap_or("<anonymous>")
+            )),
           });
         }
       }

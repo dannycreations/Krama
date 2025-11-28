@@ -1,6 +1,10 @@
 use bumpalo::collections::Vec as BumpVec;
 
-use super::{expression::Expression, types::Type, Node};
+use super::{
+  expression::{Expression, FunctionBody},
+  types::Type,
+  Node,
+};
 use crate::span::Span;
 
 pub type Statement<'ast> = Node<'ast, StatementKind<'ast>>;
@@ -55,7 +59,7 @@ pub enum StatementKind<'ast> {
     public: bool,
     name: &'ast str,
     parameters: BumpVec<'ast, Parameter<'ast>>,
-    body: &'ast BlockStatement<'ast>,
+    body: FunctionBody<'ast>,
     kind: Option<Type<'ast>>,
   },
   Expression {

@@ -27,8 +27,10 @@ impl<'ast> Interpreter<'ast> {
 
     let object_type = resolved_object.type_name();
 
-    if let Some(prop) = self.props.get(&(object_type, property_name)) {
-      return prop(resolved_object).await;
+    if let Some(props) = self.props.get(object_type) {
+      if let Some(prop) = props.get(property_name) {
+        return prop(resolved_object).await;
+      }
     }
 
     if let Object::Scope(ref scope) = resolved_object {

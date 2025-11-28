@@ -15,9 +15,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_let_statement(
     &mut self,
   ) -> Result<Statement<'ast>, Error> {
-    let start_span = self.current_token.span;
-    self.advance();
-
+    let start_span = self.consume_token_and_get(TokenKind::Let)?.span;
     let name = self.parse_identifier()?;
 
     let kind = if self.current_token.kind == TokenKind::Colon {
@@ -27,7 +25,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       None
     };
 
-    self.advance();
+    self.consume_token(TokenKind::Equal)?;
 
     let value = self.parse_expression(Precedence::Lowest)?;
 
@@ -46,20 +44,20 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     public: bool,
     start_span: Span,
   ) -> Result<Statement<'ast>, Error> {
-    self.advance();
+    self.consume_token(TokenKind::Const)?;
 
     let binding = if self.current_token.kind == TokenKind::LBrace {
-      self.advance();
+      self.consume_token(TokenKind::LBrace)?;
       let items = self.parse_destructured_items()?;
-      self.advance();
+      self.consume_token(TokenKind::RBrace)?;
       Binding::Destructure(items)
     } else {
       let name = self.parse_identifier()?;
       if self.current_token.kind == TokenKind::Comma {
-        self.advance();
-        self.advance();
+        self.consume_token(TokenKind::Comma)?;
+        self.consume_token(TokenKind::LBrace)?;
         let items = self.parse_destructured_items()?;
-        self.advance();
+        self.consume_token(TokenKind::RBrace)?;
         Binding::ModuleAndDestructure {
           module_alias: name,
           items,
@@ -76,7 +74,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       None
     };
 
-    self.advance();
+    self.consume_token(TokenKind::Equal)?;
 
     let value = self.parse_expression(Precedence::Lowest)?;
     Ok(Statement::new(
@@ -101,7 +99,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       let name = self.parse_identifier()?;
 
       let alias = if self.current_token.kind == TokenKind::As {
-        self.advance();
+        self.consume_token(TokenKind::As)?;
         let alias_name = self.parse_identifier()?;
         Some(self.arena.alloc_str(alias_name))
       } else {
@@ -116,7 +114,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       if self.current_token.kind != TokenKind::Comma {
         break;
       }
-      self.advance();
+      self.consume_token(TokenKind::Comma)?;
     }
     Ok(items)
   }

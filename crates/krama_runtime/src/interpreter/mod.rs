@@ -33,7 +33,8 @@ pub struct Interpreter<'ast> {
   pub(super) modules: Rc<RefCell<FxHashMap<String, Rc<Object<'ast>>>>>,
   pub(super) arena: &'ast Bump,
   pub path: Option<&'ast str>,
-  pub(super) props: Rc<FxHashMap<(&'static str, &'static str), PropFn<'ast>>>,
+  pub(super) props:
+    Rc<FxHashMap<&'static str, FxHashMap<&'static str, PropFn<'ast>>>>,
   locals: RefCell<FxHashMap<Span, usize>>,
 }
 
@@ -57,7 +58,7 @@ impl<'ast> Interpreter<'ast> {
   fn new_enclosed(&self) -> Self {
     Self {
       environment: Rc::new(RefCell::new(Environment::new_enclosed(
-        self.environment.borrow().clone().into(),
+        self.environment.clone(),
       ))),
       modules: self.modules.clone(),
       arena: self.arena,
@@ -65,6 +66,32 @@ impl<'ast> Interpreter<'ast> {
       props: self.props.clone(),
       locals: self.locals.clone(),
     }
+  }
+
+  fn ancestor(&self, distance: usize) -> Rc<RefCell<Environment<'ast>>> {
+    let mut environment = self.environment.clone();
+    for _ in 0..distance {
+      let outer = environment.borrow().outer.clone().unwrap();
+      environment = outer;
+    }
+    environment
+  }
+
+  pub(super) fn get_at(
+    &self,
+    distance: usize,
+    name: &str,
+  ) -> Option<Rc<Object<'ast>>> {
+    self.ancestor(distance).borrow().get(name)
+  }
+
+  pub(super) fn assign_at(
+    &self,
+    distance: usize,
+    name: &'ast str,
+    value: Rc<Object<'ast>>,
+  ) {
+    self.ancestor(distance).borrow_mut().set(name, value, false);
   }
 
   pub fn alloc_str(&self, s: &str) -> &'ast str {

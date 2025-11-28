@@ -96,6 +96,25 @@ impl<'a> Lexer<'a> {
     unsafe { std::str::from_utf8_unchecked(&self.input[start..end]) }
   }
 
+  fn skip_line_comment(&mut self) {
+    self.advance();
+    self.advance();
+    while self.peek().is_some_and(|c| c != '\n') {
+      self.advance();
+    }
+  }
+
+  fn skip_block_comment(&mut self) {
+    self.advance();
+    self.advance();
+    while let Some(c) = self.advance() {
+      if c == '*' && self.peek() == Some('/') {
+        self.advance();
+        break;
+      }
+    }
+  }
+
   fn skip_trivia(&mut self) {
     loop {
       match self.peek() {
@@ -103,26 +122,8 @@ impl<'a> Lexer<'a> {
           self.advance();
         }
         Some('/') => match self.peek_next() {
-          Some('/') => {
-            self.advance();
-            self.advance();
-            while let Some(c) = self.peek() {
-              if c == '\n' {
-                break;
-              }
-              self.advance();
-            }
-          }
-          Some('*') => {
-            self.advance();
-            self.advance();
-            while let Some(c) = self.advance() {
-              if c == '*' && self.peek() == Some('/') {
-                self.advance();
-                break;
-              }
-            }
-          }
+          Some('/') => self.skip_line_comment(),
+          Some('*') => self.skip_block_comment(),
           _ => break,
         },
         _ => break,

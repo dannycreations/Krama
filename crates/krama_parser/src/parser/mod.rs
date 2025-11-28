@@ -63,6 +63,25 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     }
   }
 
+  pub(super) fn consume_token_and_get(
+    &mut self,
+    expected_kind: TokenKind,
+  ) -> Result<Token<'a>, Error> {
+    if self.current_token.kind == expected_kind {
+      let token = self.current_token;
+      self.advance();
+      Ok(token)
+    } else {
+      Err(Error {
+        span: self.current_token.span,
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected token {}, but got {}",
+          expected_kind, self.current_token.kind
+        )),
+      })
+    }
+  }
+
   pub fn parse(&mut self) -> Result<Program<'ast>, Error> {
     let mut statements = BumpVec::new_in(self.arena);
     while self.current_token.kind != TokenKind::Eof {
@@ -84,13 +103,13 @@ impl<'a, 'ast> Parser<'a, 'ast> {
 
     let kind = self.current_token.kind;
     let message = if kind.is_keyword() {
-      "Unexpected keyword"
+      format!("Unexpected keyword `{}`", kind)
     } else {
-      "Expected identifier"
+      "Expected identifier".to_string()
     };
     Err(Error {
       span: self.current_token.span,
-      kind: ErrorKind::SyntaxError(message.to_string()),
+      kind: ErrorKind::SyntaxError(message),
     })
   }
 

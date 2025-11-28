@@ -15,6 +15,28 @@ use crate::error::report_error;
 #[derive(Parser)]
 pub struct Repl;
 
+async fn evaluate_line<'a>(
+  interpreter: &Interpreter<'a>,
+  arena: &'a Bump,
+  line: &str,
+) {
+  let trimmed_line = line.trim();
+  if trimmed_line.is_empty() {
+    return;
+  }
+
+  let line_in_arena = arena.alloc_str(trimmed_line);
+
+  match interpreter.eval(line_in_arena).await {
+    Ok(object) => {
+      if !matches!(object, Object::Void) {
+        println!("{}", object);
+      }
+    }
+    Err(err) => report_error("repl", trimmed_line, err),
+  };
+}
+
 impl Repl {
   pub async fn execute(&self, arena: &mut Bump) -> Result<()> {
     let interpreter = Interpreter::new(arena, None);
@@ -35,25 +57,10 @@ impl Repl {
               match result {
                   Ok(0) => break,
                   Ok(_) => {
-                      let trimmed_line = line.trim();
-                      if trimmed_line == "exit" {
+                      if line.trim() == "exit" {
                           break;
                       }
-
-                      if trimmed_line.is_empty() {
-                          continue;
-                      }
-
-                      let line_in_arena = arena.alloc_str(trimmed_line);
-
-                      match interpreter.eval(line_in_arena).await {
-                          Ok(object) => {
-                              if !matches!(object, Object::Void) {
-                                  println!("{}", object);
-                              }
-                          }
-                          Err(err) => report_error("repl", trimmed_line, err),
-                      };
+                      evaluate_line(&interpreter, arena, &line).await;
                   }
                   Err(e) => {
                       eprintln!("Error: {:?}", e);

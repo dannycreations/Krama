@@ -15,7 +15,7 @@ impl<'ast> Interpreter<'ast> {
     span: Span,
   ) -> Result<Object<'ast>, Error> {
     if let Some(distance) = self.locals.borrow().get(&expression.span) {
-      if let Some(value) = self.environment.borrow().get_at(*distance, name) {
+      if let Some(value) = self.get_at(*distance, name) {
         return Ok(value.as_ref().clone());
       }
     }

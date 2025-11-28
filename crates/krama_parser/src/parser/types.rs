@@ -71,9 +71,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         let parsed_val: i64 =
           val.replace('_', "").parse().map_err(|_| Error {
             span: token.span,
-            kind: ErrorKind::SyntaxError(
-              "Invalid integer literal for array size".to_string(),
-            ),
+            kind: ErrorKind::SyntaxError(format!(
+              "Invalid integer literal for array size: '{}'",
+              val
+            )),
           })?;
         Some(Literal::Integer(parsed_val))
       } else {

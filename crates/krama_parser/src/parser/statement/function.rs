@@ -1,5 +1,9 @@
 use krama_core::{
-  ast::statement::{Statement, StatementKind},
+  ast::{
+    expression::FunctionBody,
+    precedence::Precedence,
+    statement::{Statement, StatementKind},
+  },
   error::{Error, ErrorKind},
   span::Span,
   token::TokenKind,
@@ -34,13 +38,26 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       None
     };
 
-    let body = self.parse_block_statement()?;
+    let body = if self.current_token.kind == TokenKind::LBrace {
+      let block = self.parse_block_statement()?;
+      FunctionBody::Block(self.arena.alloc(block))
+    } else if self.current_token.kind == TokenKind::Equal {
+      self.advance();
+      let expr = self.parse_expression(Precedence::Lowest)?;
+      FunctionBody::Expression(self.arena.alloc(expr))
+    } else {
+      return Err(Error {
+        span: self.current_token.span,
+        kind: ErrorKind::SyntaxError("Expected function body".to_string()),
+      });
+    };
+
     Ok(Statement::new(
       StatementKind::Fn {
         public,
         name,
         parameters,
-        body: self.arena.alloc(body),
+        body,
         kind,
       },
       start_span,

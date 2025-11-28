@@ -82,8 +82,15 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
           self.declare(param.name);
           self.define(param.name);
         }
-        for statement in &body.statements {
-          self.resolve_statement(statement)?;
+        match body {
+          FunctionBody::Block(block) => {
+            for statement in &block.statements {
+              self.resolve_statement(statement)?;
+            }
+          }
+          FunctionBody::Expression(expression) => {
+            self.resolve_expression(expression)?;
+          }
         }
         self.end_scope();
       }

@@ -23,6 +23,7 @@ pub enum ErrorKind {
   SyntaxError(String),
   TypeError(String),
   ReferenceError(String),
+  ArgumentError(String),
 }
 
 impl Display for ErrorKind {
@@ -32,6 +33,7 @@ impl Display for ErrorKind {
       ErrorKind::SyntaxError(msg) => (self.as_ref(), msg),
       ErrorKind::TypeError(msg) => (self.as_ref(), msg),
       ErrorKind::ReferenceError(msg) => (self.as_ref(), msg),
+      ErrorKind::ArgumentError(msg) => (self.as_ref(), msg),
     };
     write!(f, "{}: {}", variant, msg)
   }

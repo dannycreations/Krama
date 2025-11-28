@@ -2,7 +2,8 @@ use std::rc::Rc;
 
 use krama_core::{
   error::{Error, ErrorKind},
-  object::{Object, Scope},
+  object::Object,
+  scope::Scope,
   span::Span,
 };
 use krama_std::modules;

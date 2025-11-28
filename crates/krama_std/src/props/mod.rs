@@ -1,5 +1,7 @@
 pub mod length;
 
+use std::iter::FromIterator;
+
 use futures::future::LocalBoxFuture;
 use krama_core::object::Object;
 use rustc_hash::FxHashMap;
@@ -11,11 +13,14 @@ pub type PropFn<'ast> =
     Object<'ast>,
   ) -> LocalBoxFuture<'ast, Result<Object<'ast>, krama_core::error::Error>>;
 
-pub fn get_props<'ast>() -> FxHashMap<(&'static str, &'static str), PropFn<'ast>>
-{
+pub fn get_props<'ast>(
+) -> FxHashMap<&'static str, FxHashMap<&'static str, PropFn<'ast>>> {
   let mut props = FxHashMap::default();
-  props.insert(("array", "length"), length as PropFn<'ast>);
-  props.insert(("tuple", "length"), length as PropFn<'ast>);
-  props.insert(("string", "length"), length as PropFn<'ast>);
+  let length_prop = FxHashMap::from_iter([("length", length as PropFn)]);
+
+  props.insert("array", length_prop.clone());
+  props.insert("tuple", length_prop.clone());
+  props.insert("string", length_prop);
+
   props
 }
