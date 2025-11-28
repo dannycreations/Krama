@@ -85,10 +85,6 @@ impl<'a, 'ast> Parser<'a, 'ast> {
   pub fn parse(&mut self) -> Result<Program<'ast>, Error> {
     let mut statements = BumpVec::new_in(self.arena);
     while self.current_token.kind != TokenKind::Eof {
-      if self.current_token.kind == TokenKind::Newline {
-        self.advance();
-        continue;
-      }
       let statement = self.parse_statement()?;
       statements.push(statement);
     }

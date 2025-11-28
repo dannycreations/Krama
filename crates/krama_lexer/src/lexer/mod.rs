@@ -118,7 +118,7 @@ impl<'a> Lexer<'a> {
   fn skip_trivia(&mut self) {
     loop {
       match self.peek() {
-        Some(c) if c.is_whitespace() && c != '\n' => {
+        Some(c) if c.is_whitespace() => {
           self.advance();
         }
         Some('/') => match self.peek_next() {
@@ -142,8 +142,6 @@ impl<'a> Iterator for Lexer<'a> {
     let char = self.advance()?;
 
     let token = match char {
-      '\n' => token!(self, start, TokenKind::Newline),
-
       // Delimiters
       '(' => token!(self, start, TokenKind::LParen),
       ')' => token!(self, start, TokenKind::RParen),

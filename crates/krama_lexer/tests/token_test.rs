@@ -61,3 +61,25 @@ test_lexer!(
   "@import",
   vec![TokenKind::At, TokenKind::Import]
 );
+
+test_lexer!(
+  should_lex_single_line_comment,
+  r#"
+// this is a comment
+123 // number with a comment
+// another comment
+"#,
+  vec![TokenKind::Integer("123")]
+);
+
+test_lexer!(
+  should_lex_multi_line_comment,
+  r#"
+/*
+   this is a 
+   multi-line comment
+*/
+123
+"#,
+  vec![TokenKind::Integer("123")]
+);

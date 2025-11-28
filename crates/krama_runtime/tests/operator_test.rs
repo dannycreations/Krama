@@ -25,40 +25,40 @@ test_eval!(should_float_mod_op, "5.0 % 2.0", Object::Float(1.0));
 
 test_eval!(should_float_exp_op, "2.0 ** 3.0", Object::Float(8.0));
 
-test_eval!(should_prefix_inc_op, "let a = 5\n++a", Object::Integer(6));
+test_eval!(should_prefix_inc_op, "let a = 5; ++a", Object::Integer(6));
 
-test_eval!(should_postfix_inc_op, "let a = 5\na++", Object::Integer(5));
+test_eval!(should_postfix_inc_op, "let a = 5; a++", Object::Integer(5));
 
-test_eval!(should_prefix_dec_op, "let a = 5\n--a", Object::Integer(4));
+test_eval!(should_prefix_dec_op, "let a = 5; --a", Object::Integer(4));
 
-test_eval!(should_postfix_dec_op, "let a = 5\na--", Object::Integer(5));
+test_eval!(should_postfix_dec_op, "let a = 5; a--", Object::Integer(5));
 
 test_eval!(
   should_plus_eq_assign_op,
-  "let a = 5\na += 5",
+  "let a = 5; a += 5",
   Object::Integer(10)
 );
 
 test_eval!(
   should_minus_eq_assign_op,
-  "let a = 5\na -= 5",
+  "let a = 5; a -= 5",
   Object::Integer(0)
 );
 
 test_eval!(
   should_star_eq_assign_op,
-  "let a = 5\na *= 5",
+  "let a = 5; a *= 5",
   Object::Integer(25)
 );
 
 test_eval!(
   should_slash_eq_assign_op,
-  "let a = 5\na /= 5",
+  "let a = 5; a /= 5",
   Object::Integer(1)
 );
 
 test_eval!(
   should_percent_eq_assign_op,
-  "let a = 5\na %= 2",
+  "let a = 5; a %= 2",
   Object::Integer(1)
 );
