@@ -16,7 +16,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
 
     if self.current_token.kind == TokenKind::RParen {
       self.advance();
-      return self.parse_fn_expr_with_empty_params(start_span);
+      return self
+        .parse_fn_expr_with_params(start_span, BumpVec::new_in(self.arena));
     }
 
     let mut expressions = BumpVec::new_in(self.arena);

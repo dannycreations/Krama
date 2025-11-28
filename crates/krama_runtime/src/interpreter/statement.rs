@@ -1,5 +1,5 @@
 use bumpalo::collections::Vec as BumpVec;
-use futures::future::LocalBoxFuture;
+use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
   ast::{
     expression::FunctionBody,
@@ -20,7 +20,7 @@ impl<'ast> Interpreter<'ast> {
     &'s self,
     statement: &'s Statement<'ast>,
   ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
-    Box::pin(async move {
+    async move {
       let span = statement.span;
       match &statement.kind {
         StatementKind::Expression { expression } => {
@@ -138,7 +138,8 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
       }
-    })
+    }
+    .boxed_local()
   }
 
   async fn eval_statements<'s>(

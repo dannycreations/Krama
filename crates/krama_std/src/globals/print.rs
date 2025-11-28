@@ -1,5 +1,5 @@
 use bumpalo::Bump;
-use futures::future::LocalBoxFuture;
+use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
   error::{Error, ErrorKind},
   object::Object,
@@ -10,7 +10,7 @@ pub fn print<'ast>(
   _: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     let mut stdout = io::stdout();
     for (i, obj) in objects.iter().enumerate() {
       if i > 0 {
@@ -33,5 +33,6 @@ pub fn print<'ast>(
     })?;
 
     Ok(Object::Void)
-  })
+  }
+  .boxed_local()
 }

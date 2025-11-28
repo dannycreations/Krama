@@ -43,55 +43,56 @@ static OPERATORS: [char; 13] = [
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
-  input: &'a [u8],
+  input: &'a str,
   position: usize,
 }
 
 impl<'a> Lexer<'a> {
   pub fn new(input: &'a str) -> Self {
-    Self {
-      input: input.as_bytes(),
-      position: 0,
-    }
+    Self { input, position: 0 }
   }
 
   pub fn input_len(&self) -> usize {
     self.input.len()
   }
 
-  pub(super) fn peek(&mut self) -> Option<char> {
+  fn current_char(&self) -> Option<(char, usize)> {
     if self.position >= self.input.len() {
       return None;
     }
-    Some(self.input[self.position] as char)
+    self.input[self.position..]
+      .chars()
+      .next()
+      .map(|c| (c, c.len_utf8()))
+  }
+
+  pub(super) fn peek(&self) -> Option<char> {
+    self.current_char().map(|(c, _)| c)
   }
 
   pub(super) fn peek_next(&self) -> Option<char> {
-    if self.position + 1 >= self.input.len() {
+    let (_, current_len) = self.current_char()?;
+    let next_pos = self.position + current_len;
+    if next_pos >= self.input.len() {
       return None;
     }
-    Some(self.input[self.position + 1] as char)
+    self.input[next_pos..].chars().next()
   }
 
   pub(super) fn advance(&mut self) -> Option<char> {
-    if self.position >= self.input.len() {
-      return None;
-    }
-    let ch = self.input[self.position] as char;
-    self.position += 1;
-    Some(ch)
+    let (c, len) = self.current_char()?;
+    self.position += len;
+    Some(c)
   }
 
   pub(super) fn advance_if(&mut self, expected: char) -> bool {
-    if self.position >= self.input.len() {
-      return false;
+    if let Some((c, len)) = self.current_char() {
+      if c == expected {
+        self.position += len;
+        return true;
+      }
     }
-    if self.input[self.position] as char == expected {
-      self.position += 1;
-      true
-    } else {
-      false
-    }
+    false
   }
 
   pub(super) fn span(&self, start: usize) -> Span {
@@ -99,7 +100,7 @@ impl<'a> Lexer<'a> {
   }
 
   pub(super) fn slice(&self, start: usize, end: usize) -> &'a str {
-    std::str::from_utf8(&self.input[start..end]).unwrap()
+    &self.input[start..end]
   }
 
   fn skip_line_comment(&mut self) {

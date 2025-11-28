@@ -1,47 +1,36 @@
-use futures::future::LocalBoxFuture;
 use krama_core::{
   ast::expression::FunctionBody,
   error::{Error, ErrorKind},
-  object::{Function, NativeFunction, Object, UserFunction},
+  object::{Function, Object, UserFunction},
   span::Span,
 };
 
 use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) fn eval_call_expression<'s>(
-    &'s self,
+  pub(super) async fn eval_call_expression(
+    &self,
     function: Object<'ast>,
     arguments: &'ast [Object<'ast>],
     span: Span,
-  ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
-    Box::pin(async move {
-      match function {
-        Object::Function(function) => match function {
-          Function::Native(native_fn) => {
-            self.eval_native_function_call(native_fn, arguments).await
-          }
-          Function::User(user_fn) => {
-            self.eval_user_function_call(user_fn, arguments, span).await
-          }
-        },
-        _ => Err(Error {
-          span,
-          kind: ErrorKind::TypeError(format!(
-            "Expected a function, but got {}",
-            function.type_name()
-          )),
-        }),
-      }
-    })
-  }
-
-  async fn eval_native_function_call(
-    &self,
-    native_fn: NativeFunction<'ast>,
-    arguments: &'ast [Object<'ast>],
   ) -> Result<Object<'ast>, Error> {
-    (native_fn.callback)(self.arena, arguments).await
+    match function {
+      Object::Function(function) => match function {
+        Function::Native(native_fn) => {
+          (native_fn.callback)(self.arena, arguments).await
+        }
+        Function::User(user_fn) => {
+          self.eval_user_function_call(user_fn, arguments, span).await
+        }
+      },
+      _ => Err(Error {
+        span,
+        kind: ErrorKind::TypeError(format!(
+          "Expected a function, but got {}",
+          function.type_name()
+        )),
+      }),
+    }
   }
 
   async fn eval_user_function_call(

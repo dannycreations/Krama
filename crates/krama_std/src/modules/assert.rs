@@ -1,5 +1,5 @@
 use bumpalo::Bump;
-use futures::future::LocalBoxFuture;
+use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
   error::{Error, ErrorKind},
   object::{NativeFunctionCb, Object},
@@ -18,7 +18,7 @@ fn assert<'ast>(
   _: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, condition: condition);
     if !condition.is_truthy() {
       return Err(Error {
@@ -28,14 +28,15 @@ fn assert<'ast>(
     }
 
     Ok(Object::Void)
-  })
+  }
+  .boxed_local()
 }
 
 fn assert_eq<'ast>(
   _: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, a: a, b: b);
     if a != b {
       return Err(Error {
@@ -48,5 +49,6 @@ fn assert_eq<'ast>(
     }
 
     Ok(Object::Void)
-  })
+  }
+  .boxed_local()
 }

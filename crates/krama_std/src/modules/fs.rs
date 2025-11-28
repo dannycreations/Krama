@@ -1,7 +1,7 @@
 use std::{path::Path, str};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
-use futures::future::LocalBoxFuture;
+use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
   ast::types::{Type, TypeKind},
   error::{Error, ErrorKind},
@@ -31,7 +31,7 @@ fn read_file<'ast>(
   arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, path_str: Object::String(path_str));
     let path = Path::new(*path_str);
     let contents = fs::read(path).await.map_err(|e| Error {
@@ -43,14 +43,15 @@ fn read_file<'ast>(
       kind: ErrorKind::TypeError(e.to_string()),
     })?;
     Ok(Object::String(arena.alloc_str(contents_str)))
-  })
+  }
+  .boxed_local()
 }
 
 fn write_file<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, path_str: Object::String(path_str), contents: Object::String(contents));
 
     fs::write(*path_str, *contents).await.map_err(|e| Error {
@@ -59,27 +60,29 @@ fn write_file<'ast>(
     })?;
 
     Ok(Object::Void)
-  })
+  }
+  .boxed_local()
 }
 
 fn exists<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, path_str: Object::String(path_str));
     let path = Path::new(*path_str);
 
     let metadata = fs::metadata(path).await;
     Ok(Object::Boolean(metadata.is_ok()))
-  })
+  }
+  .boxed_local()
 }
 
 fn rm<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, path_str: Object::String(path_str));
 
     fs::remove_file(*path_str).await.map_err(|e| Error {
@@ -88,14 +91,15 @@ fn rm<'ast>(
     })?;
 
     Ok(Object::Void)
-  })
+  }
+  .boxed_local()
 }
 
 fn read_dir<'ast>(
   arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, path_str: Object::String(path_str));
 
     let mut paths = fs::read_dir(*path_str).await.map_err(|e| Error {
@@ -123,14 +127,15 @@ fn read_dir<'ast>(
       elements: entries.into_bump_slice(),
       kind: Type::new(TypeKind::Identifier("str"), Default::default()),
     })
-  })
+  }
+  .boxed_local()
 }
 
 fn mkdir<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, path_str: Object::String(path_str));
 
     fs::create_dir_all(*path_str).await.map_err(|e| Error {
@@ -139,14 +144,15 @@ fn mkdir<'ast>(
     })?;
 
     Ok(Object::Void)
-  })
+  }
+  .boxed_local()
 }
 
 fn rmdir<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, path_str: Object::String(path_str));
 
     fs::remove_dir(*path_str).await.map_err(|e| Error {
@@ -155,14 +161,15 @@ fn rmdir<'ast>(
     })?;
 
     Ok(Object::Void)
-  })
+  }
+  .boxed_local()
 }
 
 fn is_file<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, path_str: Object::String(path_str));
     let path = Path::new(*path_str);
 
@@ -170,14 +177,15 @@ fn is_file<'ast>(
     Ok(Object::Boolean(
       metadata.map(|m| m.is_file()).unwrap_or(false),
     ))
-  })
+  }
+  .boxed_local()
 }
 
 fn is_directory<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
-  Box::pin(async move {
+  async move {
     parse_args!(objects, path_str: Object::String(path_str));
     let path = Path::new(*path_str);
 
@@ -185,5 +193,6 @@ fn is_directory<'ast>(
     Ok(Object::Boolean(
       metadata.map(|m| m.is_dir()).unwrap_or(false),
     ))
-  })
+  }
+  .boxed_local()
 }

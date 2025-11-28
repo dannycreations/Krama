@@ -36,6 +36,14 @@ macro_rules! define_error_kind {
                 write!(f, "{}: {}", self.as_ref(), msg)
             }
         }
+
+        impl $name {
+            pub fn message(&self) -> &str {
+                match self {
+                    $( Self::$variant(msg) => msg, )*
+                }
+            }
+        }
     }
 }
 

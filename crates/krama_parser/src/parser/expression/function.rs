@@ -110,14 +110,6 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     Ok(parameters)
   }
 
-  pub(super) fn parse_fn_expr_with_empty_params(
-    &mut self,
-    start_span: Span,
-  ) -> ParseError<'ast> {
-    let parameters = BumpVec::new_in(self.arena);
-    self.parse_fn_expr_with_params(start_span, parameters)
-  }
-
   pub(super) fn parse_fn_expr_with_params(
     &mut self,
     start_span: Span,
