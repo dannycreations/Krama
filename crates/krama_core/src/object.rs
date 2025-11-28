@@ -14,11 +14,13 @@ use crate::{
   ast::{expression::FunctionBody, statement::Parameter, types::Type},
   error::Error,
   scope::Scope,
+  span::Span,
 };
 
 pub type NativeFunctionCb<'ast> =
   fn(
     &'ast Bump,
+    Span,
     &'ast [Object<'ast>],
   ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>>;
 

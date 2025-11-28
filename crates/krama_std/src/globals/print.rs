@@ -3,11 +3,13 @@ use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
   error::{Error, ErrorKind},
   object::Object,
+  span::Span,
 };
 use tokio::{io, io::AsyncWriteExt};
 
 pub fn print<'ast>(
   _: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
@@ -15,7 +17,7 @@ pub fn print<'ast>(
     for (i, obj) in objects.iter().enumerate() {
       if i > 0 {
         stdout.write_all(b" ").await.map_err(|e| Error {
-          span: Default::default(),
+          span,
           kind: ErrorKind::RuntimeError(e.to_string()),
         })?;
       }
@@ -23,12 +25,12 @@ pub fn print<'ast>(
         .write_all(obj.to_string().as_bytes())
         .await
         .map_err(|e| Error {
-          span: Default::default(),
+          span,
           kind: ErrorKind::RuntimeError(e.to_string()),
         })?;
     }
     stdout.write_all(b"\n").await.map_err(|e| Error {
-      span: Default::default(),
+      span,
       kind: ErrorKind::RuntimeError(e.to_string()),
     })?;
 

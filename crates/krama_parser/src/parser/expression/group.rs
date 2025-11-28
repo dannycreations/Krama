@@ -1,7 +1,9 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ast::{
-    expression::ExpressionKind, precedence::Precedence, statement::Parameter,
+    expression::{Expression, ExpressionKind},
+    precedence::Precedence,
+    statement::Parameter,
   },
   error::{Error, ErrorKind},
   token::TokenKind,
@@ -35,55 +37,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     {
       let mut parameters = BumpVec::new_in(self.arena);
       for expr in expressions {
-        match expr.kind {
-          ExpressionKind::Identifier(name) => {
-            parameters.push(Parameter {
-              name,
-              kind: None,
-              default: None,
-              span: expr.span,
-            });
-          }
-          ExpressionKind::Assignment {
-            left,
-            operator,
-            right,
-          } => {
-            if operator != krama_core::ast::operator::AssignmentOperator::Assign
-            {
-              return Err(Error {
-                span: expr.span,
-                kind: ErrorKind::SyntaxError(
-                  "Invalid expression in function parameters.".to_string(),
-                ),
-              });
-            }
-            let name = if let ExpressionKind::Identifier(name) = left.kind {
-              name
-            } else {
-              return Err(Error {
-                span: left.span,
-                kind: ErrorKind::SyntaxError(
-                  "Expected identifier as parameter name".to_string(),
-                ),
-              });
-            };
-            parameters.push(Parameter {
-              name,
-              kind: None,
-              default: Some(right),
-              span: expr.span,
-            });
-          }
-          _ => {
-            return Err(Error {
-              span: expr.span,
-              kind: ErrorKind::SyntaxError(
-                "Invalid expression in function parameters.".to_string(),
-              ),
-            });
-          }
-        };
+        let parameter = self.expression_to_parameter(expr)?;
+        parameters.push(parameter);
       }
       self.parse_fn_expr_with_params(start_span, parameters)
     } else if expressions.len() == 1 {
@@ -97,10 +52,60 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       Err(Error {
         span: start_span,
         kind: ErrorKind::SyntaxError(
-          "Invalid grouped expression. It should contain only one expression. Tuples are not supported."
+          "Invalid grouped expression. To create a tuple, use square brackets `[]`"
             .to_string(),
         ),
       })
+    }
+  }
+
+  fn expression_to_parameter(
+    &self,
+    expr: Expression<'ast>,
+  ) -> Result<Parameter<'ast>, Error> {
+    match expr.kind {
+      ExpressionKind::Identifier(name) => Ok(Parameter {
+        name,
+        kind: None,
+        default: None,
+        span: expr.span,
+      }),
+      ExpressionKind::Assignment {
+        left,
+        operator,
+        right,
+      } => {
+        if operator != krama_core::ast::operator::AssignmentOperator::Assign {
+          return Err(Error {
+            span: expr.span,
+            kind: ErrorKind::SyntaxError(
+              "Invalid expression in function parameters.".to_string(),
+            ),
+          });
+        }
+        let name = if let ExpressionKind::Identifier(name) = left.kind {
+          name
+        } else {
+          return Err(Error {
+            span: left.span,
+            kind: ErrorKind::SyntaxError(
+              "Expected identifier as parameter name".to_string(),
+            ),
+          });
+        };
+        Ok(Parameter {
+          name,
+          kind: None,
+          default: Some(right),
+          span: expr.span,
+        })
+      }
+      _ => Err(Error {
+        span: expr.span,
+        kind: ErrorKind::SyntaxError(
+          "Invalid expression in function parameters.".to_string(),
+        ),
+      }),
     }
   }
 }

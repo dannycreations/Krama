@@ -7,7 +7,7 @@ pub fn report_error(file_path: &str, content: &str, error: Error) {
   let kind_name = error.kind.as_ref();
 
   Report::build(
-    ReportKind::Custom(kind_name, Color::Red),
+    ReportKind::Custom(kind_name, Color::Magenta),
     (file_path, span.start..span.end),
   )
   .with_message(msg.fg(Color::White))

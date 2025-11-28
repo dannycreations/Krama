@@ -16,11 +16,11 @@ macro_rules! count_args {
 
 #[macro_export]
 macro_rules! parse_args {
-    ($objects:expr, $($arg:ident: $type:pat),*) => {
+    ($objects:expr, $span:expr; $($arg:ident: $type:pat),*) => {
         const EXPECTED_ARGS: usize = $crate::count_args!($($arg),*);
         if $objects.len() != EXPECTED_ARGS {
             return Err(Error {
-                span: Default::default(),
+                span: $span,
                 kind: ErrorKind::ArgumentError(format!(
                     "Expected {} arguments, but got {}",
                     EXPECTED_ARGS,
@@ -35,7 +35,7 @@ macro_rules! parse_args {
                 Some($type) => $arg,
                 Some(other) => {
                      return Err(Error {
-                        span: Default::default(),
+                        span: $span,
                         kind: ErrorKind::ArgumentError(format!(
                             "Expected argument '{}' to be of type '{}', but got '{}'",
                             stringify!($arg),

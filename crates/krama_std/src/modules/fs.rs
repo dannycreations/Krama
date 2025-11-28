@@ -6,6 +6,7 @@ use krama_core::{
   ast::types::{Type, TypeKind},
   error::{Error, ErrorKind},
   object::{NativeFunctionCb, Object},
+  span::Span,
 };
 use rustc_hash::FxHashMap;
 use tokio::fs;
@@ -29,17 +30,18 @@ pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
 
 fn read_file<'ast>(
   arena: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, path_str: Object::String(path_str));
+    parse_args!(objects, span; path_str: Object::String(path_str));
     let path = Path::new(*path_str);
     let contents = fs::read(path).await.map_err(|e| Error {
-      span: Default::default(),
+      span,
       kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
     let contents_str = str::from_utf8(&contents).map_err(|e| Error {
-      span: Default::default(),
+      span,
       kind: ErrorKind::TypeError(e.to_string()),
     })?;
     Ok(Object::String(arena.alloc_str(contents_str)))
@@ -49,13 +51,14 @@ fn read_file<'ast>(
 
 fn write_file<'ast>(
   _arena: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, path_str: Object::String(path_str), contents: Object::String(contents));
+    parse_args!(objects, span; path_str: Object::String(path_str), contents: Object::String(contents));
 
     fs::write(*path_str, *contents).await.map_err(|e| Error {
-      span: Default::default(),
+      span,
       kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
@@ -66,10 +69,11 @@ fn write_file<'ast>(
 
 fn exists<'ast>(
   _arena: &'ast Bump,
+  _span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, path_str: Object::String(path_str));
+    parse_args!(objects, _span; path_str: Object::String(path_str));
     let path = Path::new(*path_str);
 
     let metadata = fs::metadata(path).await;
@@ -80,13 +84,14 @@ fn exists<'ast>(
 
 fn rm<'ast>(
   _arena: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, path_str: Object::String(path_str));
+    parse_args!(objects, span; path_str: Object::String(path_str));
 
     fs::remove_file(*path_str).await.map_err(|e| Error {
-      span: Default::default(),
+      span,
       kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
@@ -97,24 +102,25 @@ fn rm<'ast>(
 
 fn read_dir<'ast>(
   arena: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, path_str: Object::String(path_str));
+    parse_args!(objects, span; path_str: Object::String(path_str));
 
     let mut paths = fs::read_dir(*path_str).await.map_err(|e| Error {
-      span: Default::default(),
+      span,
       kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
     let mut entries = BumpVec::new_in(arena);
     while let Some(path) = paths.next_entry().await.map_err(|e| Error {
-      span: Default::default(),
+      span,
       kind: ErrorKind::ReferenceError(e.to_string()),
     })? {
       let entry =
         path.file_name().into_string().map_err(|os_string| Error {
-          span: Default::default(),
+          span,
           kind: ErrorKind::TypeError(format!(
             "Invalid UTF-8 sequence in file name: {:?}",
             os_string
@@ -133,13 +139,14 @@ fn read_dir<'ast>(
 
 fn mkdir<'ast>(
   _arena: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, path_str: Object::String(path_str));
+    parse_args!(objects, span; path_str: Object::String(path_str));
 
     fs::create_dir_all(*path_str).await.map_err(|e| Error {
-      span: Default::default(),
+      span,
       kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
@@ -150,13 +157,14 @@ fn mkdir<'ast>(
 
 fn rmdir<'ast>(
   _arena: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, path_str: Object::String(path_str));
+    parse_args!(objects, span; path_str: Object::String(path_str));
 
     fs::remove_dir(*path_str).await.map_err(|e| Error {
-      span: Default::default(),
+      span,
       kind: ErrorKind::ReferenceError(e.to_string()),
     })?;
 
@@ -167,10 +175,11 @@ fn rmdir<'ast>(
 
 fn is_file<'ast>(
   _arena: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, path_str: Object::String(path_str));
+    parse_args!(objects, span; path_str: Object::String(path_str));
     let path = Path::new(*path_str);
 
     let metadata = fs::metadata(path).await;
@@ -183,10 +192,11 @@ fn is_file<'ast>(
 
 fn is_directory<'ast>(
   _arena: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, path_str: Object::String(path_str));
+    parse_args!(objects, span; path_str: Object::String(path_str));
     let path = Path::new(*path_str);
 
     let metadata = fs::metadata(path).await;

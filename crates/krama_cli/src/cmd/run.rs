@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use bumpalo::Bump;
 use clap::Parser;
 use krama_runtime::interpreter::Interpreter;
@@ -14,11 +14,12 @@ pub struct Run {
 
 impl Run {
   pub async fn execute(&self, arena: &mut Bump) -> Result<()> {
-    let interpreter = Interpreter::new(arena, Some(&self.file));
+    let interpreter = Interpreter::new(arena, Some(self.file.as_str()));
     let content = fs::read_to_string(&self.file).await?;
     let content_in_arena = arena.alloc_str(&content);
     if let Err(err) = interpreter.eval(content_in_arena).await {
-      report_error(&self.file, &content, err);
+      report_error(&self.file, &content, err.clone());
+      return Err(anyhow!(err));
     }
     Ok(())
   }

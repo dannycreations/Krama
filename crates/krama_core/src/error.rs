@@ -16,43 +16,32 @@ impl Display for Error {
   }
 }
 
-macro_rules! define_error_kind {
-    (
-        enum $name:ident {
-            $( $variant:ident(String), )*
-        }
-    ) => {
-        #[derive(Debug, Clone, PartialEq, AsRefStr)]
-        #[strum(serialize_all = "PascalCase")]
-        pub enum $name {
-            $( $variant(String), )*
-        }
+impl std::error::Error for Error {}
 
-        impl Display for $name {
-            fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-                let msg = match self {
-                    $( Self::$variant(msg) => msg, )*
-                };
-                write!(f, "{}: {}", self.as_ref(), msg)
-            }
-        }
-
-        impl $name {
-            pub fn message(&self) -> &str {
-                match self {
-                    $( Self::$variant(msg) => msg, )*
-                }
-            }
-        }
-    }
+#[derive(Debug, Clone, PartialEq, AsRefStr)]
+#[strum(serialize_all = "PascalCase")]
+pub enum ErrorKind {
+  RuntimeError(String),
+  SyntaxError(String),
+  TypeError(String),
+  ReferenceError(String),
+  ArgumentError(String),
 }
 
-define_error_kind! {
-    enum ErrorKind {
-        RuntimeError(String),
-        SyntaxError(String),
-        TypeError(String),
-        ReferenceError(String),
-        ArgumentError(String),
+impl ErrorKind {
+  pub fn message(&self) -> &str {
+    match self {
+      Self::RuntimeError(msg)
+      | Self::SyntaxError(msg)
+      | Self::TypeError(msg)
+      | Self::ReferenceError(msg)
+      | Self::ArgumentError(msg) => msg,
     }
+  }
+}
+
+impl Display for ErrorKind {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "{}: {}", self.as_ref(), self.message())
+  }
 }

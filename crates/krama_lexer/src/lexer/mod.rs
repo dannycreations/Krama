@@ -6,7 +6,6 @@ use krama_core::{
   span::Span,
   token::{Token, TokenKind},
 };
-use phf::{phf_map, Map};
 
 macro_rules! token {
   ($lexer:ident, $start:expr, $kind:expr) => {
@@ -22,24 +21,6 @@ macro_rules! token {
     token!($lexer, $start, kind)
   }};
 }
-
-static DELIMITERS: Map<char, TokenKind> = phf_map! {
-    '(' => TokenKind::LParen,
-    ')' => TokenKind::RParen,
-    '{' => TokenKind::LBrace,
-    '}' => TokenKind::RBrace,
-    '[' => TokenKind::LBracket,
-    ']' => TokenKind::RBracket,
-    ',' => TokenKind::Comma,
-    '@' => TokenKind::At,
-    ':' => TokenKind::Colon,
-    ';' => TokenKind::Semicolon,
-    '~' => TokenKind::Tilde,
-};
-
-static OPERATORS: [char; 13] = [
-  '%', '/', '!', '^', '.', '+', '-', '*', '&', '|', '=', '>', '<',
-];
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
@@ -104,16 +85,14 @@ impl<'a> Lexer<'a> {
   }
 
   fn skip_line_comment(&mut self) {
-    self.advance();
-    self.advance();
+    self.position += 2; // Skip '//'
     while self.peek().is_some_and(|c| c != '\n') {
       self.advance();
     }
   }
 
   fn skip_block_comment(&mut self) {
-    self.advance();
-    self.advance();
+    self.position += 2; // Skip '/*'
     while let Some(c) = self.advance() {
       if c == '*' && self.peek() == Some('/') {
         self.advance();
@@ -137,9 +116,29 @@ impl<'a> Lexer<'a> {
       }
     }
   }
+}
 
-  fn operator(&mut self, start: usize, char: char) -> Token<'a> {
-    match char {
+impl<'a> Iterator for Lexer<'a> {
+  type Item = Token<'a>;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    self.skip_trivia();
+
+    let start = self.position;
+    let char = self.advance()?;
+
+    let token = match char {
+      '(' => token!(self, start, TokenKind::LParen),
+      ')' => token!(self, start, TokenKind::RParen),
+      '{' => token!(self, start, TokenKind::LBrace),
+      '}' => token!(self, start, TokenKind::RBrace),
+      '[' => token!(self, start, TokenKind::LBracket),
+      ']' => token!(self, start, TokenKind::RBracket),
+      ',' => token!(self, start, TokenKind::Comma),
+      '@' => token!(self, start, TokenKind::At),
+      ':' => token!(self, start, TokenKind::Colon),
+      ';' => token!(self, start, TokenKind::Semicolon),
+      '~' => token!(self, start, TokenKind::Tilde),
       '%' => token!(
         self,
         start,
@@ -239,30 +238,10 @@ impl<'a> Lexer<'a> {
         };
         token!(self, start, kind)
       }
-      _ => unreachable!(),
-    }
-  }
-}
-
-impl<'a> Iterator for Lexer<'a> {
-  type Item = Token<'a>;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    self.skip_trivia();
-
-    let start = self.position;
-    let char = self.advance()?;
-
-    let token = if let Some(kind) = DELIMITERS.get(&char) {
-      token!(self, start, *kind)
-    } else {
-      match char {
-        c if OPERATORS.contains(&c) => self.operator(start, char),
-        '"' => self.string(start),
-        c if c.is_ascii_digit() => self.number(start),
-        c if c.is_alphabetic() || c == '_' => self.identifier(start),
-        _ => token!(self, start, TokenKind::Unknown),
-      }
+      '"' => self.string(start),
+      c if c.is_ascii_digit() => self.number(start),
+      c if c.is_alphabetic() || c == '_' => self.identifier(start),
+      _ => token!(self, start, TokenKind::Unknown),
     };
 
     Some(token)

@@ -1,5 +1,8 @@
 use krama_core::{
-  ast::{expression::ExpressionKind, statement::StatementKind},
+  ast::{
+    expression::ExpressionKind,
+    statement::{Statement, StatementKind},
+  },
   error::Error,
 };
 
@@ -12,14 +15,11 @@ pub enum TestResult {
 }
 
 impl<'ast> Interpreter<'ast> {
-  pub async fn run_tests(&self) -> Vec<TestResult> {
-    let program = match self.parse_and_resolve("") {
-      Ok(program) => program,
-      Err(e) => return vec![TestResult::Failure("".to_string(), e)],
-    };
-
-    let test_futures = program
-      .statements
+  pub async fn run_tests(
+    &self,
+    statements: &[Statement<'ast>],
+  ) -> Vec<TestResult> {
+    let test_futures = statements
       .iter()
       .filter_map(|statement| {
         if let StatementKind::Test { name, .. } = &statement.kind {

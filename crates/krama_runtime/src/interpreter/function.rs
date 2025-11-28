@@ -17,7 +17,7 @@ impl<'ast> Interpreter<'ast> {
     match function {
       Object::Function(function) => match function {
         Function::Native(native_fn) => {
-          (native_fn.callback)(self.arena, arguments).await
+          (native_fn.callback)(self.arena, span, arguments).await
         }
         Function::User(user_fn) => {
           self.eval_user_function_call(user_fn, arguments, span).await

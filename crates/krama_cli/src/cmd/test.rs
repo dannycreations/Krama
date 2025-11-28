@@ -4,7 +4,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use bumpalo::Bump;
 use clap::Parser;
 use krama_runtime::{interpreter::Interpreter, testing::TestResult};
@@ -51,7 +51,8 @@ impl Test {
       println!("Running tests in {}", path.display());
       {
         let interpreter = Interpreter::new(arena, Some(path_str));
-        let results = interpreter.run_tests().await;
+        let program = interpreter.parse_and_resolve(&content)?;
+        let results = interpreter.run_tests(&program.statements).await;
         for result in results {
           match result {
             TestResult::Success(name) => {
@@ -69,6 +70,11 @@ impl Test {
       arena.reset();
     }
     println!("\nTest results: {} passed, {} failed", passed, failed);
+
+    if failed > 0 {
+      return Err(anyhow!("{} test(s) failed", failed));
+    }
+
     Ok(())
   }
 }

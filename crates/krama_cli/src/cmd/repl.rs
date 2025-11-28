@@ -15,19 +15,13 @@ use crate::error::report_error;
 #[derive(Parser)]
 pub struct Repl;
 
-async fn evaluate_line<'a>(
-  interpreter: &Interpreter<'a>,
-  arena: &'a Bump,
-  line: &str,
-) {
+async fn evaluate_line<'a>(interpreter: &Interpreter<'a>, line: &'a str) {
   let trimmed_line = line.trim();
   if trimmed_line.is_empty() {
     return;
   }
 
-  let line_in_arena = arena.alloc_str(trimmed_line);
-
-  match interpreter.eval(line_in_arena).await {
+  match interpreter.eval(trimmed_line).await {
     Ok(object) => {
       if !matches!(object, Object::Void) {
         println!("{}", object);
@@ -60,7 +54,8 @@ impl Repl {
                       if line.trim() == "exit" {
                           break;
                       }
-                      evaluate_line(&interpreter, arena, &line).await;
+                      let line_in_arena = arena.alloc_str(&line);
+                      evaluate_line(&interpreter, line_in_arena).await;
                       drop(interpreter);
                       arena.reset();
                   }

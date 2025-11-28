@@ -29,7 +29,7 @@ impl<'ast> Interpreter<'ast> {
 
     if let Some(props) = self.props.get(object_type) {
       if let Some(prop) = props.get(property_name) {
-        return prop(resolved_object).await;
+        return prop(resolved_object, span).await;
       }
     }
 

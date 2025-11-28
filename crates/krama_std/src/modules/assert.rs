@@ -3,6 +3,7 @@ use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
   error::{Error, ErrorKind},
   object::{NativeFunctionCb, Object},
+  span::Span,
 };
 use rustc_hash::FxHashMap;
 
@@ -14,17 +15,25 @@ pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
   build_native_functions(functions)
 }
 
+fn create_assertion_error(message: String, span: Span) -> Error {
+  Error {
+    span,
+    kind: ErrorKind::RuntimeError(message),
+  }
+}
+
 fn assert<'ast>(
   _: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, condition: condition);
+    parse_args!(objects, span; condition: condition);
     if !condition.is_truthy() {
-      return Err(Error {
-        span: Default::default(),
-        kind: ErrorKind::RuntimeError("Assertion failed".to_string()),
-      });
+      return Err(create_assertion_error(
+        "Assertion failed: condition is not truthy".to_string(),
+        span,
+      ));
     }
 
     Ok(Object::Void)
@@ -34,18 +43,16 @@ fn assert<'ast>(
 
 fn assert_eq<'ast>(
   _: &'ast Bump,
+  span: Span,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   async move {
-    parse_args!(objects, a: a, b: b);
+    parse_args!(objects, span; a: a, b: b);
     if a != b {
-      return Err(Error {
-        span: Default::default(),
-        kind: ErrorKind::RuntimeError(format!(
-          "Assertion failed: {:?} != {:?}",
-          a, b
-        )),
-      });
+      return Err(create_assertion_error(
+        format!("Assertion failed: `{}` != `{}`", a, b),
+        span,
+      ));
     }
 
     Ok(Object::Void)

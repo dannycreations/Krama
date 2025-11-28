@@ -88,9 +88,9 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       }
       kind => {
         let message = if kind.is_keyword() {
-          format!("Unexpected keyword `{}`", kind)
+          format!("Unexpected keyword `{}`, expected an identifier", kind)
         } else {
-          "Expected identifier".to_string()
+          "Expected an identifier".to_string()
         };
         Err(Error {
           span: token.span,
