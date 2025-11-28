@@ -36,9 +36,9 @@ impl Repl {
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
     let mut line = String::new();
+    let interpreter = Interpreter::new(arena, None);
 
     loop {
-      let interpreter = Interpreter::new(arena, None);
       stdout.write_all(b">> ").await?;
       stdout.flush().await?;
       line.clear();
@@ -56,8 +56,6 @@ impl Repl {
                       }
                       let line_in_arena = arena.alloc_str(&line);
                       evaluate_line(&interpreter, line_in_arena).await;
-                      drop(interpreter);
-                      arena.reset();
                   }
                   Err(e) => {
                       eprintln!("Error: {:?}", e);

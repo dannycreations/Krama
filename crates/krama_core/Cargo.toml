@@ -12,7 +12,7 @@ doctest = false
 [dependencies]
 bumpalo.workspace = true
 futures.workspace = true
+phf.workspace = true
 rustc-hash.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
-phf.workspace = true

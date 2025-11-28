@@ -84,34 +84,31 @@ impl<'a> Lexer<'a> {
     &self.input[start..end]
   }
 
-  fn skip_line_comment(&mut self) {
-    self.position += 2; // Skip '//'
-    while self.peek().is_some_and(|c| c != '\n') {
-      self.advance();
-    }
-  }
-
-  fn skip_block_comment(&mut self) {
-    self.position += 2; // Skip '/*'
-    while let Some(c) = self.advance() {
-      if c == '*' && self.peek() == Some('/') {
-        self.advance();
-        break;
-      }
-    }
-  }
-
   fn skip_trivia(&mut self) {
     loop {
       match self.peek() {
         Some(c) if c.is_whitespace() => {
           self.advance();
         }
-        Some('/') => match self.peek_next() {
-          Some('/') => self.skip_line_comment(),
-          Some('*') => self.skip_block_comment(),
-          _ => break,
-        },
+        Some('/') => {
+          if self.peek_next() == Some('/') {
+            while self.peek().is_some_and(|c| c != '\n') {
+              self.advance();
+            }
+          } else if self.peek_next() == Some('*') {
+            self.advance();
+            self.advance();
+            while self.peek().is_some_and(|c| c != '*')
+              || self.peek_next().is_some_and(|c| c != '/')
+            {
+              self.advance();
+            }
+            self.advance();
+            self.advance();
+          } else {
+            break;
+          }
+        }
         _ => break,
       }
     }
