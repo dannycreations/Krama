@@ -20,9 +20,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     if self.current_token.kind != TokenKind::LParen {
       return Err(Error {
         span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(
-          "Expected '(' after 'if' or 'elif'".to_string(),
-        ),
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected {} after 'if' or 'elif'",
+          TokenKind::LParen
+        )),
       });
     }
     self.advance();
@@ -32,9 +33,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     if self.current_token.kind != TokenKind::RParen {
       return Err(Error {
         span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(
-          "Expected ')' after if condition'".to_string(),
-        ),
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected {} after if condition'",
+          TokenKind::RParen
+        )),
       });
     }
     self.advance();
@@ -46,12 +48,12 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       self.advance();
       let else_block = self.arena.alloc(self.parse_block_statement()?);
       let else_span = else_block.span;
-      Some(self.arena.alloc(Expression::new(
+      Some(&*self.arena.alloc(Expression::new(
         ExpressionKind::Block(else_block),
         else_span,
       )))
     } else if self.current_token.kind == TokenKind::Elif {
-      Some(self.arena.alloc(self.parse_if_expression()?))
+      Some(&*self.arena.alloc(self.parse_if_expression()?))
     } else {
       None
     };
@@ -63,7 +65,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           ExpressionKind::Block(then_branch),
           then_span,
         )),
-        else_branch: else_branch.map(|e| &*e),
+        else_branch,
       },
       start_span,
     ))
@@ -76,7 +78,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     if self.current_token.kind != TokenKind::LParen {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::SyntaxError("Expected '(' after 'match'".to_string()),
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected {} after 'match'",
+          TokenKind::LParen
+        )),
       });
     }
     self.advance();
@@ -86,9 +91,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     if self.current_token.kind != TokenKind::RParen {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::SyntaxError(
-          "Expected ')' after match subject'".to_string(),
-        ),
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected {} after match subject'",
+          TokenKind::RParen
+        )),
       });
     }
     self.advance();
@@ -96,7 +102,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     if self.current_token.kind != TokenKind::LBrace {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::SyntaxError("Expected '{' for match arms".to_string()),
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected {} for match arms",
+          TokenKind::LBrace
+        )),
       });
     }
     self.advance();
@@ -115,9 +124,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     if self.current_token.kind == TokenKind::Eof {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::SyntaxError(
-          "Unexpected end of file: missing '}'".to_string(),
-        ),
+        kind: ErrorKind::SyntaxError(format!(
+          "Unexpected end of file: missing {}",
+          TokenKind::RBrace
+        )),
       });
     }
 
@@ -162,9 +172,11 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     } else {
       return Err(Error {
         span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(
-          "Expected '=>' or '{' for match arm body".to_string(),
-        ),
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected {} or {} for match arm body",
+          TokenKind::Arrow,
+          TokenKind::LBrace
+        )),
       });
     };
 

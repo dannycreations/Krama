@@ -149,12 +149,16 @@ impl<'ast> Interpreter<'ast> {
                 })
               }
               TypeKind::Tuple(_) => {
-                return Ok(Object::Tuple(Rc::new(evaluated_elements)))
+                return Ok(Object::Tuple {
+                  elements: Rc::new(evaluated_elements),
+                })
               }
               _ => {}
             }
           }
-          Ok(Object::Tuple(Rc::new(evaluated_elements)))
+          Ok(Object::Tuple {
+            elements: Rc::new(evaluated_elements),
+          })
         }
       }
     }

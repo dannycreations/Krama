@@ -56,7 +56,7 @@ pub(crate) fn check_type<'ast>(
       }
       return Ok(());
     }
-    (TypeKind::Tuple(types), Object::Tuple(elements)) => {
+    (TypeKind::Tuple(types), Object::Tuple { elements }) => {
       if types.len() != elements.len() {
         return Err(Error {
           span: expected_type.span,

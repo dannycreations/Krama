@@ -45,9 +45,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     if self.current_token.kind != TokenKind::RParen {
       return Err(Error {
         span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(
-          "Expected ')' after arguments".to_string(),
-        ),
+        kind: ErrorKind::SyntaxError(format!(
+          "Expected {} after arguments",
+          TokenKind::RParen
+        )),
       });
     }
     self.advance();

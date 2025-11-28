@@ -94,7 +94,9 @@ pub enum Object<'ast> {
     kind: Type<'ast>,
   },
   #[strum(props(name = "tuple"))]
-  Tuple(Rc<BumpVec<'ast, Object<'ast>>>),
+  Tuple {
+    elements: Rc<BumpVec<'ast, Object<'ast>>>,
+  },
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]
@@ -133,7 +135,7 @@ impl<'ast> Object<'ast> {
       Object::Float(f) => *f != 0.0,
       Object::String(s) => !s.is_empty(),
       Object::Array { elements, .. } => !elements.is_empty(),
-      Object::Tuple(t) => !t.is_empty(),
+      Object::Tuple { elements } => !elements.is_empty(),
       Object::Null | Object::Void => false,
       _ => true,
     }
@@ -169,7 +171,7 @@ impl<'ast> Display for Object<'ast> {
       Object::Array { elements, .. } => {
         Object::format_elements(f, elements, false)
       }
-      Object::Tuple(elements) => Object::format_elements(f, elements, false),
+      Object::Tuple { elements } => Object::format_elements(f, elements, false),
       Object::Null => write!(f, "null"),
       Object::Void => write!(f, "void"),
       Object::Scope(scope) => {
@@ -201,7 +203,7 @@ impl<'ast> Debug for Object<'ast> {
       Object::Array { elements, .. } => {
         f.debug_tuple("Array").field(elements).finish()
       }
-      Object::Tuple(elements) => {
+      Object::Tuple { elements } => {
         f.debug_tuple("Tuple").field(elements).finish()
       }
       Object::Null => write!(f, "Null"),
@@ -226,7 +228,7 @@ impl<'ast> PartialEq for Object<'ast> {
         Object::Array { elements: a, .. },
         Object::Array { elements: b, .. },
       ) => a == b,
-      (Object::Tuple(a), Object::Tuple(b)) => a == b,
+      (Object::Tuple { elements: a }, Object::Tuple { elements: b }) => a == b,
       (Object::Null, Object::Null) => true,
       (Object::Void, Object::Void) => true,
       (Object::Function(a), Object::Function(b)) => a == b,

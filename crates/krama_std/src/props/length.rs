@@ -12,7 +12,7 @@ pub(super) fn length<'ast>(
       Object::Array { elements, .. } => {
         Ok(Object::Integer(elements.len() as i64))
       }
-      Object::Tuple(elements) => Ok(Object::Integer(elements.len() as i64)),
+      Object::Tuple { elements } => Ok(Object::Integer(elements.len() as i64)),
       Object::String(s) => Ok(Object::Integer(s.len() as i64)),
       _ => Err(Error {
         span: Default::default(),

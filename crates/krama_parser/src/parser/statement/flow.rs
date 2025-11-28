@@ -30,7 +30,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
 
     Ok(Statement::new(
       StatementKind::Return {
-        value: value.map(|v| self.arena.alloc(v) as &_),
+        value: value.map(|v| &*self.arena.alloc(v)),
       },
       start_span,
     ))

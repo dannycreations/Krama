@@ -1,5 +1,3 @@
-use std::str;
-
 use krama_core::token::{Token, TokenKind, KEYWORDS};
 
 use super::Lexer;
@@ -14,7 +12,7 @@ impl<'a> Lexer<'a> {
       }
     }
 
-    let value = str::from_utf8(&self.input[start..self.position]).unwrap();
+    let value = self.slice(start, self.position);
 
     let kind = KEYWORDS
       .get(value)

@@ -56,7 +56,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       Err(Error {
         span: self.current_token.span,
         kind: ErrorKind::SyntaxError(format!(
-          "Expected token {:?}, but got {:?}",
+          "Expected token {}, but got {}",
           expected_kind, self.current_token.kind
         )),
       })

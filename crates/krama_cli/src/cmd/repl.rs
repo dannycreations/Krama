@@ -20,12 +20,12 @@ impl Repl {
     let interpreter = Interpreter::new(arena, None);
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
+    let mut line = String::new();
 
     loop {
       stdout.write_all(b">> ").await?;
       stdout.flush().await?;
-
-      let mut line = String::new();
+      line.clear();
 
       tokio::select! {
           _ = signal::ctrl_c() => {
@@ -33,9 +33,7 @@ impl Repl {
           }
           result = reader.read_line(&mut line) => {
               match result {
-                  Ok(0) => {
-                      break;
-                  }
+                  Ok(0) => break,
                   Ok(_) => {
                       let trimmed_line = line.trim();
                       if trimmed_line == "exit" {

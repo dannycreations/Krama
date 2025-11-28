@@ -31,9 +31,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     if self.current_token.kind == TokenKind::Eof {
       return Err(Error {
         span: start_span,
-        kind: ErrorKind::SyntaxError(
-          "Unexpected end of file: missing '}'".to_string(),
-        ),
+        kind: ErrorKind::SyntaxError(format!(
+          "Unexpected end of file: missing {}",
+          TokenKind::RBrace
+        )),
       });
     }
 

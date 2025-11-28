@@ -34,13 +34,13 @@ macro_rules! parse_args {
             let $arg = match arg_iter.next() {
                 Some($type) => $arg,
                 Some(other) => {
-                    return Err(Error {
+                     return Err(Error {
                         span: Default::default(),
                         kind: ErrorKind::TypeError(format!(
-                            "Expected argument '{}' to be of type '{}', but got {}",
+                            "Expected argument '{}' to be of type '{}', but got '{}'",
                             stringify!($arg),
                             stringify!($type),
-                            other.to_string()
+                            other.type_name()
                         )),
                     });
                 }

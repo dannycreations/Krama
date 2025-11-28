@@ -89,55 +89,103 @@ pub enum TokenKind<'a> {
   Identifier(&'a str),
 
   // Operators
+  #[strum(to_string = "+")]
   Plus,
+  #[strum(to_string = "++")]
   PlusPlus,
+  #[strum(to_string = "-")]
   Minus,
+  #[strum(to_string = "--")]
   MinusMinus,
+  #[strum(to_string = "*")]
   Star,
+  #[strum(to_string = "**")]
   StarStar,
+  #[strum(to_string = "/")]
   Slash,
+  #[strum(to_string = "%")]
   Percent,
+  #[strum(to_string = "=")]
   Equal,
+  #[strum(to_string = "==")]
   EqualEqual,
+  #[strum(to_string = "!")]
   Bang,
+  #[strum(to_string = "!=")]
   BangEqual,
+  #[strum(to_string = ">")]
   GreaterThan,
+  #[strum(to_string = ">=")]
   GreaterThanEqual,
+  #[strum(to_string = "<")]
   LessThan,
+  #[strum(to_string = "<=")]
   LessThanEqual,
+  #[strum(to_string = "+=")]
   PlusEqual,
+  #[strum(to_string = "-=")]
   MinusEqual,
+  #[strum(to_string = "*=")]
   StarEqual,
+  #[strum(to_string = "/=")]
   SlashEqual,
+  #[strum(to_string = "%=")]
   PercentEqual,
+  #[strum(to_string = "&")]
   Ampersand,
+  #[strum(to_string = "&&")]
   AmpersandAmpersand,
+  #[strum(to_string = "|")]
   Pipe,
+  #[strum(to_string = "||")]
   PipePipe,
+  #[strum(to_string = "^")]
   Caret,
+  #[strum(to_string = "~")]
   Tilde,
+  #[strum(to_string = "<<")]
   LessLess,
+  #[strum(to_string = ">>")]
   GreaterGreater,
+  #[strum(to_string = "&=")]
   AmpersandEqual,
+  #[strum(to_string = "|=")]
   PipeEqual,
+  #[strum(to_string = "^=")]
   CaretEqual,
+  #[strum(to_string = "<<=")]
   LessLessEqual,
+  #[strum(to_string = ">>=")]
   GreaterGreaterEqual,
 
   // Delimiters
+  #[strum(to_string = "(")]
   LParen,
+  #[strum(to_string = ")")]
   RParen,
+  #[strum(to_string = "{{")]
   LBrace,
+  #[strum(to_string = "}}")]
   RBrace,
+  #[strum(to_string = "[")]
   LBracket,
+  #[strum(to_string = "]")]
   RBracket,
+  #[strum(to_string = ",")]
   Comma,
+  #[strum(to_string = ".")]
   Dot,
+  #[strum(to_string = "..")]
   DotDot,
+  #[strum(to_string = "=>")]
   Arrow,
+  #[strum(to_string = "@")]
   At,
+  #[strum(to_string = ":")]
   Colon,
+  #[strum(to_string = ";")]
   Semicolon,
+  #[strum(to_string = "\n")]
   Newline,
 
   // Other

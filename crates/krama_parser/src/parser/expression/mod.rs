@@ -78,7 +78,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       _ => Err(Error {
         span: token.span,
         kind: ErrorKind::SyntaxError(format!(
-          "Unexpected token for prefix expression: {:?}",
+          "Unexpected token for prefix expression: {}",
           token.kind
         )),
       }),

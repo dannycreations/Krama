@@ -1,5 +1,3 @@
-use std::str;
-
 use krama_core::token::{Token, TokenKind};
 
 use super::Lexer;
@@ -33,7 +31,7 @@ impl<'a> Lexer<'a> {
     }
 
     let num_end = self.position;
-    let num_slice = str::from_utf8(&self.input[num_start..num_end]).unwrap();
+    let num_slice = self.slice(num_start, num_end);
 
     let token_kind = if is_float {
       TokenKind::Float(num_slice)

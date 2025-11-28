@@ -60,6 +60,13 @@ impl<'a> Lexer<'a> {
     Some(self.input[self.position] as char)
   }
 
+  pub(super) fn peek_next(&self) -> Option<char> {
+    if self.position + 1 >= self.input.len() {
+      return None;
+    }
+    Some(self.input[self.position + 1] as char)
+  }
+
   pub(super) fn advance(&mut self) -> Option<char> {
     if self.position >= self.input.len() {
       return None;
@@ -85,40 +92,39 @@ impl<'a> Lexer<'a> {
     Span::new(start, self.position)
   }
 
+  pub(super) fn slice(&self, start: usize, end: usize) -> &'a str {
+    unsafe { std::str::from_utf8_unchecked(&self.input[start..end]) }
+  }
+
   fn skip_trivia(&mut self) {
     loop {
       match self.peek() {
         Some(c) if c.is_whitespace() && c != '\n' => {
           self.advance();
         }
-        Some('/') => {
-          if self.position + 1 >= self.input.len() {
-            break;
+        Some('/') => match self.peek_next() {
+          Some('/') => {
+            self.advance();
+            self.advance();
+            while let Some(c) = self.peek() {
+              if c == '\n' {
+                break;
+              }
+              self.advance();
+            }
           }
-          match self.input[self.position + 1] as char {
-            '/' => {
-              self.advance();
-              self.advance();
-              while let Some(c) = self.peek() {
-                if c == '\n' {
-                  break;
-                }
+          Some('*') => {
+            self.advance();
+            self.advance();
+            while let Some(c) = self.advance() {
+              if c == '*' && self.peek() == Some('/') {
                 self.advance();
+                break;
               }
             }
-            '*' => {
-              self.advance();
-              self.advance();
-              while let Some(c) = self.advance() {
-                if c == '*' && self.peek() == Some('/') {
-                  self.advance();
-                  break;
-                }
-              }
-            }
-            _ => break,
           }
-        }
+          _ => break,
+        },
         _ => break,
       }
     }

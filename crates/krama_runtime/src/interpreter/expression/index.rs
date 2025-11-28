@@ -50,7 +50,7 @@ impl<'ast> Interpreter<'ast> {
             Ok(Object::Void)
           }
         }
-        Object::Tuple(elements) => {
+        Object::Tuple { elements } => {
           Self::eval_index_expression_for_sequence(elements, index, span)
         }
         Object::String(s) => {
