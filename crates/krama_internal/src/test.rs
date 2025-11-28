@@ -1,11 +1,8 @@
-#[allow(unused_imports)]
-use futures::future::FutureExt;
-
 #[macro_export]
 macro_rules! resolve_future {
   ($result:expr) => {
     if let ::krama_core::object::Object::Future(future) = $result {
-      if let Some(real_future) = future.take() {
+      if let Ok(real_future) = ::std::rc::Rc::try_unwrap(future) {
         real_future.await
       } else {
         Err(::krama_core::error::Error {
@@ -130,10 +127,10 @@ macro_rules! test_eval_with_file {
         ::krama_runtime::interpreter::Interpreter::new(&arena, Some(""));
       let input = arena.alloc_str($source);
 
-      tokio::fs::write($filename, $file_content).await.unwrap();
+      ::tokio::fs::write($filename, $file_content).await.unwrap();
       let evaluated = interpreter.eval(input).await.unwrap();
       let evaluated = $crate::resolve_future!(evaluated).unwrap();
-      tokio::fs::remove_file($filename).await.unwrap();
+      ::tokio::fs::remove_file($filename).await.unwrap();
 
       assert_eq!(evaluated, $expected);
     }

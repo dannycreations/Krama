@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use bumpalo::collections::Vec as BumpVec;
 use futures::future::LocalBoxFuture;
 use krama_core::{
@@ -11,21 +13,45 @@ use crate::interpreter::Interpreter;
 impl<'ast> Interpreter<'ast> {
   pub(crate) fn eval_index_expression<'s>(
     &'s self,
-    object: Object<'ast>,
+    mut object: Object<'ast>,
     index: Object<'ast>,
     span: Span,
   ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
     Box::pin(async move {
-      match object {
+      let index = self.resolve_object(index).await?;
+      match &mut object {
         Object::Array { elements, .. } => {
-          Self::eval_index_expression_for_sequence(
-            &elements.borrow(),
-            index,
-            span,
-          )
+          let mut new_elements = Rc::clone(elements);
+          let elements_mut = Rc::make_mut(&mut new_elements);
+
+          let idx = match index {
+            Object::Integer(i) => i,
+            _ => {
+              return Err(Error {
+                kind: ErrorKind::TypeError(format!(
+                  "array indices must be integers, not {}",
+                  index.type_name()
+                )),
+                span,
+              })
+            }
+          };
+
+          let len = elements_mut.len();
+          let element = if idx < 0 {
+            elements_mut.get_mut((len as i64 + idx) as usize)
+          } else {
+            elements_mut.get_mut(idx as usize)
+          };
+
+          if let Some(element) = element {
+            Ok(element.clone())
+          } else {
+            Ok(Object::Void)
+          }
         }
         Object::Tuple(elements) => {
-          Self::eval_index_expression_for_sequence(&elements, index, span)
+          Self::eval_index_expression_for_sequence(elements, index, span)
         }
         Object::String(s) => {
           let idx = match index {

@@ -1,4 +1,7 @@
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::{
+  fmt::{Debug, Display, Formatter, Result as FmtResult},
+  rc::Rc,
+};
 
 pub use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
@@ -10,19 +13,18 @@ use strum_macros::EnumProperty as EnumPropertyMacro;
 use super::ast::{expression::FunctionBody, statement::Parameter, types::Type};
 use crate::error::Error;
 
-pub type NativeFnCallback<'ast> =
+pub type NativeFunctionCb<'ast> =
   fn(
     &'ast Bump,
     BumpVec<'ast, Object<'ast>>,
   ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>>;
 
-pub type ObjectFuture<'ast> =
-  Rc<RefCell<Option<LocalBoxFuture<'ast, Result<Object<'ast>, Error>>>>>;
+pub type ObjectFuture<'ast> = LocalBoxFuture<'ast, Result<Object<'ast>, Error>>;
 
 #[derive(Clone)]
 pub struct NativeFunction<'ast> {
   pub name: &'static str,
-  pub callback: NativeFnCallback<'ast>,
+  pub callback: NativeFunctionCb<'ast>,
 }
 
 impl<'ast> PartialEq for NativeFunction<'ast> {
@@ -31,8 +33,8 @@ impl<'ast> PartialEq for NativeFunction<'ast> {
   }
 }
 
-impl<'ast> fmt::Debug for NativeFunction<'ast> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<'ast> Debug for NativeFunction<'ast> {
+  fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     f.debug_struct("NativeFunction")
       .field("name", &self.name)
       .finish()
@@ -62,8 +64,8 @@ impl<'ast> PartialEq for Function<'ast> {
   }
 }
 
-impl<'ast> fmt::Debug for Function<'ast> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<'ast> Debug for Function<'ast> {
+  fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
       Function::Native(n) => n.fmt(f),
       Function::User(u) => f
@@ -88,7 +90,7 @@ pub enum Object<'ast> {
   String(&'ast str),
   #[strum(props(name = "array"))]
   Array {
-    elements: Rc<RefCell<BumpVec<'ast, Object<'ast>>>>,
+    elements: Rc<BumpVec<'ast, Object<'ast>>>,
     kind: Type<'ast>,
   },
   #[strum(props(name = "tuple"))]
@@ -107,7 +109,7 @@ pub enum Object<'ast> {
   #[strum(props(name = "continue"))]
   Continue,
   #[strum(props(name = "future"))]
-  Future(ObjectFuture<'ast>),
+  Future(Rc<ObjectFuture<'ast>>),
 }
 
 impl<'ast> Object<'ast> {
@@ -130,7 +132,7 @@ impl<'ast> Object<'ast> {
       Object::Integer(i) => *i != 0,
       Object::Float(f) => *f != 0.0,
       Object::String(s) => !s.is_empty(),
-      Object::Array { elements, .. } => !elements.borrow().is_empty(),
+      Object::Array { elements, .. } => !elements.is_empty(),
       Object::Tuple(t) => !t.is_empty(),
       Object::Null | Object::Void => false,
       _ => true,
@@ -138,10 +140,10 @@ impl<'ast> Object<'ast> {
   }
 
   fn format_elements(
-    f: &mut fmt::Formatter,
+    f: &mut Formatter,
     elements: &BumpVec<'ast, Object<'ast>>,
     debug: bool,
-  ) -> fmt::Result {
+  ) -> FmtResult {
     write!(f, "[")?;
     for (i, element) in elements.iter().enumerate() {
       if i > 0 {
@@ -157,15 +159,15 @@ impl<'ast> Object<'ast> {
   }
 }
 
-impl<'ast> fmt::Display for Object<'ast> {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<'ast> Display for Object<'ast> {
+  fn fmt(&self, f: &mut Formatter) -> FmtResult {
     match self {
       Object::Integer(i) => write!(f, "{}", i),
       Object::Float(fl) => write!(f, "{}", fl),
       Object::Boolean(b) => write!(f, "{}", b),
       Object::String(s) => write!(f, "{}", s),
       Object::Array { elements, .. } => {
-        Object::format_elements(f, &elements.borrow(), false)
+        Object::format_elements(f, elements, false)
       }
       Object::Tuple(elements) => Object::format_elements(f, elements, false),
       Object::Null => write!(f, "null"),
@@ -189,8 +191,8 @@ impl<'ast> fmt::Display for Object<'ast> {
   }
 }
 
-impl<'ast> fmt::Debug for Object<'ast> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<'ast> Debug for Object<'ast> {
+  fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
       Object::Integer(i) => write!(f, "Integer({})", i),
       Object::Float(fl) => write!(f, "Float({})", fl),

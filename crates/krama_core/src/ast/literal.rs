@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{Display, Formatter, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal<'ast> {
@@ -9,8 +9,8 @@ pub enum Literal<'ast> {
   Null,
 }
 
-impl<'ast> fmt::Display for Literal<'ast> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<'ast> Display for Literal<'ast> {
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
     match self {
       Literal::Integer(i) => write!(f, "{}", i),
       Literal::Float(fl) => write!(f, "{}", fl),

@@ -8,7 +8,10 @@ mod literal;
 mod statement;
 mod types;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+  cell::{RefCell, RefMut},
+  rc::Rc,
+};
 
 use bumpalo::Bump;
 use krama_core::{
@@ -102,7 +105,7 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Object<'ast>, Error> {
     let mut current_object = object;
     while let Object::Future(future_rc) = current_object {
-      let future = future_rc.borrow_mut().take().ok_or_else(|| Error {
+      let future = Rc::try_unwrap(future_rc).map_err(|_| Error {
         span: Default::default(),
         kind: ErrorKind::RuntimeError(
           "Future has already been consumed".to_string(),
@@ -116,7 +119,7 @@ impl<'ast> Interpreter<'ast> {
   pub(super) fn env_mut(
     &self,
     span: Span,
-  ) -> Result<std::cell::RefMut<'_, Environment<'ast>>, Error> {
+  ) -> Result<RefMut<'_, Environment<'ast>>, Error> {
     self.environment.try_borrow_mut().map_err(|e| Error {
       span,
       kind: ErrorKind::RuntimeError(e.to_string()),

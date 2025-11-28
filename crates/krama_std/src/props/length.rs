@@ -10,7 +10,7 @@ pub(super) fn length<'ast>(
   async move {
     match object {
       Object::Array { elements, .. } => {
-        Ok(Object::Integer(elements.borrow().len() as i64))
+        Ok(Object::Integer(elements.len() as i64))
       }
       Object::Tuple(elements) => Ok(Object::Integer(elements.len() as i64)),
       Object::String(s) => Ok(Object::Integer(s.len() as i64)),

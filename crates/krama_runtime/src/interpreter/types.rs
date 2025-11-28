@@ -39,7 +39,6 @@ pub(crate) fn check_type<'ast>(
       },
       Object::Array { elements, .. },
     ) => {
-      let elements = elements.borrow();
       if let Some(Literal::Integer(size)) = size {
         if elements.len() > *size as usize {
           return Err(Error {

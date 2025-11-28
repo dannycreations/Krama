@@ -1,9 +1,12 @@
 use krama_core::{
-  ast::statement::{Statement, StatementKind},
+  ast::{
+    precedence::Precedence,
+    statement::{Statement, StatementKind},
+  },
   error::Error,
 };
 
-use super::{super::precedence::Precedence, Parser};
+use super::Parser;
 
 impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_test_statement(

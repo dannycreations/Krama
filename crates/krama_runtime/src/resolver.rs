@@ -1,6 +1,6 @@
 use krama_core::{
   ast::{
-    expression::{Expression, ExpressionKind},
+    expression::{Expression, ExpressionKind, FunctionBody, MatchPattern},
     statement::{Binding, Statement, StatementKind},
     Program,
   },
@@ -179,10 +179,10 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
         for arm in arms {
           for pattern in &arm.patterns {
             match pattern {
-              krama_core::ast::expression::MatchPattern::Expression(
-                expression,
-              ) => self.resolve_expression(expression)?,
-              krama_core::ast::expression::MatchPattern::Range(start, end) => {
+              MatchPattern::Expression(expression) => {
+                self.resolve_expression(expression)?
+              }
+              MatchPattern::Range(start, end) => {
                 self.resolve_expression(start)?;
                 self.resolve_expression(end)?;
               }
@@ -190,16 +190,14 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
             }
           }
           match &arm.body {
-            krama_core::ast::expression::FunctionBody::Block(block) => {
+            FunctionBody::Block(block) => {
               self.begin_scope();
               for statement in &block.statements {
                 self.resolve_statement(statement)?;
               }
               self.end_scope();
             }
-            krama_core::ast::expression::FunctionBody::Expression(
-              expression,
-            ) => {
+            FunctionBody::Expression(expression) => {
               self.begin_scope();
               self.resolve_expression(expression)?;
               self.end_scope();
@@ -224,12 +222,12 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
         }
 
         match body {
-          krama_core::ast::expression::FunctionBody::Block(block) => {
+          FunctionBody::Block(block) => {
             for statement in &block.statements {
               self.resolve_statement(statement)?;
             }
           }
-          krama_core::ast::expression::FunctionBody::Expression(expression) => {
+          FunctionBody::Expression(expression) => {
             self.resolve_expression(expression)?
           }
         }

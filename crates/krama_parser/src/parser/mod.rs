@@ -1,5 +1,4 @@
 pub mod expression;
-mod precedence;
 pub mod statement;
 pub mod types;
 
@@ -7,14 +6,12 @@ use std::iter::Peekable;
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use krama_core::{
-  ast::{expression::Expression, Program},
+  ast::{expression::Expression, precedence::Precedence, Program},
   error::{Error, ErrorKind},
   span::Span,
   token::{Token, TokenKind},
 };
 use krama_lexer::lexer::Lexer;
-
-use self::precedence::Precedence;
 
 type ParseError<'a> = Result<Expression<'a>, Error>;
 

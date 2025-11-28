@@ -1,11 +1,14 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ast::expression::{Expression, ExpressionKind},
+  ast::{
+    expression::{Expression, ExpressionKind},
+    precedence::Precedence,
+  },
   error::{Error, ErrorKind},
   token::TokenKind,
 };
 
-use super::{ParseError, Parser, Precedence};
+use super::{ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_call_expression(

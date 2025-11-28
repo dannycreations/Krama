@@ -2,6 +2,7 @@ use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ast::{
     expression::{Expression, ExpressionKind, FunctionBody},
+    precedence::Precedence,
     statement::Parameter,
   },
   error::{Error, ErrorKind},
@@ -9,7 +10,7 @@ use krama_core::{
   token::TokenKind,
 };
 
-use crate::parser::{precedence::Precedence, ParseError, Parser};
+use crate::parser::{ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_fn_expression(&mut self) -> ParseError<'ast> {

@@ -1,7 +1,3 @@
-use krama_core::{ast::statement::Statement, error::Error, token::TokenKind};
-
-use super::{Parser, Precedence};
-
 pub(super) mod assignment;
 pub(super) mod block;
 pub(super) mod control;
@@ -9,6 +5,17 @@ pub(super) mod flow;
 pub(super) mod function;
 pub(super) mod public;
 pub(super) mod test;
+
+use krama_core::{
+  ast::{
+    precedence::Precedence,
+    statement::{Statement, StatementKind},
+  },
+  error::Error,
+  token::TokenKind,
+};
+
+use super::Parser;
 
 impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_statement(&mut self) -> Result<Statement<'ast>, Error> {
@@ -27,10 +34,9 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       _ => {
         let expression = self.parse_expression(Precedence::Lowest)?;
         let span = expression.span;
-        let statement_kind =
-          krama_core::ast::statement::StatementKind::Expression {
-            expression: self.arena.alloc(expression),
-          };
+        let statement_kind = StatementKind::Expression {
+          expression: self.arena.alloc(expression),
+        };
         Ok(Statement::new(statement_kind, span))
       }
     }?;

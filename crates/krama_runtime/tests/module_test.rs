@@ -26,8 +26,8 @@ test_eval_is_module!(
 test_eval_is_native_function!(
   should_handle_destructuring_import,
   r#"
-        const { assert } = @import("std:assert")
-        assert
+        const { assertEqual } = @import("std:assert")
+        assertEqual
     "#
 );
 
@@ -35,7 +35,6 @@ test_eval_is_native_function!(
   should_handle_aliasing_destructuring_import,
   r#"
         const assert, { assertEqual as assert_equal } = @import("std:assert")
-        assert
         assert_equal
     "#
 );
@@ -53,7 +52,7 @@ test_eval_with_file!(
   "math.kr",
   "pub fn add(a, b) { a + b }",
   r#"
-        const math = @import("math.kr")
+        const math = @import("./math.kr")
         math.add(1, 2)
     "#,
   Object::Integer(3)

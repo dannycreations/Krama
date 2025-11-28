@@ -2,14 +2,14 @@ use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
 use krama_core::{
   error::{Error, ErrorKind},
-  object::{NativeFnCallback, Object},
+  object::{NativeFunctionCb, Object},
 };
 use rustc_hash::FxHashMap;
 
-use crate::build_native_functions;
+use crate::{build_native_functions, parse_args};
 
 pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
-  let functions: &[(&'static str, NativeFnCallback<'ast>)] =
+  let functions: &[(&'static str, NativeFunctionCb<'ast>)] =
     &[("assert", assert), ("assertEqual", assert_eq)];
   build_native_functions(functions)
 }
@@ -19,18 +19,8 @@ fn assert<'ast>(
   objects: BumpVec<'ast, Object<'ast>>,
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
-    if objects.len() != 1 {
-      return Err(Error {
-        span: Default::default(),
-        kind: ErrorKind::TypeError(format!(
-          "Expected {} arguments, but got {}",
-          1,
-          objects.len()
-        )),
-      });
-    }
-
-    if !objects[0].is_truthy() {
+    parse_args!(objects, condition: condition);
+    if !condition.is_truthy() {
       return Err(Error {
         span: Default::default(),
         kind: ErrorKind::RuntimeError("Assertion failed".to_string()),
@@ -46,23 +36,13 @@ fn assert_eq<'ast>(
   objects: BumpVec<'ast, Object<'ast>>,
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
-    if objects.len() != 2 {
-      return Err(Error {
-        span: Default::default(),
-        kind: ErrorKind::TypeError(format!(
-          "Expected {} arguments, but got {}",
-          2,
-          objects.len()
-        )),
-      });
-    }
-
-    if objects[0] != objects[1] {
+    parse_args!(objects, a: a, b: b);
+    if a != b {
       return Err(Error {
         span: Default::default(),
         kind: ErrorKind::RuntimeError(format!(
           "Assertion failed: {:?} != {:?}",
-          objects[0], objects[1]
+          a, b
         )),
       });
     }

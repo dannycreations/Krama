@@ -11,12 +11,15 @@ pub(super) mod member;
 pub(super) mod unary;
 
 use krama_core::{
-  ast::expression::{Expression, ExpressionKind},
-  error::Error,
+  ast::{
+    expression::{Expression, ExpressionKind},
+    precedence::Precedence,
+  },
+  error::{Error, ErrorKind},
   token::TokenKind,
 };
 
-use super::{precedence::Precedence, ParseError, Parser};
+use super::{ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_expression(
@@ -74,7 +77,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       }
       _ => Err(Error {
         span: token.span,
-        kind: krama_core::error::ErrorKind::SyntaxError(format!(
+        kind: ErrorKind::SyntaxError(format!(
           "Unexpected token for prefix expression: {:?}",
           token.kind
         )),

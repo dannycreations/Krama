@@ -298,6 +298,7 @@ version = "0.1.0"
 dependencies = [
  "bumpalo",
  "futures",
+ "phf",
  "rustc-hash",
  "strum",
  "strum_macros",
@@ -307,11 +308,13 @@ dependencies = [
 name = "krama_internal"
 version = "0.1.0"
 dependencies = [
+ "bumpalo",
  "futures",
  "krama_core",
  "krama_lexer",
  "krama_parser",
  "krama_runtime",
+ "tokio",
 ]
 
 [[package]]

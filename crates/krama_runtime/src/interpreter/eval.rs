@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use bumpalo::collections::Vec as BumpVec;
 use futures::{
@@ -144,7 +144,7 @@ impl<'ast> Interpreter<'ast> {
             match hint.kind {
               TypeKind::Array { .. } => {
                 return Ok(Object::Array {
-                  elements: Rc::new(RefCell::new(evaluated_elements)),
+                  elements: Rc::new(evaluated_elements),
                   kind: hint.clone(),
                 })
               }

@@ -1,6 +1,5 @@
 pub mod kind;
-
-pub use kind::TokenKind;
+pub use kind::{TokenKind, KEYWORDS};
 
 use super::span::Span;
 

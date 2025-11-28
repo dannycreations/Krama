@@ -1,9 +1,12 @@
 use krama_core::{
-  ast::expression::{Expression, ExpressionKind},
+  ast::{
+    expression::{Expression, ExpressionKind},
+    precedence::Precedence,
+  },
   span::Span,
 };
 
-use super::{ParseError, Parser, Precedence};
+use super::{ParseError, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_member_expression(

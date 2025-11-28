@@ -1,12 +1,15 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ast::statement::{Binding, DestructuredIdentifier, Statement, StatementKind},
+  ast::{
+    precedence::Precedence,
+    statement::{Binding, DestructuredIdentifier, Statement, StatementKind},
+  },
   error::Error,
   span::Span,
   token::TokenKind,
 };
 
-use super::{super::precedence::Precedence, Parser};
+use super::Parser;
 
 impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_let_statement(
