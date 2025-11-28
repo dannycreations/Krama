@@ -8,10 +8,7 @@ mod literal;
 mod statement;
 mod types;
 
-use std::{
-  cell::{RefCell, RefMut},
-  rc::Rc,
-};
+use std::cell::{RefCell, RefMut};
 
 use bumpalo::Bump;
 use krama_core::{
@@ -29,12 +26,12 @@ use crate::{environment::Environment, resolver::Resolver};
 
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
-  pub environment: Rc<RefCell<Environment<'ast>>>,
-  pub(super) modules: Rc<RefCell<FxHashMap<String, Rc<Object<'ast>>>>>,
+  pub environment: &'ast RefCell<Environment<'ast>>,
+  pub(super) modules: &'ast RefCell<FxHashMap<String, Object<'ast>>>,
   pub(super) arena: &'ast Bump,
   pub path: Option<&'ast str>,
   pub(super) props:
-    Rc<FxHashMap<&'static str, FxHashMap<&'static str, PropFn<'ast>>>>,
+    &'ast FxHashMap<&'static str, FxHashMap<&'static str, PropFn<'ast>>>,
   locals: RefCell<FxHashMap<Span, usize>>,
 }
 
@@ -42,36 +39,36 @@ impl<'ast> Interpreter<'ast> {
   pub fn new(arena: &'ast Bump, path: Option<&'ast str>) -> Self {
     let mut env = Environment::new();
     for (name, function) in globals::get_globals() {
-      env.set(name, Rc::new(function), true);
+      env.set(name, function, true);
     }
 
     Self {
-      environment: Rc::new(RefCell::new(env)),
-      modules: Rc::new(RefCell::new(FxHashMap::default())),
+      environment: arena.alloc(RefCell::new(env)),
+      modules: arena.alloc(RefCell::new(FxHashMap::default())),
       arena,
       path,
-      props: Rc::new(props::get_props()),
+      props: arena.alloc(props::get_props()),
       locals: RefCell::new(FxHashMap::default()),
     }
   }
 
   fn new_enclosed(&self) -> Self {
     Self {
-      environment: Rc::new(RefCell::new(Environment::new_enclosed(
-        self.environment.clone(),
-      ))),
-      modules: self.modules.clone(),
+      environment: self
+        .arena
+        .alloc(RefCell::new(Environment::new_enclosed(self.environment))),
+      modules: self.modules,
       arena: self.arena,
       path: self.path,
-      props: self.props.clone(),
+      props: self.props,
       locals: self.locals.clone(),
     }
   }
 
-  fn ancestor(&self, distance: usize) -> Rc<RefCell<Environment<'ast>>> {
-    let mut environment = self.environment.clone();
+  fn ancestor(&self, distance: usize) -> &'ast RefCell<Environment<'ast>> {
+    let mut environment = self.environment;
     for _ in 0..distance {
-      let outer = environment.borrow().outer.clone().unwrap();
+      let outer = environment.borrow().outer.unwrap();
       environment = outer;
     }
     environment
@@ -81,7 +78,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     distance: usize,
     name: &str,
-  ) -> Option<Rc<Object<'ast>>> {
+  ) -> Option<Object<'ast>> {
     self.ancestor(distance).borrow().get(name)
   }
 
@@ -89,7 +86,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     distance: usize,
     name: &'ast str,
-    value: Rc<Object<'ast>>,
+    value: Object<'ast>,
   ) {
     self.ancestor(distance).borrow_mut().set(name, value, false);
   }
@@ -131,14 +128,18 @@ impl<'ast> Interpreter<'ast> {
     object: Object<'ast>,
   ) -> Result<Object<'ast>, Error> {
     let mut current_object = object;
-    while let Object::Future(future_rc) = current_object {
-      let future = Rc::try_unwrap(future_rc).map_err(|_| Error {
-        span: Default::default(),
-        kind: ErrorKind::RuntimeError(
-          "Future has already been consumed".to_string(),
-        ),
-      })?;
-      current_object = future.await?;
+    while let Object::Future(future_cell) = current_object {
+      let future = future_cell.borrow_mut().take();
+      if let Some(future) = future {
+        current_object = future.await?;
+      } else {
+        return Err(Error {
+          span: Default::default(),
+          kind: ErrorKind::RuntimeError(
+            "Future has already been consumed".to_string(),
+          ),
+        });
+      }
     }
     Ok(current_object)
   }

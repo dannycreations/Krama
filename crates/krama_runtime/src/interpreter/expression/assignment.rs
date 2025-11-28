@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use krama_core::{
   ast::{
     expression::{Expression, ExpressionKind},
@@ -38,13 +36,11 @@ impl<'ast> Interpreter<'ast> {
 
     if operator == AssignmentOperator::Assign {
       if let Some(distance) = distance {
-        self.assign_at(distance, ident, Rc::new(resolved_right_val.clone()));
+        self.assign_at(distance, ident, resolved_right_val.clone());
       } else {
-        self.env_mut(span)?.set(
-          ident,
-          Rc::new(resolved_right_val.clone()),
-          false,
-        );
+        self
+          .env_mut(span)?
+          .set(ident, resolved_right_val.clone(), false);
       }
       return Ok(resolved_right_val);
     }
@@ -76,18 +72,16 @@ impl<'ast> Interpreter<'ast> {
     let new_val = self
       .eval_binary_expression(
         binary_op,
-        left_val.as_ref().clone(),
+        left_val.clone(),
         resolved_right_val,
         span,
       )
       .await?;
 
     if let Some(distance) = distance {
-      self.assign_at(distance, ident, Rc::new(new_val.clone()));
+      self.assign_at(distance, ident, new_val.clone());
     } else {
-      self
-        .env_mut(span)?
-        .set(ident, Rc::new(new_val.clone()), false);
+      self.env_mut(span)?.set(ident, new_val.clone(), false);
     }
 
     Ok(new_val)
@@ -121,8 +115,7 @@ impl<'ast> Interpreter<'ast> {
       span,
       kind: ErrorKind::ReferenceError(ident.to_string()),
     })?;
-    let resolved_original_value =
-      self.resolve_object(original_value.as_ref().clone()).await?;
+    let resolved_original_value = self.resolve_object(original_value).await?;
     let new_value = match (operator, resolved_original_value.clone()) {
       (UpdateOperator::Increment, Object::Integer(i)) => Object::Integer(i + 1),
       (UpdateOperator::Decrement, Object::Integer(i)) => Object::Integer(i - 1),
@@ -139,11 +132,9 @@ impl<'ast> Interpreter<'ast> {
     };
 
     if let Some(distance) = distance {
-      self.assign_at(distance, ident, Rc::new(new_value.clone()));
+      self.assign_at(distance, ident, new_value.clone());
     } else {
-      self
-        .env_mut(span)?
-        .set(ident, Rc::new(new_value.clone()), false);
+      self.env_mut(span)?.set(ident, new_value.clone(), false);
     }
 
     if prefix {

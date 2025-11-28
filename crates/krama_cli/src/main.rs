@@ -10,6 +10,15 @@ struct Args {
   command: Option<Command>,
 }
 
+impl Args {
+  async fn execute(self, arena: &mut Bump) -> Result<()> {
+    match self.command {
+      Some(command) => command.execute(arena).await,
+      None => Repl.execute(arena).await,
+    }
+  }
+}
+
 #[derive(ClapParser)]
 enum Command {
   Run(Run),
@@ -30,11 +39,7 @@ async fn main() -> Result<()> {
   let args = Args::parse();
   let mut arena = Bump::new();
 
-  let result = match args.command {
-    Some(command) => command.execute(&mut arena).await,
-    None => Repl.execute(&mut arena).await,
-  };
+  let result = args.execute(&mut arena).await;
 
-  arena.reset();
   result
 }

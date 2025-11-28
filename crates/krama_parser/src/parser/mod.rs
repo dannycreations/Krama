@@ -53,13 +53,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       self.advance();
       Ok(())
     } else {
-      Err(Error {
-        span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(format!(
-          "Expected token {}, but got {}",
-          expected_kind, self.current_token.kind
-        )),
-      })
+      Err(self.expected_token_error(expected_kind))
     }
   }
 
@@ -72,13 +66,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       self.advance();
       Ok(token)
     } else {
-      Err(Error {
-        span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(format!(
-          "Expected token {}, but got {}",
-          expected_kind, self.current_token.kind
-        )),
-      })
+      Err(self.expected_token_error(expected_kind))
     }
   }
 
@@ -92,24 +80,37 @@ impl<'a, 'ast> Parser<'a, 'ast> {
   }
 
   pub(super) fn parse_identifier(&mut self) -> Result<&'a str, Error> {
-    if let TokenKind::Identifier(name) = self.current_token.kind {
-      self.advance();
-      return Ok(name);
+    let token = self.current_token;
+    match token.kind {
+      TokenKind::Identifier(name) => {
+        self.advance();
+        Ok(name)
+      }
+      kind => {
+        let message = if kind.is_keyword() {
+          format!("Unexpected keyword `{}`", kind)
+        } else {
+          "Expected identifier".to_string()
+        };
+        Err(Error {
+          span: token.span,
+          kind: ErrorKind::SyntaxError(message),
+        })
+      }
     }
-
-    let kind = self.current_token.kind;
-    let message = if kind.is_keyword() {
-      format!("Unexpected keyword `{}`", kind)
-    } else {
-      "Expected identifier".to_string()
-    };
-    Err(Error {
-      span: self.current_token.span,
-      kind: ErrorKind::SyntaxError(message),
-    })
   }
 
   pub(super) fn current_precedence(&self) -> Precedence {
     Precedence::from_token(self.current_token)
+  }
+
+  fn expected_token_error(&self, expected_kind: TokenKind) -> Error {
+    Error {
+      span: self.current_token.span,
+      kind: ErrorKind::SyntaxError(format!(
+        "Expected token {}, but got {}",
+        expected_kind, self.current_token.kind
+      )),
+    }
   }
 }

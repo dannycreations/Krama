@@ -1,6 +1,3 @@
-use std::rc::Rc;
-
-use bumpalo::collections::Vec as BumpVec;
 use futures::future::LocalBoxFuture;
 use krama_core::{
   error::{Error, ErrorKind},
@@ -21,34 +18,7 @@ impl<'ast> Interpreter<'ast> {
       let index = self.resolve_object(index).await?;
       match &mut object {
         Object::Array { elements, .. } => {
-          let mut new_elements = Rc::clone(elements);
-          let elements_mut = Rc::make_mut(&mut new_elements);
-
-          let idx = match index {
-            Object::Integer(i) => i,
-            _ => {
-              return Err(Error {
-                kind: ErrorKind::TypeError(format!(
-                  "array indices must be integers, not {}",
-                  index.type_name()
-                )),
-                span,
-              })
-            }
-          };
-
-          let len = elements_mut.len();
-          let element = if idx < 0 {
-            elements_mut.get_mut((len as i64 + idx) as usize)
-          } else {
-            elements_mut.get_mut(idx as usize)
-          };
-
-          if let Some(element) = element {
-            Ok(element.clone())
-          } else {
-            Ok(Object::Void)
-          }
+          Self::eval_index_expression_for_sequence(elements, index, span)
         }
         Object::Tuple { elements } => {
           Self::eval_index_expression_for_sequence(elements, index, span)
@@ -92,7 +62,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   fn eval_index_expression_for_sequence(
-    elements: &BumpVec<'ast, Object<'ast>>,
+    elements: &[Object<'ast>],
     index: Object<'ast>,
     span: Span,
   ) -> Result<Object<'ast>, Error> {

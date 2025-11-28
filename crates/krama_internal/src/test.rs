@@ -1,9 +1,10 @@
 #[macro_export]
 macro_rules! resolve_future {
   ($result:expr) => {
-    if let ::krama_core::object::Object::Future(future) = $result {
-      if let Ok(real_future) = ::std::rc::Rc::try_unwrap(future) {
-        real_future.await
+    if let ::krama_core::object::Object::Future(future_cell) = $result {
+      let future = future_cell.borrow_mut().take();
+      if let Some(future) = future {
+        future.await
       } else {
         Err(::krama_core::error::Error {
           span: Default::default(),

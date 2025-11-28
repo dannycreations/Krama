@@ -6,6 +6,7 @@ use krama_core::{
   span::Span,
   token::{Token, TokenKind},
 };
+use phf::{phf_map, Map};
 
 macro_rules! token {
   ($lexer:ident, $start:expr, $kind:expr) => {
@@ -22,18 +23,23 @@ macro_rules! token {
   }};
 }
 
-macro_rules! token_triple {
-  ($lexer:ident, $start:expr, $char1:expr, $kind1:expr, $char2:expr, $kind2:expr, $default_kind:expr) => {{
-    let kind = if $lexer.advance_if($char1) {
-      $kind1
-    } else if $lexer.advance_if($char2) {
-      $kind2
-    } else {
-      $default_kind
-    };
-    token!($lexer, $start, kind)
-  }};
-}
+static DELIMITERS: Map<char, TokenKind> = phf_map! {
+    '(' => TokenKind::LParen,
+    ')' => TokenKind::RParen,
+    '{' => TokenKind::LBrace,
+    '}' => TokenKind::RBrace,
+    '[' => TokenKind::LBracket,
+    ']' => TokenKind::RBracket,
+    ',' => TokenKind::Comma,
+    '@' => TokenKind::At,
+    ':' => TokenKind::Colon,
+    ';' => TokenKind::Semicolon,
+    '~' => TokenKind::Tilde,
+};
+
+static OPERATORS: [char; 13] = [
+  '%', '/', '!', '^', '.', '+', '-', '*', '&', '|', '=', '>', '<',
+];
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
@@ -93,7 +99,7 @@ impl<'a> Lexer<'a> {
   }
 
   pub(super) fn slice(&self, start: usize, end: usize) -> &'a str {
-    unsafe { std::str::from_utf8_unchecked(&self.input[start..end]) }
+    std::str::from_utf8(&self.input[start..end]).unwrap()
   }
 
   fn skip_line_comment(&mut self) {
@@ -130,68 +136,70 @@ impl<'a> Lexer<'a> {
       }
     }
   }
-}
 
-impl<'a> Iterator for Lexer<'a> {
-  type Item = Token<'a>;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    self.skip_trivia();
-
-    let start = self.position;
-    let char = self.advance()?;
-
-    let token = match char {
-      // Delimiters
-      '(' => token!(self, start, TokenKind::LParen),
-      ')' => token!(self, start, TokenKind::RParen),
-      '{' => token!(self, start, TokenKind::LBrace),
-      '}' => token!(self, start, TokenKind::RBrace),
-      '[' => token!(self, start, TokenKind::LBracket),
-      ']' => token!(self, start, TokenKind::RBracket),
-      ',' => token!(self, start, TokenKind::Comma),
-      '@' => token!(self, start, TokenKind::At),
-      ':' => token!(self, start, TokenKind::Colon),
-      ';' => token!(self, start, TokenKind::Semicolon),
-
-      // Operators
-      '+' => token_triple!(
+  fn operator(&mut self, start: usize, char: char) -> Token<'a> {
+    match char {
+      '%' => token!(
         self,
         start,
-        '+',
-        TokenKind::PlusPlus,
+        TokenKind::Percent,
         '=',
-        TokenKind::PlusEqual,
-        TokenKind::Plus
+        TokenKind::PercentEqual
       ),
-      '-' => token_triple!(
-        self,
-        start,
-        '-',
-        TokenKind::MinusMinus,
-        '=',
-        TokenKind::MinusEqual,
-        TokenKind::Minus
-      ),
-      '%' => {
-        token!(
-          self,
-          start,
-          TokenKind::Percent,
-          '=',
-          TokenKind::PercentEqual
-        )
-      }
       '/' => token!(self, start, TokenKind::Slash, '=', TokenKind::SlashEqual),
-      '*' => token_triple!(
-        self,
-        start,
-        '*',
-        TokenKind::StarStar,
-        '=',
-        TokenKind::StarEqual,
-        TokenKind::Star
-      ),
+      '!' => token!(self, start, TokenKind::Bang, '=', TokenKind::BangEqual),
+      '^' => token!(self, start, TokenKind::Caret, '=', TokenKind::CaretEqual),
+      '.' => token!(self, start, TokenKind::Dot, '.', TokenKind::DotDot),
+      '+' => {
+        let kind = if self.advance_if('+') {
+          TokenKind::PlusPlus
+        } else if self.advance_if('=') {
+          TokenKind::PlusEqual
+        } else {
+          TokenKind::Plus
+        };
+        token!(self, start, kind)
+      }
+      '-' => {
+        let kind = if self.advance_if('-') {
+          TokenKind::MinusMinus
+        } else if self.advance_if('=') {
+          TokenKind::MinusEqual
+        } else {
+          TokenKind::Minus
+        };
+        token!(self, start, kind)
+      }
+      '*' => {
+        let kind = if self.advance_if('*') {
+          TokenKind::StarStar
+        } else if self.advance_if('=') {
+          TokenKind::StarEqual
+        } else {
+          TokenKind::Star
+        };
+        token!(self, start, kind)
+      }
+      '&' => {
+        let kind = if self.advance_if('&') {
+          TokenKind::AmpersandAmpersand
+        } else if self.advance_if('=') {
+          TokenKind::AmpersandEqual
+        } else {
+          TokenKind::Ampersand
+        };
+        token!(self, start, kind)
+      }
+      '|' => {
+        let kind = if self.advance_if('|') {
+          TokenKind::PipePipe
+        } else if self.advance_if('=') {
+          TokenKind::PipeEqual
+        } else {
+          TokenKind::Pipe
+        };
+        token!(self, start, kind)
+      }
       '=' => {
         let kind = if self.advance_if('>') {
           TokenKind::Arrow
@@ -202,7 +210,6 @@ impl<'a> Iterator for Lexer<'a> {
         };
         token!(self, start, kind)
       }
-      '!' => token!(self, start, TokenKind::Bang, '=', TokenKind::BangEqual),
       '>' => {
         let kind = if self.advance_if('>') {
           if self.advance_if('=') {
@@ -231,35 +238,30 @@ impl<'a> Iterator for Lexer<'a> {
         };
         token!(self, start, kind)
       }
-      '&' => token_triple!(
-        self,
-        start,
-        '&',
-        TokenKind::AmpersandAmpersand,
-        '=',
-        TokenKind::AmpersandEqual,
-        TokenKind::Ampersand
-      ),
-      '|' => token_triple!(
-        self,
-        start,
-        '|',
-        TokenKind::PipePipe,
-        '=',
-        TokenKind::PipeEqual,
-        TokenKind::Pipe
-      ),
-      '^' => token!(self, start, TokenKind::Caret, '=', TokenKind::CaretEqual),
-      '~' => token!(self, start, TokenKind::Tilde),
-      '.' => token!(self, start, TokenKind::Dot, '.', TokenKind::DotDot),
+      _ => unreachable!(),
+    }
+  }
+}
 
-      // Strings, Numbers, and Identifiers
-      '"' => self.string(start),
-      c if c.is_ascii_digit() => self.number(start),
-      c if c.is_alphabetic() || c == '_' => self.identifier(start),
+impl<'a> Iterator for Lexer<'a> {
+  type Item = Token<'a>;
 
-      // Other
-      _ => token!(self, start, TokenKind::Unknown),
+  fn next(&mut self) -> Option<Self::Item> {
+    self.skip_trivia();
+
+    let start = self.position;
+    let char = self.advance()?;
+
+    let token = if let Some(kind) = DELIMITERS.get(&char) {
+      token!(self, start, *kind)
+    } else {
+      match char {
+        c if OPERATORS.contains(&c) => self.operator(start, char),
+        '"' => self.string(start),
+        c if c.is_ascii_digit() => self.number(start),
+        c if c.is_alphabetic() || c == '_' => self.identifier(start),
+        _ => token!(self, start, TokenKind::Unknown),
+      }
     };
 
     Some(token)

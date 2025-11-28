@@ -68,3 +68,15 @@ test_eval!(
   "if (1 > 2) { 10 } elif (1 < 2) { 20 } else { 30 }",
   Object::Integer(20)
 );
+
+test_eval!(
+  should_short_circuit_and,
+  "false && (1/0)",
+  Object::Boolean(false)
+);
+
+test_eval!(
+  should_short_circuit_or,
+  "true || (1/0)",
+  Object::Boolean(true)
+);

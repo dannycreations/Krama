@@ -1,6 +1,3 @@
-use std::rc::Rc;
-
-use bumpalo::collections::Vec as BumpVec;
 use futures::future::LocalBoxFuture;
 use krama_core::{
   ast::expression::FunctionBody,
@@ -15,7 +12,7 @@ impl<'ast> Interpreter<'ast> {
   pub(super) fn eval_call_expression<'s>(
     &'s self,
     function: Object<'ast>,
-    arguments: BumpVec<'ast, Object<'ast>>,
+    arguments: &'ast [Object<'ast>],
     span: Span,
   ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
     Box::pin(async move {
@@ -42,15 +39,15 @@ impl<'ast> Interpreter<'ast> {
   async fn eval_native_function_call(
     &self,
     native_fn: NativeFunction<'ast>,
-    arguments: BumpVec<'ast, Object<'ast>>,
+    arguments: &'ast [Object<'ast>],
   ) -> Result<Object<'ast>, Error> {
     (native_fn.callback)(self.arena, arguments).await
   }
 
   async fn eval_user_function_call(
     &self,
-    user_fn: Rc<UserFunction<'ast>>,
-    arguments: BumpVec<'ast, Object<'ast>>,
+    user_fn: &'ast UserFunction<'ast>,
+    arguments: &'ast [Object<'ast>],
     span: Span,
   ) -> Result<Object<'ast>, Error> {
     if arguments.len() > user_fn.parameters.len() {
@@ -79,11 +76,10 @@ impl<'ast> Interpreter<'ast> {
           )),
         });
       };
-      new_interpreter.environment.borrow_mut().set(
-        param.name,
-        Rc::new(value.clone()),
-        false,
-      );
+      new_interpreter
+        .environment
+        .borrow_mut()
+        .set(param.name, value, false);
     }
 
     let result = match &user_fn.body {
@@ -96,7 +92,7 @@ impl<'ast> Interpreter<'ast> {
     };
 
     if let Object::Return(value) = result {
-      Ok((*value).clone())
+      Ok(value.clone())
     } else {
       Ok(result)
     }

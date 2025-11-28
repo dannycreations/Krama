@@ -1,6 +1,7 @@
 use std::{
+  cell::RefCell,
   fmt::{Debug, Display, Formatter, Result as FmtResult},
-  rc::Rc,
+  ptr,
 };
 
 pub use bumpalo::collections::Vec as BumpVec;
@@ -9,18 +10,21 @@ use futures::future::LocalBoxFuture;
 use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
 
-use super::ast::{expression::FunctionBody, statement::Parameter, types::Type};
-use crate::{error::Error, scope::Scope};
+use crate::{
+  ast::{expression::FunctionBody, statement::Parameter, types::Type},
+  error::Error,
+  scope::Scope,
+};
 
 pub type NativeFunctionCb<'ast> =
   fn(
     &'ast Bump,
-    BumpVec<'ast, Object<'ast>>,
+    &'ast [Object<'ast>],
   ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>>;
 
 pub type ObjectFuture<'ast> = LocalBoxFuture<'ast, Result<Object<'ast>, Error>>;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct NativeFunction<'ast> {
   pub name: &'static str,
   pub callback: NativeFunctionCb<'ast>,
@@ -40,24 +44,24 @@ impl<'ast> Debug for NativeFunction<'ast> {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UserFunction<'ast> {
   pub parameters: BumpVec<'ast, Parameter<'ast>>,
   pub body: FunctionBody<'ast>,
   pub kind: Option<Type<'ast>>,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub enum Function<'ast> {
   Native(NativeFunction<'ast>),
-  User(Rc<UserFunction<'ast>>),
+  User(&'ast UserFunction<'ast>),
 }
 
 impl<'ast> PartialEq for Function<'ast> {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (Function::Native(a), Function::Native(b)) => a == b,
-      (Function::User(a), Function::User(b)) => Rc::ptr_eq(a, b),
+      (Function::User(a), Function::User(b)) => ptr::eq(*a, *b),
       _ => false,
     }
   }
@@ -89,28 +93,28 @@ pub enum Object<'ast> {
   String(&'ast str),
   #[strum(props(name = "array"))]
   Array {
-    elements: Rc<BumpVec<'ast, Object<'ast>>>,
+    elements: &'ast [Object<'ast>],
     kind: Type<'ast>,
   },
   #[strum(props(name = "tuple"))]
   Tuple {
-    elements: Rc<BumpVec<'ast, Object<'ast>>>,
+    elements: &'ast [Object<'ast>],
   },
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]
   Void,
-  Scope(Rc<Scope<'ast>>),
+  Scope(&'ast Scope<'ast>),
   #[strum(props(name = "function"))]
   Function(Function<'ast>),
   #[strum(props(name = "return"))]
-  Return(Rc<Object<'ast>>),
+  Return(&'ast Object<'ast>),
   #[strum(props(name = "break"))]
   Break,
   #[strum(props(name = "continue"))]
   Continue,
   #[strum(props(name = "future"))]
-  Future(Rc<ObjectFuture<'ast>>),
+  Future(&'ast RefCell<Option<ObjectFuture<'ast>>>),
 }
 
 impl<'ast> Object<'ast> {
@@ -140,9 +144,9 @@ impl<'ast> Object<'ast> {
     }
   }
 
-  fn format_array(
+  fn format_elements(
     f: &mut Formatter,
-    elements: &BumpVec<'ast, Object<'ast>>,
+    elements: &[Object<'ast>],
   ) -> FmtResult {
     write!(f, "[")?;
     for (i, element) in elements.iter().enumerate() {
@@ -162,8 +166,9 @@ impl<'ast> Display for Object<'ast> {
       Object::Float(fl) => write!(f, "{}", fl),
       Object::Boolean(b) => write!(f, "{}", b),
       Object::String(s) => write!(f, "{}", s),
-      Object::Array { elements, .. } => Object::format_array(f, elements),
-      Object::Tuple { elements } => Object::format_array(f, elements),
+      Object::Array { elements, .. } | Object::Tuple { elements } => {
+        Object::format_elements(f, elements)
+      }
       Object::Null => write!(f, "null"),
       Object::Void => write!(f, "void"),
       Object::Scope(scope) => {
@@ -229,7 +234,7 @@ impl<'ast> PartialEq for Object<'ast> {
       (Object::Return(a), Object::Return(b)) => a == b,
       (Object::Break, Object::Break) => true,
       (Object::Continue, Object::Continue) => true,
-      (Object::Scope(a), Object::Scope(b)) => Rc::ptr_eq(a, b),
+      (Object::Scope(a), Object::Scope(b)) => std::ptr::eq(*a, *b),
       (Object::Future(_), Object::Future(_)) => false,
       _ => false,
     }

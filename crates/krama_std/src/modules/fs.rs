@@ -1,4 +1,4 @@
-use std::{path::Path, rc::Rc, str};
+use std::{path::Path, str};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
@@ -29,7 +29,7 @@ pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
 
 fn read_file<'ast>(
   arena: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));
@@ -48,7 +48,7 @@ fn read_file<'ast>(
 
 fn write_file<'ast>(
   _arena: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str), contents: Object::String(contents));
@@ -64,7 +64,7 @@ fn write_file<'ast>(
 
 fn exists<'ast>(
   _arena: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));
@@ -77,7 +77,7 @@ fn exists<'ast>(
 
 fn rm<'ast>(
   _arena: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));
@@ -93,7 +93,7 @@ fn rm<'ast>(
 
 fn read_dir<'ast>(
   arena: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));
@@ -120,7 +120,7 @@ fn read_dir<'ast>(
     }
 
     Ok(Object::Array {
-      elements: Rc::new(entries),
+      elements: entries.into_bump_slice(),
       kind: Type::new(TypeKind::Identifier("str"), Default::default()),
     })
   })
@@ -128,7 +128,7 @@ fn read_dir<'ast>(
 
 fn mkdir<'ast>(
   _arena: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));
@@ -144,7 +144,7 @@ fn mkdir<'ast>(
 
 fn rmdir<'ast>(
   _arena: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));
@@ -160,7 +160,7 @@ fn rmdir<'ast>(
 
 fn is_file<'ast>(
   _arena: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));
@@ -175,7 +175,7 @@ fn is_file<'ast>(
 
 fn is_directory<'ast>(
   _arena: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, path_str: Object::String(path_str));

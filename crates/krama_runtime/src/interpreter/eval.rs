@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use bumpalo::collections::Vec as BumpVec;
 use futures::{
   future::{join_all, FutureExt, LocalBoxFuture},
@@ -8,6 +6,7 @@ use futures::{
 use krama_core::{
   ast::{
     expression::{Expression, ExpressionKind},
+    operator::BinaryOperator,
     types::{Type, TypeKind},
   },
   error::Error,
@@ -38,6 +37,24 @@ impl<'ast> Interpreter<'ast> {
           operator,
           right,
         } => {
+          if *operator == BinaryOperator::LogicalAnd {
+            let left = self.eval_expression(left, None).await?;
+            if !left.is_truthy() {
+              return Ok(Object::Boolean(false));
+            }
+            let right = self.eval_expression(right, None).await?;
+            return Ok(Object::Boolean(right.is_truthy()));
+          }
+
+          if *operator == BinaryOperator::LogicalOr {
+            let left = self.eval_expression(left, None).await?;
+            if left.is_truthy() {
+              return Ok(Object::Boolean(true));
+            }
+            let right = self.eval_expression(right, None).await?;
+            return Ok(Object::Boolean(right.is_truthy()));
+          }
+
           let (left, right) = join!(
             self.eval_expression(left, None),
             self.eval_expression(right, None)
@@ -85,7 +102,11 @@ impl<'ast> Interpreter<'ast> {
           }
 
           self
-            .eval_call_expression(function, evaluated_args, span)
+            .eval_call_expression(
+              function,
+              evaluated_args.into_bump_slice(),
+              span,
+            )
             .await
         }
         ExpressionKind::If {
@@ -105,11 +126,14 @@ impl<'ast> Interpreter<'ast> {
           parameters,
           body,
           kind,
-        } => Ok(Object::Function(Function::User(Rc::new(UserFunction {
-          parameters: parameters.clone(),
-          body: body.clone(),
-          kind: kind.clone(),
-        })))),
+        } => {
+          let user_fn = self.arena.alloc(UserFunction {
+            parameters: parameters.clone(),
+            body: body.clone(),
+            kind: kind.clone(),
+          });
+          Ok(Object::Function(Function::User(user_fn)))
+        }
         ExpressionKind::Member { object, property } => {
           let object = self.eval_expression(object, None).await?;
           self.eval_member_expression(object, property, span).await
@@ -139,25 +163,26 @@ impl<'ast> Interpreter<'ast> {
           for result in results {
             evaluated_elements.push(result?);
           }
+          let elements_slice = evaluated_elements.into_bump_slice();
 
           if let Some(hint) = kind {
             match hint.kind {
               TypeKind::Array { .. } => {
                 return Ok(Object::Array {
-                  elements: Rc::new(evaluated_elements),
+                  elements: elements_slice,
                   kind: hint.clone(),
                 })
               }
               TypeKind::Tuple(_) => {
                 return Ok(Object::Tuple {
-                  elements: Rc::new(evaluated_elements),
+                  elements: elements_slice,
                 })
               }
               _ => {}
             }
           }
           Ok(Object::Tuple {
-            elements: Rc::new(evaluated_elements),
+            elements: elements_slice,
           })
         }
       }

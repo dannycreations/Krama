@@ -1,4 +1,4 @@
-use bumpalo::{collections::Vec as BumpVec, Bump};
+use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
 use krama_core::{
   error::{Error, ErrorKind},
@@ -8,7 +8,7 @@ use tokio::{io, io::AsyncWriteExt};
 
 pub fn print<'ast>(
   _: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     let mut stdout = io::stdout();

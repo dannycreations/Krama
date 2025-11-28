@@ -16,25 +16,35 @@ impl Display for Error {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, AsRefStr)]
-#[strum(serialize_all = "PascalCase")]
-pub enum ErrorKind {
-  RuntimeError(String),
-  SyntaxError(String),
-  TypeError(String),
-  ReferenceError(String),
-  ArgumentError(String),
+macro_rules! define_error_kind {
+    (
+        enum $name:ident {
+            $( $variant:ident(String), )*
+        }
+    ) => {
+        #[derive(Debug, Clone, PartialEq, AsRefStr)]
+        #[strum(serialize_all = "PascalCase")]
+        pub enum $name {
+            $( $variant(String), )*
+        }
+
+        impl Display for $name {
+            fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+                let msg = match self {
+                    $( Self::$variant(msg) => msg, )*
+                };
+                write!(f, "{}: {}", self.as_ref(), msg)
+            }
+        }
+    }
 }
 
-impl Display for ErrorKind {
-  fn fmt(&self, f: &mut Formatter) -> Result {
-    let (variant, msg) = match self {
-      ErrorKind::RuntimeError(msg) => (self.as_ref(), msg),
-      ErrorKind::SyntaxError(msg) => (self.as_ref(), msg),
-      ErrorKind::TypeError(msg) => (self.as_ref(), msg),
-      ErrorKind::ReferenceError(msg) => (self.as_ref(), msg),
-      ErrorKind::ArgumentError(msg) => (self.as_ref(), msg),
-    };
-    write!(f, "{}: {}", variant, msg)
-  }
+define_error_kind! {
+    enum ErrorKind {
+        RuntimeError(String),
+        SyntaxError(String),
+        TypeError(String),
+        ReferenceError(String),
+        ArgumentError(String),
+    }
 }

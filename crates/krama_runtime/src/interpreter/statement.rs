@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use bumpalo::collections::Vec as BumpVec;
 use futures::future::LocalBoxFuture;
 use krama_core::{
@@ -37,19 +35,17 @@ impl<'ast> Interpreter<'ast> {
             check_type(kind, &value)?;
           }
 
-          self.env_mut(span)?.set(name, Rc::new(value), false);
+          self.env_mut(span)?.set(name, value, false);
           Ok(Object::Void)
         }
         StatementKind::Test { name: _, body } => {
           let function =
-            Object::Function(Function::User(Rc::new(UserFunction {
+            Object::Function(Function::User(self.arena.alloc(UserFunction {
               parameters: BumpVec::new_in(self.arena),
               body: FunctionBody::Block(body),
               kind: None,
             })));
-          self
-            .eval_call_expression(function, BumpVec::new_in(self.arena), span)
-            .await
+          self.eval_call_expression(function, &[], span).await
         }
         StatementKind::Const {
           binding,
@@ -66,7 +62,7 @@ impl<'ast> Interpreter<'ast> {
 
           match binding {
             Binding::Identifier(name) => {
-              self.env_mut(span)?.set(name, Rc::new(value), *public);
+              self.env_mut(span)?.set(name, value, *public);
             }
             Binding::Destructure(items) => {
               self.destructure_scope(span, &value, items, *public)?;
@@ -76,11 +72,9 @@ impl<'ast> Interpreter<'ast> {
               items,
             } => {
               if let Object::Scope(_) = &value {
-                self.env_mut(span)?.set(
-                  module_alias,
-                  Rc::new(value.clone()),
-                  *public,
-                );
+                self
+                  .env_mut(span)?
+                  .set(module_alias, value.clone(), *public);
                 self.destructure_scope(span, &value, items, *public)?;
               } else {
                 return Err(Error {
@@ -102,12 +96,12 @@ impl<'ast> Interpreter<'ast> {
           kind,
         } => {
           let function =
-            Object::Function(Function::User(Rc::new(UserFunction {
+            Object::Function(Function::User(self.arena.alloc(UserFunction {
               parameters: parameters.clone(),
               body: body.clone(),
               kind: kind.clone(),
             })));
-          self.env_mut(span)?.set(name, Rc::new(function), *public);
+          self.env_mut(span)?.set(name, function, *public);
           Ok(Object::Void)
         }
         StatementKind::Return { value } => {
@@ -116,7 +110,7 @@ impl<'ast> Interpreter<'ast> {
             None => Object::Void,
           };
           let value = self.resolve_object(value).await?;
-          Ok(Object::Return(Rc::new(value)))
+          Ok(Object::Return(self.arena.alloc(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),

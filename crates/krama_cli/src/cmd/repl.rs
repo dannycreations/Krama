@@ -39,12 +39,12 @@ async fn evaluate_line<'a>(
 
 impl Repl {
   pub async fn execute(&self, arena: &mut Bump) -> Result<()> {
-    let interpreter = Interpreter::new(arena, None);
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
     let mut line = String::new();
 
     loop {
+      let interpreter = Interpreter::new(arena, None);
       stdout.write_all(b">> ").await?;
       stdout.flush().await?;
       line.clear();
@@ -61,6 +61,8 @@ impl Repl {
                           break;
                       }
                       evaluate_line(&interpreter, arena, &line).await;
+                      drop(interpreter);
+                      arena.reset();
                   }
                   Err(e) => {
                       eprintln!("Error: {:?}", e);

@@ -16,7 +16,7 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Object<'ast>, Error> {
     if let Some(distance) = self.locals.borrow().get(&expression.span) {
       if let Some(value) = self.get_at(*distance, name) {
-        return Ok(value.as_ref().clone());
+        return Ok(value.clone());
       }
     }
 
@@ -27,7 +27,7 @@ impl<'ast> Interpreter<'ast> {
           kind: ErrorKind::ReferenceError(format!("'{}' is not defined", name)),
         })
       },
-      |v| Ok(v.as_ref().clone()),
+      |v| Ok(v.clone()),
     )
   }
 }

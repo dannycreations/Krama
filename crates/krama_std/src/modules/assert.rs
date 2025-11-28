@@ -1,4 +1,4 @@
-use bumpalo::{collections::Vec as BumpVec, Bump};
+use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
 use krama_core::{
   error::{Error, ErrorKind},
@@ -16,7 +16,7 @@ pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
 
 fn assert<'ast>(
   _: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, condition: condition);
@@ -33,7 +33,7 @@ fn assert<'ast>(
 
 fn assert_eq<'ast>(
   _: &'ast Bump,
-  objects: BumpVec<'ast, Object<'ast>>,
+  objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
   Box::pin(async move {
     parse_args!(objects, a: a, b: b);

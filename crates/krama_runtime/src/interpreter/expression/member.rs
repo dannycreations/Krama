@@ -33,10 +33,10 @@ impl<'ast> Interpreter<'ast> {
       }
     }
 
-    if let Object::Scope(ref scope) = resolved_object {
+    if let Object::Scope(scope) = resolved_object {
       if scope.name.is_some() {
         if let Some(export) = scope.bindings.get(property_name) {
-          return Ok(export.as_ref().clone());
+          return Ok(export.clone());
         }
       }
     }
