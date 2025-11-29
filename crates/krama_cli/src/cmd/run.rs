@@ -17,9 +17,9 @@ impl Run {
     let interpreter = Interpreter::new(arena, Some(self.file.as_str()));
     let content = fs::read_to_string(&self.file).await?;
     let content_in_arena = arena.alloc_str(&content);
-    if let Err(err) = interpreter.eval(content_in_arena).await {
-      report_error(&self.file, &content, err.clone());
-      return Err(anyhow!(err));
+    if let Err((kind, span)) = interpreter.eval(content_in_arena).await {
+      report_error(&self.file, &content, span, kind);
+      return Err(anyhow!("evaluation failed"));
     }
     Ok(())
   }

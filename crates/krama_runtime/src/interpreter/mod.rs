@@ -13,7 +13,7 @@ use std::cell::{RefCell, RefMut};
 use bumpalo::Bump;
 use krama_core::{
   ast::{expression::Expression, statement::Statement, Program},
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   object::Object,
   span::Span,
 };
@@ -32,7 +32,7 @@ pub struct Interpreter<'ast> {
   pub path: Option<&'ast str>,
   pub(super) props:
     &'ast FxHashMap<&'static str, FxHashMap<&'static str, PropFn<'ast>>>,
-  locals: RefCell<FxHashMap<Span, usize>>,
+  locals: RefCell<FxHashMap<Span<'ast>, usize>>,
 }
 
 impl<'ast> Interpreter<'ast> {
@@ -95,7 +95,10 @@ impl<'ast> Interpreter<'ast> {
     self.arena.alloc_str(s)
   }
 
-  pub async fn eval(&self, source: &'ast str) -> Result<Object<'ast>, Error> {
+  pub async fn eval(
+    &self,
+    source: &'ast str,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let program = self.parse_and_resolve(source)?;
     self.eval_program_statements(&program.statements).await
   }
@@ -103,8 +106,8 @@ impl<'ast> Interpreter<'ast> {
   pub fn parse_and_resolve(
     &self,
     source: &'ast str,
-  ) -> Result<Program<'ast>, Error> {
-    let lexer = Lexer::new(source);
+  ) -> Result<Program<'ast>, (ErrorKind, Span<'ast>)> {
+    let lexer = Lexer::new(source, self.path);
     let mut parser = Parser::new(lexer, self.arena);
     let program = parser.parse()?;
     let mut resolver = Resolver::new(self);
@@ -115,7 +118,7 @@ impl<'ast> Interpreter<'ast> {
   pub async fn eval_program_statements<'s>(
     &'s self,
     statements: &'s [Statement<'ast>],
-  ) -> Result<Object<'ast>, Error> {
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let mut result = Object::Void;
     for statement in statements {
       result = self.eval_statement(statement).await?;
@@ -126,21 +129,19 @@ impl<'ast> Interpreter<'ast> {
   async fn resolve_object(
     &self,
     object: Object<'ast>,
-  ) -> Result<Object<'ast>, Error> {
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let mut current_object = object;
     while let Object::Future(future_cell) = current_object {
       let future = future_cell.borrow_mut().take();
       if let Some(future) = future {
         current_object = future.await?;
       } else {
-        return Err(Error {
-          span: Default::default(),
-          kind: ErrorKind::RuntimeError(
+        return Err((
+          ErrorKind::RuntimeError(
             "Future has already been consumed".to_string(),
           ),
-          file_path: None,
-          source: None,
-        });
+          Span::new(0, 0, None, None),
+        ));
       }
     }
     Ok(current_object)
@@ -148,17 +149,15 @@ impl<'ast> Interpreter<'ast> {
 
   pub(super) fn env_mut(
     &self,
-    span: Span,
-  ) -> Result<RefMut<'_, Environment<'ast>>, Error> {
-    self.environment.try_borrow_mut().map_err(|e| Error {
-      span,
-      kind: ErrorKind::RuntimeError(e.to_string()),
-      file_path: None,
-      source: None,
-    })
+    span: Span<'ast>,
+  ) -> Result<RefMut<'_, Environment<'ast>>, (ErrorKind, Span<'ast>)> {
+    self
+      .environment
+      .try_borrow_mut()
+      .map_err(|e| (ErrorKind::RuntimeError(e.to_string()), span))
   }
 
   pub(crate) fn resolve(&self, expr: &Expression<'ast>, depth: usize) {
-    self.locals.borrow_mut().insert(expr.span, depth);
+    self.locals.borrow_mut().insert(expr.span.clone(), depth);
   }
 }

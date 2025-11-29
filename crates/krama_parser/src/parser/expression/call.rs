@@ -4,18 +4,22 @@ use krama_core::{
     expression::{Expression, ExpressionKind},
     precedence::Precedence,
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
+  span::Span,
   token::TokenKind,
 };
 
-use super::{ParseError, Parser};
+use crate::parser::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast> {
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
   pub(super) fn parse_call_expression(
     &mut self,
     function: Expression<'ast>,
-  ) -> ParseError<'ast> {
-    let token = self.current_token;
+  ) -> ParseError<'a, 'ast> {
+    let token = self.current_token.clone();
     let arguments = self.parse_call_arguments()?;
     Ok(Expression::new(
       ExpressionKind::Call {
@@ -28,7 +32,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
 
   fn parse_call_arguments(
     &mut self,
-  ) -> Result<BumpVec<'ast, Expression<'ast>>, Error> {
+  ) -> Result<BumpVec<'ast, Expression<'ast>>, (ErrorKind, Span<'a>)> {
     self.advance();
     let mut arguments = BumpVec::new_in(self.arena);
     if self.current_token.kind == TokenKind::RParen {
@@ -43,15 +47,13 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     }
 
     if self.current_token.kind != TokenKind::RParen {
-      return Err(Error {
-        span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(format!(
+      return Err((
+        ErrorKind::SyntaxError(format!(
           "Expected {} after arguments",
           TokenKind::RParen
         )),
-        file_path: None,
-        source: None,
-      });
+        self.current_token.span.clone(),
+      ));
     }
     self.advance();
 

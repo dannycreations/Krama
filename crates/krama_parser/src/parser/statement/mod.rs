@@ -11,15 +11,21 @@ use krama_core::{
     precedence::Precedence,
     statement::{Statement, StatementKind},
   },
-  error::Error,
+  error::ErrorKind,
+  span::Span,
   token::TokenKind,
 };
 
-use super::Parser;
+use crate::parser::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast> {
-  pub(super) fn parse_statement(&mut self) -> Result<Statement<'ast>, Error> {
-    let token = self.current_token;
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
+  pub(super) fn parse_statement(
+    &mut self,
+  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
+    let token = self.current_token.clone();
 
     let statement = match token.kind {
       TokenKind::Pub => self.parse_pub_statement(),
@@ -33,7 +39,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       TokenKind::While => self.parse_while_statement(),
       _ => {
         let expression = self.parse_expression(Precedence::Lowest)?;
-        let span = expression.span;
+        let span = expression.span.clone();
         let statement_kind = StatementKind::Expression {
           expression: self.arena.alloc(expression),
         };

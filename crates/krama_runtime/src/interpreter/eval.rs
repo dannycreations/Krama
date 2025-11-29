@@ -9,8 +9,9 @@ use krama_core::{
     operator::BinaryOperator,
     types::{Type, TypeKind},
   },
-  error::Error,
+  error::ErrorKind,
   object::{Function, Object, UserFunction},
+  span::Span,
 };
 
 use super::Interpreter;
@@ -20,9 +21,12 @@ impl<'ast> Interpreter<'ast> {
     &'s self,
     expression: &'s Expression<'ast>,
     kind: Option<&'s Type<'ast>>,
-  ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
+  ) -> LocalBoxFuture<'s, Result<Object<'ast>, (ErrorKind, Span<'ast>)>>
+  where
+    'ast: 's,
+  {
     async move {
-      let span = expression.span;
+      let span = expression.span.clone();
       match &expression.kind {
         ExpressionKind::Literal(literal) => self.eval_literal(*literal),
         ExpressionKind::Identifier(name) => {

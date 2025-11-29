@@ -32,7 +32,7 @@ fn find_test_files(path: &Path) -> Result<Vec<PathBuf>, Error> {
 }
 
 impl Test {
-  pub async fn execute(&self, arena: &mut Bump) -> Result<()> {
+  pub async fn execute(&self, _: &mut Bump) -> Result<()> {
     let mut passed = 0;
     let mut failed = 0;
 
@@ -44,30 +44,34 @@ impl Test {
     let test_files = find_test_files(path)?;
 
     for path_buf in test_files {
+      let arena = Box::new(Bump::new());
+      let arena = Box::leak(arena);
       let path = path_buf.as_path();
       let content = fs::read_to_string(&path).await?;
       let path_str = path.to_str().context("path is not valid UTF-8")?;
 
       println!("Running tests in {}", path.display());
-      {
-        let interpreter = Interpreter::new(arena, Some(path_str));
-        let program = interpreter.parse_and_resolve(&content)?;
-        let results = interpreter.run_tests(&program.statements).await;
-        for result in results {
-          match result {
-            TestResult::Success(name) => {
-              println!("  test {} ... ok", name);
-              passed += 1;
-            }
-            TestResult::Failure(name, err) => {
-              println!("  '{}'... failed", name);
-              report_error(path_str, &content, err);
-              failed += 1;
-            }
+
+      let content_in_arena = arena.alloc_str(&content);
+      let path_in_arena = arena.alloc_str(path_str);
+      let interpreter = Interpreter::new(arena, Some(path_in_arena));
+      let program = interpreter.parse_and_resolve(content_in_arena).map_err(
+        |(kind, span)| anyhow!("Error: {}, Span: {:?}", kind.message(), span),
+      )?;
+      let results = interpreter.run_tests(&program.statements).await;
+      for result in results {
+        match result {
+          TestResult::Success(name) => {
+            println!("  test {} ... ok", name);
+            passed += 1;
+          }
+          TestResult::Failure(name, (kind, span)) => {
+            println!("  '{}'... failed", name);
+            report_error(path_str, &content, span, kind);
+            failed += 1;
           }
         }
       }
-      arena.reset();
     }
     println!("\nTest results: {} passed, {} failed", passed, failed);
 

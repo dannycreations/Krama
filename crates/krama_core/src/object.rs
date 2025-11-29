@@ -12,7 +12,7 @@ use strum_macros::EnumProperty as EnumPropertyMacro;
 
 use crate::{
   ast::{expression::FunctionBody, statement::Parameter, types::Type},
-  error::Error,
+  error::ErrorKind,
   scope::Scope,
   span::Span,
 };
@@ -20,11 +20,11 @@ use crate::{
 pub type NativeFunctionCb<'ast> =
   fn(
     &'ast Bump,
-    Span,
     &'ast [Object<'ast>],
-  ) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>>;
+  ) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>>;
 
-pub type ObjectFuture<'ast> = LocalBoxFuture<'ast, Result<Object<'ast>, Error>>;
+pub type ObjectFuture<'ast> =
+  LocalBoxFuture<'ast, Result<Object<'ast>, (ErrorKind, Span<'ast>)>>;
 
 #[derive(Clone, Copy)]
 pub struct NativeFunction<'ast> {

@@ -1,6 +1,6 @@
 use krama_core::{
   ast::expression::FunctionBody,
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   object::{Function, Object, UserFunction},
   span::Span,
 };
@@ -12,26 +12,26 @@ impl<'ast> Interpreter<'ast> {
     &self,
     function: Object<'ast>,
     arguments: &'ast [Object<'ast>],
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     match function {
       Object::Function(function) => match function {
         Function::Native(native_fn) => {
-          (native_fn.callback)(self.arena, span, arguments).await
+          (native_fn.callback)(self.arena, arguments)
+            .await
+            .map_err(|kind| (kind, span))
         }
         Function::User(user_fn) => {
           self.eval_user_function_call(user_fn, arguments, span).await
         }
       },
-      _ => Err(Error {
-        span,
-        kind: ErrorKind::TypeError(format!(
+      _ => Err((
+        ErrorKind::TypeError(format!(
           "Expected a function, but got {}",
           function.type_name()
         )),
-        file_path: None,
-        source: None,
-      }),
+        span,
+      )),
     }
   }
 
@@ -39,19 +39,17 @@ impl<'ast> Interpreter<'ast> {
     &self,
     user_fn: &'ast UserFunction<'ast>,
     arguments: &'ast [Object<'ast>],
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     if arguments.len() > user_fn.parameters.len() {
-      return Err(Error {
-        span,
-        kind: ErrorKind::TypeError(format!(
+      return Err((
+        ErrorKind::TypeError(format!(
           "Expected {} arguments, but got {}",
           user_fn.parameters.len(),
           arguments.len()
         )),
-        file_path: None,
-        source: None,
-      });
+        span,
+      ));
     }
     let new_interpreter = self.new_enclosed();
 
@@ -61,15 +59,13 @@ impl<'ast> Interpreter<'ast> {
       } else if let Some(default) = param.default {
         new_interpreter.eval_expression(default, None).await?
       } else {
-        return Err(Error {
-          span,
-          kind: ErrorKind::TypeError(format!(
+        return Err((
+          ErrorKind::TypeError(format!(
             "Missing argument for parameter '{}'",
             param.name
           )),
-          file_path: None,
-          source: None,
-        });
+          span,
+        ));
       };
       new_interpreter
         .environment

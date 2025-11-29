@@ -24,24 +24,29 @@ macro_rules! token {
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
-  input: &'a str,
+  source: &'a str,
+  file: Option<&'a str>,
   position: usize,
 }
 
 impl<'a> Lexer<'a> {
-  pub fn new(input: &'a str) -> Self {
-    Self { input, position: 0 }
+  pub fn new(source: &'a str, file: Option<&'a str>) -> Self {
+    Self {
+      source,
+      file,
+      position: 0,
+    }
   }
 
-  pub fn input_len(&self) -> usize {
-    self.input.len()
+  pub fn source_len(&self) -> usize {
+    self.source.len()
   }
 
   fn current_char(&self) -> Option<(char, usize)> {
-    if self.position >= self.input.len() {
+    if self.position >= self.source.len() {
       return None;
     }
-    self.input[self.position..]
+    self.source[self.position..]
       .chars()
       .next()
       .map(|c| (c, c.len_utf8()))
@@ -54,10 +59,10 @@ impl<'a> Lexer<'a> {
   pub(super) fn peek_next(&self) -> Option<char> {
     let (_, current_len) = self.current_char()?;
     let next_pos = self.position + current_len;
-    if next_pos >= self.input.len() {
+    if next_pos >= self.source.len() {
       return None;
     }
-    self.input[next_pos..].chars().next()
+    self.source[next_pos..].chars().next()
   }
 
   pub(super) fn advance(&mut self) -> Option<char> {
@@ -76,12 +81,12 @@ impl<'a> Lexer<'a> {
     false
   }
 
-  pub(super) fn span(&self, start: usize) -> Span {
-    Span::new(start, self.position)
+  pub(super) fn span(&self, start: usize) -> Span<'a> {
+    Span::new(start, self.position, Some(self.source), self.file)
   }
 
   pub(super) fn slice(&self, start: usize, end: usize) -> &'a str {
-    &self.input[start..end]
+    &self.source[start..end]
   }
 
   fn skip_trivia(&mut self) {

@@ -1,6 +1,6 @@
 use krama_core::{
   ast::expression::{ExpressionKind, MatchPattern},
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   object::Object,
   span::Span,
 };
@@ -8,12 +8,15 @@ use krama_core::{
 use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) async fn eval_match_pattern(
-    &self,
-    subject: &Object<'ast>,
-    pattern: &MatchPattern<'ast>,
-    span: Span,
-  ) -> Result<bool, Error> {
+  pub(crate) async fn eval_match_pattern<'s>(
+    &'s self,
+    subject: &'s Object<'ast>,
+    pattern: &'s MatchPattern<'ast>,
+    span: Span<'ast>,
+  ) -> Result<bool, (ErrorKind, Span<'ast>)>
+  where
+    'ast: 's,
+  {
     match (pattern, subject) {
       (MatchPattern::Expression(expression), _) => {
         if let ExpressionKind::Literal(literal) = expression.kind {
@@ -30,14 +33,12 @@ impl<'ast> Interpreter<'ast> {
         if let (Object::Integer(start), Object::Integer(end)) = (start, end) {
           Ok(*i >= start && *i <= end)
         } else {
-          Err(Error {
-            span,
-            kind: ErrorKind::TypeError(
+          Err((
+            ErrorKind::TypeError(
               "Range pattern can only be used on integers".to_string(),
             ),
-            file_path: None,
-            source: None,
-          })
+            span,
+          ))
         }
       }
       (MatchPattern::Range(start, end), Object::String(s)) => {
@@ -49,14 +50,12 @@ impl<'ast> Interpreter<'ast> {
           let subject_char = s.chars().next().unwrap();
           Ok(subject_char >= start_char && subject_char <= end_char)
         } else {
-          Err(Error {
-            span,
-            kind: ErrorKind::TypeError(
+          Err((
+            ErrorKind::TypeError(
               "Range pattern can only be used on strings".to_string(),
             ),
-            file_path: None,
-            source: None,
-          })
+            span,
+          ))
         }
       }
       (MatchPattern::Else, _) => Ok(true),

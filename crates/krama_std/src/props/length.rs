@@ -1,14 +1,9 @@
 use futures::future::{FutureExt, LocalBoxFuture};
-use krama_core::{
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
-};
+use krama_core::{error::ErrorKind, object::Object};
 
 pub(super) fn length<'ast>(
   object: Object<'ast>,
-  span: Span,
-) -> LocalBoxFuture<'ast, Result<Object<'ast>, Error>> {
+) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>> {
   async move {
     match object {
       Object::Array { elements, .. } => {
@@ -16,15 +11,10 @@ pub(super) fn length<'ast>(
       }
       Object::Tuple { elements } => Ok(Object::Integer(elements.len() as i64)),
       Object::String(s) => Ok(Object::Integer(s.len() as i64)),
-      _ => Err(Error {
-        span,
-        kind: ErrorKind::TypeError(format!(
-          "Cannot get length of type `{}`",
-          object.type_name()
-        )),
-        file_path: None,
-        source: None,
-      }),
+      _ => Err(ErrorKind::TypeError(format!(
+        "Cannot get length of type `{}`",
+        object.type_name()
+      ))),
     }
   }
   .boxed_local()

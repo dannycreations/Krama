@@ -19,12 +19,12 @@ pub struct Program<'ast> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node<'ast, T> {
   pub kind: T,
-  pub span: Span,
+  pub span: Span<'ast>,
   _phantom: PhantomData<&'ast ()>,
 }
 
 impl<'ast, T> Node<'ast, T> {
-  pub fn new(kind: T, span: Span) -> Self {
+  pub fn new(kind: T, span: Span<'ast>) -> Self {
     Self {
       kind,
       span,

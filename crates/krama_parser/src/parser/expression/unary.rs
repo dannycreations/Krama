@@ -4,15 +4,18 @@ use krama_core::{
     operator::{UnaryOperator, UpdateOperator},
     precedence::Precedence,
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   token::TokenKind,
 };
 
-use super::{ParseError, Parser};
+use crate::parser::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast> {
-  pub(super) fn parse_unary_expression(&mut self) -> ParseError<'ast> {
-    let token = self.current_token;
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
+  pub(super) fn parse_unary_expression(&mut self) -> ParseError<'a, 'ast> {
+    let token = self.current_token.clone();
     self.advance();
     let operator = match token.kind {
       TokenKind::Bang => UnaryOperator::Not,
@@ -20,12 +23,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       TokenKind::Tilde => UnaryOperator::BitwiseNot,
       TokenKind::Plus => return self.parse_expression(Precedence::Prefix),
       _ => {
-        return Err(Error {
-          span: token.span,
-          kind: ErrorKind::SyntaxError("Invalid unary operator".to_string()),
-          file_path: None,
-          source: None,
-        })
+        return Err((
+          ErrorKind::SyntaxError("Invalid unary operator".to_string()),
+          token.span,
+        ))
       }
     };
     let right = self.parse_expression(Precedence::Prefix)?;
@@ -38,19 +39,19 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     ))
   }
 
-  pub(super) fn parse_prefix_update_expression(&mut self) -> ParseError<'ast> {
-    let token = self.current_token;
+  pub(super) fn parse_prefix_update_expression(
+    &mut self,
+  ) -> ParseError<'a, 'ast> {
+    let token = self.current_token.clone();
     self.advance();
     let operator = match token.kind {
       TokenKind::PlusPlus => UpdateOperator::Increment,
       TokenKind::MinusMinus => UpdateOperator::Decrement,
       _ => {
-        return Err(Error {
-          span: token.span,
-          kind: ErrorKind::SyntaxError("Invalid prefix operator".to_string()),
-          file_path: None,
-          source: None,
-        })
+        return Err((
+          ErrorKind::SyntaxError("Invalid prefix operator".to_string()),
+          token.span,
+        ))
       }
     };
     let argument = self.parse_expression(Precedence::Prefix)?;

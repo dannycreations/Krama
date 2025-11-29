@@ -1,8 +1,5 @@
 use krama_core::{
-  ast::operator::UnaryOperator,
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
+  ast::operator::UnaryOperator, error::ErrorKind, object::Object, span::Span,
 };
 
 use crate::interpreter::Interpreter;
@@ -12,32 +9,28 @@ impl<'ast> Interpreter<'ast> {
     &self,
     operator: UnaryOperator,
     right: Object<'ast>,
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     match operator {
       UnaryOperator::Not => Ok(Object::Boolean(!right.is_truthy())),
       UnaryOperator::Negate => match right {
         Object::Integer(i) => Ok(Object::Integer(-i)),
         Object::Float(f) => Ok(Object::Float(-f)),
-        _ => Err(Error {
-          span,
-          kind: ErrorKind::TypeError(
+        _ => Err((
+          ErrorKind::TypeError(
             "Unary '-' operator can only be applied to numbers".to_string(),
           ),
-          file_path: None,
-          source: None,
-        }),
+          span,
+        )),
       },
       UnaryOperator::BitwiseNot => match right {
         Object::Integer(i) => Ok(Object::Integer(!i)),
-        _ => Err(Error {
-          span,
-          kind: ErrorKind::TypeError(
+        _ => Err((
+          ErrorKind::TypeError(
             "Bitwise not operator can only be applied to integers".to_string(),
           ),
-          file_path: None,
-          source: None,
-        }),
+          span,
+        )),
       },
     }
   }

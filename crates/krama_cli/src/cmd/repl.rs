@@ -27,7 +27,7 @@ async fn evaluate_line<'a>(interpreter: &Interpreter<'a>, line: &'a str) {
         println!("{}", object);
       }
     }
-    Err(err) => report_error("repl", trimmed_line, err),
+    Err((kind, span)) => report_error("repl", trimmed_line, span, kind),
   };
 }
 
@@ -36,7 +36,7 @@ impl Repl {
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
     let mut line = String::new();
-    let interpreter = Interpreter::new(arena, None);
+    let interpreter = Interpreter::new(arena, Some("repl"));
 
     loop {
       stdout.write_all(b">> ").await?;

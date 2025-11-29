@@ -3,16 +3,13 @@ pub mod length;
 use std::iter::FromIterator;
 
 use futures::future::LocalBoxFuture;
-use krama_core::{object::Object, span::Span};
+use krama_core::{error::ErrorKind, object::Object};
 use rustc_hash::FxHashMap;
 
 use self::length::length;
 
 pub type PropFn<'ast> =
-  fn(
-    Object<'ast>,
-    Span,
-  ) -> LocalBoxFuture<'ast, Result<Object<'ast>, krama_core::error::Error>>;
+  fn(Object<'ast>) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>>;
 
 pub fn get_props<'ast>(
 ) -> FxHashMap<&'static str, FxHashMap<&'static str, PropFn<'ast>>> {

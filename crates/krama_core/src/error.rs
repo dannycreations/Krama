@@ -1,24 +1,6 @@
-use std::fmt::{Display, Formatter, Result};
+use std::fmt::{Display, Formatter};
 
 use strum_macros::AsRefStr;
-
-use crate::span::Span;
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Error {
-  pub span: Span,
-  pub kind: ErrorKind,
-  pub file_path: Option<String>,
-  pub source: Option<String>,
-}
-
-impl Display for Error {
-  fn fmt(&self, f: &mut Formatter) -> Result {
-    write!(f, "{}", self.kind)
-  }
-}
-
-impl std::error::Error for Error {}
 
 #[derive(Debug, Clone, PartialEq, AsRefStr)]
 #[strum(serialize_all = "PascalCase")]

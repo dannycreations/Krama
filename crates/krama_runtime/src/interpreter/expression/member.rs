@@ -1,6 +1,6 @@
 use krama_core::{
   ast::expression::{Expression, ExpressionKind},
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   object::Object,
   span::Span,
 };
@@ -12,26 +12,24 @@ impl<'ast> Interpreter<'ast> {
     &self,
     object: Object<'ast>,
     property: &Expression<'ast>,
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let resolved_object = self.resolve_object(object).await?;
     let property_name = if let ExpressionKind::Identifier(name) = property.kind
     {
       name
     } else {
-      return Err(Error {
+      return Err((
+        ErrorKind::TypeError("Invalid member expression".to_string()),
         span,
-        kind: ErrorKind::TypeError("Invalid member expression".to_string()),
-        file_path: None,
-        source: None,
-      });
+      ));
     };
 
     let object_type = resolved_object.type_name();
 
     if let Some(props) = self.props.get(object_type) {
       if let Some(prop) = props.get(property_name) {
-        return prop(resolved_object, span).await;
+        return prop(resolved_object).await.map_err(|kind| (kind, span));
       }
     }
 
@@ -43,15 +41,13 @@ impl<'ast> Interpreter<'ast> {
       }
     }
 
-    Err(Error {
-      span,
-      kind: ErrorKind::ReferenceError(format!(
+    Err((
+      ErrorKind::ReferenceError(format!(
         "Property '{}' not found for type '{}'",
         property_name,
         resolved_object.type_name()
       )),
-      file_path: None,
-      source: None,
-    })
+      span,
+    ))
   }
 }

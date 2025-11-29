@@ -3,7 +3,7 @@ use krama_core::{
     expression::{Expression, ExpressionKind},
     operator::{AssignmentOperator, BinaryOperator, UpdateOperator},
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   object::Object,
   span::Span,
 };
@@ -16,19 +16,15 @@ impl<'ast> Interpreter<'ast> {
     left: &Expression<'ast>,
     operator: AssignmentOperator,
     right: &Expression<'ast>,
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let ident = if let ExpressionKind::Identifier(name) = left.kind {
       name
     } else {
-      return Err(Error {
+      return Err((
+        ErrorKind::TypeError("Expected identifier for assignment".to_string()),
         span,
-        kind: ErrorKind::TypeError(
-          "Expected identifier for assignment".to_string(),
-        ),
-        file_path: None,
-        source: None,
-      });
+      ));
     };
 
     let right_val = self.eval_expression(right, None).await?;
@@ -52,11 +48,8 @@ impl<'ast> Interpreter<'ast> {
     } else {
       self.environment.borrow().get(ident)
     }
-    .ok_or_else(|| Error {
-      span,
-      kind: ErrorKind::ReferenceError(ident.to_string()),
-      file_path: None,
-      source: None,
+    .ok_or_else(|| {
+      (ErrorKind::ReferenceError(ident.to_string()), span.clone())
     })?;
 
     let binary_op = match operator {
@@ -77,7 +70,7 @@ impl<'ast> Interpreter<'ast> {
       binary_op,
       left_val.clone(),
       resolved_right_val,
-      span,
+      span.clone(),
     )?;
 
     if let Some(distance) = distance {
@@ -94,19 +87,17 @@ impl<'ast> Interpreter<'ast> {
     operator: UpdateOperator,
     argument: &Expression<'ast>,
     prefix: bool,
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let ident = if let ExpressionKind::Identifier(name) = argument.kind {
       name
     } else {
-      return Err(Error {
-        span,
-        kind: ErrorKind::TypeError(
+      return Err((
+        ErrorKind::TypeError(
           "Expected identifier for update expression".to_string(),
         ),
-        file_path: None,
-        source: None,
-      });
+        span,
+      ));
     };
 
     let distance = self.locals.borrow().get(&argument.span).copied();
@@ -115,11 +106,8 @@ impl<'ast> Interpreter<'ast> {
     } else {
       self.environment.borrow().get(ident)
     }
-    .ok_or_else(|| Error {
-      span,
-      kind: ErrorKind::ReferenceError(ident.to_string()),
-      file_path: None,
-      source: None,
+    .ok_or_else(|| {
+      (ErrorKind::ReferenceError(ident.to_string()), span.clone())
     })?;
     let resolved_original_value = self.resolve_object(original_value).await?;
     let new_value = match (operator, resolved_original_value.clone()) {
@@ -128,14 +116,12 @@ impl<'ast> Interpreter<'ast> {
       (UpdateOperator::Increment, Object::Float(f)) => Object::Float(f + 1.0),
       (UpdateOperator::Decrement, Object::Float(f)) => Object::Float(f - 1.0),
       _ => {
-        return Err(Error {
-          span,
-          kind: ErrorKind::TypeError(
+        return Err((
+          ErrorKind::TypeError(
             "Update operator can only be applied to numbers".to_string(),
           ),
-          file_path: None,
-          source: None,
-        })
+          span,
+        ))
       }
     };
 

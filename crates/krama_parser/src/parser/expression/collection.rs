@@ -9,9 +9,12 @@ use krama_core::{
 
 use crate::parser::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast> {
-  pub(super) fn parse_collection_expression(&mut self) -> ParseError<'ast> {
-    let start_span = self.current_token.span;
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
+  pub(super) fn parse_collection_expression(&mut self) -> ParseError<'a, 'ast> {
+    let start_span = self.current_token.span.clone();
 
     let mut elements = BumpVec::new_in(self.arena);
 
@@ -22,7 +25,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       .is_some_and(|t| t.kind == TokenKind::RBracket)
     {
       self.advance();
-      let end_span = self.current_token.span;
+      let end_span = self.current_token.span.clone();
       self.advance();
       return Ok(Expression::new(
         ExpressionKind::Collection { elements },
@@ -44,7 +47,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       }
     }
 
-    let end_span = self.current_token.span;
+    let end_span = self.current_token.span.clone();
     self.consume_token(TokenKind::RBracket)?;
 
     Ok(Expression::new(

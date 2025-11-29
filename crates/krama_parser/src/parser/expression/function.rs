@@ -5,16 +5,19 @@ use krama_core::{
     precedence::Precedence,
     statement::Parameter,
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   span::Span,
   token::TokenKind,
 };
 
 use crate::parser::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast> {
-  pub(super) fn parse_fn_expression(&mut self) -> ParseError<'ast> {
-    let start_span = self.current_token.span;
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
+  pub(super) fn parse_fn_expression(&mut self) -> ParseError<'a, 'ast> {
+    let start_span = self.current_token.span.clone();
     self.advance();
 
     self.consume_token(TokenKind::LParen)?;
@@ -49,7 +52,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
 
   pub(crate) fn parse_fn_parameters(
     &mut self,
-  ) -> Result<BumpVec<'ast, Parameter<'ast>>, Error> {
+  ) -> Result<BumpVec<'ast, Parameter<'ast>>, (ErrorKind, Span<'a>)> {
     let mut parameters = BumpVec::new_in(self.arena);
     if self.current_token.kind == TokenKind::RParen {
       self.advance();
@@ -57,16 +60,14 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     }
 
     loop {
-      let param_span_start = self.current_token.span;
+      let param_span_start = self.current_token.span.clone();
       let name = if let TokenKind::Identifier(name) = self.current_token.kind {
         self.arena.alloc_str(name)
       } else {
-        return Err(Error {
-          span: self.current_token.span,
-          kind: ErrorKind::SyntaxError("Expected parameter name".to_string()),
-          file_path: None,
-          source: None,
-        });
+        return Err((
+          ErrorKind::SyntaxError("Expected parameter name".to_string()),
+          self.current_token.span.clone(),
+        ));
       };
       self.advance();
 
@@ -99,15 +100,13 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     }
 
     if self.current_token.kind != TokenKind::RParen {
-      return Err(Error {
-        span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(format!(
+      return Err((
+        ErrorKind::SyntaxError(format!(
           "Expected {} after parameters",
           TokenKind::RParen
         )),
-        file_path: None,
-        source: None,
-      });
+        self.current_token.span.clone(),
+      ));
     }
     self.advance();
 
@@ -116,9 +115,9 @@ impl<'a, 'ast> Parser<'a, 'ast> {
 
   pub(super) fn parse_fn_expr_with_params(
     &mut self,
-    start_span: Span,
+    start_span: Span<'a>,
     parameters: BumpVec<'ast, Parameter<'ast>>,
-  ) -> ParseError<'ast> {
+  ) -> ParseError<'a, 'ast> {
     let body = if self.current_token.kind == TokenKind::Arrow {
       self.advance();
       let body_expr = self.parse_expression(Precedence::Lowest)?;

@@ -23,7 +23,7 @@ pub enum Precedence {
 }
 
 impl Precedence {
-  pub fn from_token(token: Token) -> Precedence {
+  pub fn from_token(token: &Token) -> Precedence {
     match token.kind {
       TokenKind::Equal
       | TokenKind::PlusEqual

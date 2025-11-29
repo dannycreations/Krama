@@ -1,8 +1,5 @@
 use krama_core::{
-  ast::expression::Expression,
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
+  ast::expression::Expression, error::ErrorKind, object::Object, span::Span,
 };
 
 use super::Interpreter;
@@ -12,8 +9,8 @@ impl<'ast> Interpreter<'ast> {
     &self,
     expression: &Expression<'ast>,
     name: &'ast str,
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     if let Some(distance) = self.locals.borrow().get(&expression.span) {
       if let Some(value) = self.get_at(*distance, name) {
         return Ok(value.clone());
@@ -22,12 +19,10 @@ impl<'ast> Interpreter<'ast> {
 
     self.environment.borrow().get(name).map_or_else(
       || {
-        Err(Error {
+        Err((
+          ErrorKind::ReferenceError(format!("'{}' is not defined", name)),
           span,
-          kind: ErrorKind::ReferenceError(format!("'{}' is not defined", name)),
-          file_path: None,
-          source: None,
-        })
+        ))
       },
       |v| Ok(v.clone()),
     )

@@ -3,34 +3,34 @@ use krama_core::{
     expression::{Expression, ExpressionKind},
     operator::{AssignmentOperator, BinaryOperator, UpdateOperator},
   },
-  error::{Error, ErrorKind},
-  span::Span,
+  error::ErrorKind,
   token::TokenKind,
 };
 
-use super::{ParseError, Parser};
+use crate::parser::{ParseError, Parser};
 
 enum InfixOperator {
   Binary(BinaryOperator),
   Assignment(AssignmentOperator),
 }
 
-impl<'a, 'ast> Parser<'a, 'ast> {
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
   pub(super) fn parse_postfix_expression(
     &mut self,
     argument: Expression<'ast>,
-  ) -> ParseError<'ast> {
-    let token = self.current_token;
+  ) -> ParseError<'a, 'ast> {
+    let token = self.current_token.clone();
     let operator = match token.kind {
       TokenKind::PlusPlus => UpdateOperator::Increment,
       TokenKind::MinusMinus => UpdateOperator::Decrement,
       _ => {
-        return Err(Error {
-          span: token.span,
-          kind: ErrorKind::SyntaxError("Invalid postfix operator".to_string()),
-          file_path: None,
-          source: None,
-        })
+        return Err((
+          ErrorKind::SyntaxError("Invalid postfix operator".to_string()),
+          token.span,
+        ))
       }
     };
     self.advance();
@@ -48,9 +48,9 @@ impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_infix_expression(
     &mut self,
     left: Expression<'ast>,
-  ) -> ParseError<'ast> {
+  ) -> ParseError<'a, 'ast> {
     let precedence = self.current_precedence();
-    let token = self.current_token;
+    let token = self.current_token.clone();
 
     let operator = match token.kind {
       TokenKind::Plus => InfixOperator::Binary(BinaryOperator::Add),
@@ -116,12 +116,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         InfixOperator::Assignment(AssignmentOperator::RightShiftAssign)
       }
       _ => {
-        return Err(Error {
-          span: token.span,
-          kind: ErrorKind::SyntaxError("Invalid infix operator".to_string()),
-          file_path: None,
-          source: None,
-        })
+        return Err((
+          ErrorKind::SyntaxError("Invalid infix operator".to_string()),
+          token.span,
+        ))
       }
     };
 
@@ -138,7 +136,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         token.span,
       )),
       InfixOperator::Binary(op) => {
-        let span = Span::new(left.span.start, right.span.end);
+        let span = left.span.merge(&right.span);
         Ok(Expression::new(
           ExpressionKind::Binary {
             left: self.arena.alloc(left),

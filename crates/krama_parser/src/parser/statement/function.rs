@@ -4,31 +4,30 @@ use krama_core::{
     precedence::Precedence,
     statement::{Statement, StatementKind},
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   span::Span,
   token::TokenKind,
 };
 
-use super::Parser;
+use crate::parser::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast> {
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
   pub(super) fn parse_fn_statement(
     &mut self,
     public: bool,
-    start_span: Span,
-  ) -> Result<Statement<'ast>, Error> {
+    start_span: Span<'a>,
+  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
     self.advance();
     let name = if let TokenKind::Identifier(name) = self.current_token.kind {
       self.arena.alloc_str(name)
     } else {
-      return Err(Error {
-        span: start_span,
-        kind: ErrorKind::SyntaxError(
-          "Expected function name after 'fn'".to_string(),
-        ),
-        file_path: None,
-        source: None,
-      });
+      return Err((
+        ErrorKind::SyntaxError("Expected function name after 'fn'".to_string()),
+        start_span,
+      ));
     };
     self.advance();
     self.consume_token(TokenKind::LParen)?;
@@ -48,12 +47,10 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       let expr = self.parse_expression(Precedence::Lowest)?;
       FunctionBody::Expression(self.arena.alloc(expr))
     } else {
-      return Err(Error {
-        span: self.current_token.span,
-        kind: ErrorKind::SyntaxError("Expected function body".to_string()),
-        file_path: None,
-        source: None,
-      });
+      return Err((
+        ErrorKind::SyntaxError("Expected function body".to_string()),
+        self.current_token.span.clone(),
+      ));
     };
 
     Ok(Statement::new(

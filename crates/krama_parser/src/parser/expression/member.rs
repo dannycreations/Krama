@@ -1,21 +1,21 @@
-use krama_core::{
-  ast::{
-    expression::{Expression, ExpressionKind},
-    precedence::Precedence,
-  },
-  span::Span,
+use krama_core::ast::{
+  expression::{Expression, ExpressionKind},
+  precedence::Precedence,
 };
 
-use super::{ParseError, Parser};
+use crate::parser::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast> {
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
   pub(super) fn parse_member_expression(
     &mut self,
     object: Expression<'ast>,
-  ) -> ParseError<'ast> {
+  ) -> ParseError<'a, 'ast> {
     self.advance();
     let property = self.parse_expression(Precedence::Member)?;
-    let span = Span::new(object.span.start, property.span.end);
+    let span = object.span.merge(&property.span);
     Ok(Expression::new(
       ExpressionKind::Member {
         object: self.arena.alloc(object),

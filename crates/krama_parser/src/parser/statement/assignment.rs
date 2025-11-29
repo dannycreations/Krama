@@ -4,17 +4,20 @@ use krama_core::{
     precedence::Precedence,
     statement::{Binding, DestructuredIdentifier, Statement, StatementKind},
   },
-  error::Error,
+  error::ErrorKind,
   span::Span,
   token::TokenKind,
 };
 
-use super::Parser;
+use crate::parser::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast> {
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
   pub(super) fn parse_let_statement(
     &mut self,
-  ) -> Result<Statement<'ast>, Error> {
+  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
     let start_span = self.consume_token_and_get(TokenKind::Let)?.span;
     let name = self.parse_identifier()?;
 
@@ -42,8 +45,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
   pub(super) fn parse_const_statement(
     &mut self,
     public: bool,
-    start_span: Span,
-  ) -> Result<Statement<'ast>, Error> {
+    start_span: Span<'a>,
+  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
     self.consume_token(TokenKind::Const)?;
 
     let binding = if self.current_token.kind == TokenKind::LBrace {
@@ -90,7 +93,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
 
   pub(super) fn parse_destructured_items(
     &mut self,
-  ) -> Result<BumpVec<'ast, DestructuredIdentifier<'ast>>, Error> {
+  ) -> Result<BumpVec<'ast, DestructuredIdentifier<'ast>>, (ErrorKind, Span<'a>)>
+  {
     let mut items = BumpVec::new_in(self.arena);
     if self.current_token.kind == TokenKind::RBrace {
       return Ok(items);

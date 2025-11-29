@@ -16,19 +16,15 @@ macro_rules! count_args {
 
 #[macro_export]
 macro_rules! parse_args {
-    ($objects:expr, $span:expr; $($arg:ident: $type:pat),*) => {
+    ($objects:expr, $fn_name:expr; $($arg:ident: $type:pat),*) => {
         const EXPECTED_ARGS: usize = $crate::count_args!($($arg),*);
         if $objects.len() != EXPECTED_ARGS {
-            return Err(Error {
-                span: $span,
-                kind: ErrorKind::ArgumentError(format!(
-                    "Expected {} arguments, but got {}",
-                    EXPECTED_ARGS,
-                    $objects.len()
-                )),
-                file_path: None,
-                source: None,
-            });
+            return Err(ErrorKind::ArgumentError(format!(
+                "{} expected {} arguments, but got {}",
+                $fn_name,
+                EXPECTED_ARGS,
+                $objects.len()
+            )));
         }
 
         let mut arg_iter = $objects.iter();
@@ -36,17 +32,12 @@ macro_rules! parse_args {
             let $arg = match arg_iter.next() {
                 Some($type) => $arg,
                 Some(other) => {
-                     return Err(Error {
-                        span: $span,
-                        kind: ErrorKind::ArgumentError(format!(
-                            "Expected argument '{}' to be of type '{}', but got '{}'",
-                            stringify!($arg),
-                            stringify!($type),
-                            other.type_name()
-                        )),
-                        file_path: None,
-                        source: None,
-                    });
+                     return Err(ErrorKind::ArgumentError(format!(
+                        "Expected argument '{}' to be of type '{}', but got '{}'",
+                        stringify!($arg),
+                        stringify!($type),
+                        other.type_name()
+                    )));
                 }
                 None => unreachable!(),
             };

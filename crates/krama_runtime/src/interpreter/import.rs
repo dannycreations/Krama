@@ -3,12 +3,7 @@ use std::{
   str,
 };
 
-use krama_core::{
-  error::{Error, ErrorKind},
-  object::Object,
-  scope::Scope,
-  span::Span,
-};
+use krama_core::{error::ErrorKind, object::Object, scope::Scope, span::Span};
 use krama_std::modules;
 use rustc_hash::FxHashMap;
 use tokio::fs;
@@ -47,8 +42,8 @@ impl<'ast> Interpreter<'ast> {
   pub(super) async fn eval_import(
     &self,
     path: &'ast str,
-    _span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    _span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     if path.starts_with("std:") {
       let module_name =
         self.arena.alloc_str(path.strip_prefix("std:").unwrap());
@@ -65,23 +60,23 @@ impl<'ast> Interpreter<'ast> {
           };
           Object::Scope(self.arena.alloc(module))
         })
-        .ok_or_else(|| Error {
-          span: Default::default(),
-          kind: ErrorKind::ReferenceError(format!(
-            "Standard module not found: {}",
-            module_name
-          )),
-          file_path: None,
-          source: None,
+        .ok_or_else(|| {
+          (
+            ErrorKind::ReferenceError(format!(
+              "Standard module not found: {}",
+              module_name
+            )),
+            Span::new(0, 0, None, None),
+          )
         })?;
       self
         .modules
         .try_borrow_mut()
-        .map_err(|e| Error {
-          span: Default::default(),
-          kind: ErrorKind::RuntimeError(e.to_string()),
-          file_path: None,
-          source: None,
+        .map_err(|e| {
+          (
+            ErrorKind::RuntimeError(e.to_string()),
+            Span::new(0, 0, None, None),
+          )
         })?
         .insert(module_name, module.clone());
       return Ok(module);
@@ -93,7 +88,7 @@ impl<'ast> Interpreter<'ast> {
   pub async fn eval_and_cache(
     &self,
     path: &'ast str,
-  ) -> Result<Object<'ast>, Error> {
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     // Try to resolve path and get source content.
     // First try the path as is, then with a `.km` extension.
     let path = self
@@ -118,15 +113,13 @@ impl<'ast> Interpreter<'ast> {
           Ok(source) => (source, path_with_ext),
           Err(_) => {
             // On second failure, return the first, more relevant error.
-            return Err(Error {
-              span: Default::default(),
-              kind: ErrorKind::ReferenceError(format!(
+            return Err((
+              ErrorKind::ReferenceError(format!(
                 "Failed to read module file: {}",
                 e1
               )),
-              file_path: None,
-              source: None,
-            });
+              Span::new(0, 0, None, None),
+            ));
           }
         }
       }
@@ -138,14 +131,10 @@ impl<'ast> Interpreter<'ast> {
         return Ok(module.clone());
       }
     } else {
-      return Err(Error {
-        span: Default::default(),
-        kind: ErrorKind::RuntimeError(
-          "Failed to borrow modules cache".to_string(),
-        ),
-        file_path: None,
-        source: None,
-      });
+      return Err((
+        ErrorKind::RuntimeError("Failed to borrow modules cache".to_string()),
+        Span::new(0, 0, None, None),
+      ));
     }
 
     // We have the source from the resolution step, so just allocate it.
@@ -153,19 +142,19 @@ impl<'ast> Interpreter<'ast> {
 
     let new_interpreter = Interpreter::new(self.arena, Some(resolved_path));
     if let Err(mut err) = new_interpreter.eval(source_str).await {
-      err.file_path = Some(resolved_path.to_string());
-      err.source = Some(source_str.to_string());
+      err.1.file = Some(resolved_path);
+      err.1.source = Some(source_str);
       return Err(err);
     }
 
     let bindings: FxHashMap<_, _> = new_interpreter
       .environment
       .try_borrow()
-      .map_err(|e| Error {
-        span: Default::default(),
-        kind: ErrorKind::RuntimeError(e.to_string()),
-        file_path: None,
-        source: None,
+      .map_err(|e| {
+        (
+          ErrorKind::RuntimeError(e.to_string()),
+          Span::new(0, 0, None, None),
+        )
       })?
       .get_public_bindings()
       .into_iter()
@@ -179,11 +168,11 @@ impl<'ast> Interpreter<'ast> {
     self
       .modules
       .try_borrow_mut()
-      .map_err(|e| Error {
-        span: Default::default(),
-        kind: ErrorKind::RuntimeError(e.to_string()),
-        file_path: None,
-        source: None,
+      .map_err(|e| {
+        (
+          ErrorKind::RuntimeError(e.to_string()),
+          Span::new(0, 0, None, None),
+        )
       })?
       .insert(resolved_path, module.clone());
 

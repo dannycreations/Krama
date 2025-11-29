@@ -3,14 +3,15 @@ use krama_core::{
     literal::Literal,
     types::{Type, TypeKind},
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   object::Object,
+  span::Span,
 };
 
 pub(crate) fn check_type<'ast>(
   expected_type: &Type<'ast>,
   object: &Object<'ast>,
-) -> Result<(), Error> {
+) -> Result<(), (ErrorKind, Span<'ast>)> {
   let mismatched = match (&expected_type.kind, object) {
     (TypeKind::I8, Object::Integer(_)) => false,
     (TypeKind::I16, Object::Integer(_)) => false,
@@ -41,16 +42,14 @@ pub(crate) fn check_type<'ast>(
     ) => {
       if let Some(Literal::Integer(size)) = size {
         if elements.len() > *size as usize {
-          return Err(Error {
-            span: expected_type.span,
-            kind: ErrorKind::TypeError(format!(
+          return Err((
+            ErrorKind::TypeError(format!(
               "Expected an array of size {}, but got {}",
               size,
               elements.len()
             )),
-            file_path: None,
-            source: None,
-          });
+            expected_type.span.clone(),
+          ));
         }
       }
       for element in elements.iter() {
@@ -60,16 +59,14 @@ pub(crate) fn check_type<'ast>(
     }
     (TypeKind::Tuple(types), Object::Tuple { elements }) => {
       if types.len() != elements.len() {
-        return Err(Error {
-          span: expected_type.span,
-          kind: ErrorKind::TypeError(format!(
+        return Err((
+          ErrorKind::TypeError(format!(
             "Expected a tuple of {} elements, but got {}",
             types.len(),
             elements.len()
           )),
-          file_path: None,
-          source: None,
-        });
+          expected_type.span.clone(),
+        ));
       }
 
       for (kind, element) in types.iter().zip(elements.iter()) {
@@ -81,15 +78,13 @@ pub(crate) fn check_type<'ast>(
   };
 
   if mismatched {
-    return Err(Error {
-      span: expected_type.span,
-      kind: ErrorKind::TypeError(format!(
+    return Err((
+      ErrorKind::TypeError(format!(
         "Expected type {:?}, but got {:?}",
         expected_type.kind, object
       )),
-      file_path: None,
-      source: None,
-    });
+      expected_type.span.clone(),
+    ));
   }
 
   Ok(())

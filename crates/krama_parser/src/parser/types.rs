@@ -4,14 +4,20 @@ use krama_core::{
     literal::Literal,
     types::{Type, TypeKind},
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
+  span::Span,
   token::TokenKind,
 };
 
-use super::Parser;
+use crate::parser::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast> {
-  pub(super) fn parse_type(&mut self) -> Result<Type<'ast>, Error> {
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
+  pub(super) fn parse_type(
+    &mut self,
+  ) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
     let mut kind = if self.current_token.kind == TokenKind::LBracket {
       self.parse_tuple_type()?
     } else {
@@ -25,8 +31,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     Ok(kind)
   }
 
-  fn parse_tuple_type(&mut self) -> Result<Type<'ast>, Error> {
-    let start_span = self.current_token.span;
+  fn parse_tuple_type(&mut self) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
+    let start_span = self.current_token.span.clone();
     self.consume_token(TokenKind::LBracket)?;
 
     let mut types = BumpVec::new_in(self.arena);
@@ -46,7 +52,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       }
     }
 
-    let end_span = self.current_token.span;
+    let end_span = self.current_token.span.clone();
     self.consume_token(TokenKind::RBracket)?;
 
     Ok(Type::new(
@@ -58,39 +64,36 @@ impl<'a, 'ast> Parser<'a, 'ast> {
   fn parse_array_type(
     &mut self,
     element_type: Type<'ast>,
-  ) -> Result<Type<'ast>, Error> {
-    let span = element_type.span;
+  ) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
+    let span = element_type.span.clone();
     self.consume_token(TokenKind::LBracket)?;
 
     let size = if self.current_token.kind == TokenKind::RBracket {
       None
     } else {
-      let token = self.current_token;
+      let token = self.current_token.clone();
       if let TokenKind::Integer(val) = token.kind {
         self.advance();
-        let parsed_val: i64 =
-          val.replace('_', "").parse().map_err(|_| Error {
-            span: token.span,
-            kind: ErrorKind::SyntaxError(format!(
+        let parsed_val: i64 = val.replace('_', "").parse().map_err(|_| {
+          (
+            ErrorKind::SyntaxError(format!(
               "Invalid integer literal for array size: '{}'",
               val
             )),
-            file_path: None,
-            source: None,
-          })?;
+            token.span,
+          )
+        })?;
         Some(Literal::Integer(parsed_val))
       } else {
-        return Err(Error {
-          span: token.span,
-          kind: ErrorKind::SyntaxError(
+        return Err((
+          ErrorKind::SyntaxError(
             "Expected integer literal for array size".to_string(),
           ),
-          file_path: None,
-          source: None,
-        });
+          token.span,
+        ));
       }
     };
-    let end_span = self.current_token.span;
+    let end_span = self.current_token.span.clone();
     self.consume_token(TokenKind::RBracket)?;
 
     Ok(Type::new(
@@ -102,9 +105,9 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     ))
   }
 
-  fn parse_base_type(&mut self) -> Result<Type<'ast>, Error> {
-    let token = self.current_token;
-    let span = token.span;
+  fn parse_base_type(&mut self) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
+    let token = self.current_token.clone();
+    let span = token.span.clone();
     let kind = match token.kind {
       TokenKind::I8 => TypeKind::I8,
       TokenKind::I16 => TypeKind::I16,
@@ -124,12 +127,7 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       TokenKind::Str => TypeKind::Str,
       TokenKind::Identifier(ident) => TypeKind::Identifier(ident),
       _ => {
-        return Err(Error {
-          span,
-          kind: ErrorKind::SyntaxError("Expected type".to_string()),
-          file_path: None,
-          source: None,
-        })
+        return Err((ErrorKind::SyntaxError("Expected type".to_string()), span))
       }
     };
     self.advance();

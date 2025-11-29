@@ -6,52 +6,52 @@ use krama_core::{
     },
     precedence::Precedence,
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
+  span::Span,
   token::TokenKind,
 };
 
-use super::{ParseError, Parser};
+use crate::parser::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast> {
-  pub(super) fn parse_if_expression(&mut self) -> ParseError<'ast> {
-    let start_span = self.current_token.span;
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
+  pub(super) fn parse_if_expression(&mut self) -> ParseError<'a, 'ast> {
+    let start_span = self.current_token.span.clone();
     self.advance();
 
     if self.current_token.kind != TokenKind::LParen {
-      return Err(Error {
-        span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(format!(
+      return Err((
+        ErrorKind::SyntaxError(format!(
           "Expected {} after 'if' or 'elif'",
           TokenKind::LParen
         )),
-        file_path: None,
-        source: None,
-      });
+        self.current_token.span.clone(),
+      ));
     }
     self.advance();
 
     let condition = self.parse_expression(Precedence::Lowest)?;
 
     if self.current_token.kind != TokenKind::RParen {
-      return Err(Error {
-        span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(format!(
+      return Err((
+        ErrorKind::SyntaxError(format!(
           "Expected {} after if condition'",
           TokenKind::RParen
         )),
-        file_path: None,
-        source: None,
-      });
+        self.current_token.span.clone(),
+      ));
     }
     self.advance();
 
     let then_branch = self.arena.alloc(self.parse_block_statement()?);
-    let then_span = then_branch.span;
+    let then_span = then_branch.span.clone();
 
     let else_branch = if self.current_token.kind == TokenKind::Else {
       self.advance();
       let else_block = self.arena.alloc(self.parse_block_statement()?);
-      let else_span = else_block.span;
+      let else_span = else_block.span.clone();
       Some(&*self.arena.alloc(Expression::new(
         ExpressionKind::Block(else_block),
         else_span,
@@ -75,48 +75,42 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     ))
   }
 
-  pub(super) fn parse_match_expression(&mut self) -> ParseError<'ast> {
-    let start_span = self.current_token.span;
+  pub(super) fn parse_match_expression(&mut self) -> ParseError<'a, 'ast> {
+    let start_span = self.current_token.span.clone();
     self.advance();
 
     if self.current_token.kind != TokenKind::LParen {
-      return Err(Error {
-        span: start_span,
-        kind: ErrorKind::SyntaxError(format!(
+      return Err((
+        ErrorKind::SyntaxError(format!(
           "Expected {} after 'match'",
           TokenKind::LParen
         )),
-        file_path: None,
-        source: None,
-      });
+        start_span,
+      ));
     }
     self.advance();
 
     let subject = self.parse_expression(Precedence::Lowest)?;
 
     if self.current_token.kind != TokenKind::RParen {
-      return Err(Error {
-        span: start_span,
-        kind: ErrorKind::SyntaxError(format!(
+      return Err((
+        ErrorKind::SyntaxError(format!(
           "Expected {} after match subject'",
           TokenKind::RParen
         )),
-        file_path: None,
-        source: None,
-      });
+        start_span,
+      ));
     }
     self.advance();
 
     if self.current_token.kind != TokenKind::LBrace {
-      return Err(Error {
-        span: start_span,
-        kind: ErrorKind::SyntaxError(format!(
+      return Err((
+        ErrorKind::SyntaxError(format!(
           "Expected {} for match arms",
           TokenKind::LBrace
         )),
-        file_path: None,
-        source: None,
-      });
+        start_span,
+      ));
     }
     self.advance();
 
@@ -132,15 +126,13 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     }
 
     if self.current_token.kind == TokenKind::Eof {
-      return Err(Error {
-        span: start_span,
-        kind: ErrorKind::SyntaxError(format!(
+      return Err((
+        ErrorKind::SyntaxError(format!(
           "Unexpected end of file: missing {}",
           TokenKind::RBrace
         )),
-        file_path: None,
-        source: None,
-      });
+        start_span,
+      ));
     }
 
     self.advance();
@@ -154,7 +146,9 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     ))
   }
 
-  fn parse_match_arm(&mut self) -> Result<MatchArm<'ast>, Error> {
+  fn parse_match_arm(
+    &mut self,
+  ) -> Result<MatchArm<'ast>, (ErrorKind, Span<'a>)> {
     let mut patterns = BumpVec::new_in(self.arena);
     patterns.push(self.parse_match_pattern()?);
 
@@ -182,16 +176,14 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       let block = self.arena.alloc(self.parse_block_statement()?);
       FunctionBody::Block(block)
     } else {
-      return Err(Error {
-        span: self.current_token.span,
-        kind: ErrorKind::SyntaxError(format!(
+      return Err((
+        ErrorKind::SyntaxError(format!(
           "Expected {} or {} for match arm body",
           TokenKind::Arrow,
           TokenKind::LBrace
         )),
-        file_path: None,
-        source: None,
-      });
+        self.current_token.span.clone(),
+      ));
     };
 
     if self.current_token.kind == TokenKind::Comma {
@@ -204,7 +196,9 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     Ok(MatchArm { patterns, body })
   }
 
-  fn parse_match_pattern(&mut self) -> Result<MatchPattern<'ast>, Error> {
+  fn parse_match_pattern(
+    &mut self,
+  ) -> Result<MatchPattern<'ast>, (ErrorKind, Span<'a>)> {
     if self.current_token.kind == TokenKind::Else {
       self.advance();
       return Ok(MatchPattern::Else);

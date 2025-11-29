@@ -12,7 +12,7 @@ pub type Statement<'ast> = Node<'ast, StatementKind<'ast>>;
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockStatement<'ast> {
   pub statements: BumpVec<'ast, Statement<'ast>>,
-  pub span: Span,
+  pub span: Span<'ast>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -36,7 +36,7 @@ pub struct Parameter<'ast> {
   pub name: &'ast str,
   pub kind: Option<Type<'ast>>,
   pub default: Option<&'ast Expression<'ast>>,
-  pub span: Span,
+  pub span: Span<'ast>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

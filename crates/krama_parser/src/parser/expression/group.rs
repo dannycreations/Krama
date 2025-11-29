@@ -5,15 +5,19 @@ use krama_core::{
     precedence::Precedence,
     statement::Parameter,
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
+  span::Span,
   token::TokenKind,
 };
 
-use super::{ParseError, Parser};
+use crate::parser::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast> {
-  pub(super) fn parse_paren_expression(&mut self) -> ParseError<'ast> {
-    let start_span = self.current_token.span;
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
+  pub(super) fn parse_paren_expression(&mut self) -> ParseError<'a, 'ast> {
+    let start_span = self.current_token.span.clone();
     self.advance();
 
     if self.current_token.kind == TokenKind::RParen {
@@ -42,31 +46,29 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       }
       self.parse_fn_expr_with_params(start_span, parameters)
     } else if expressions.len() == 1 {
-      expressions.pop().ok_or_else(|| Error {
-        span: start_span,
-        kind: ErrorKind::SyntaxError(
-          "Expected expression in parentheses".to_string(),
-        ),
-        file_path: None,
-        source: None,
+      expressions.pop().ok_or_else(|| {
+        (
+          ErrorKind::SyntaxError(
+            "Expected expression in parentheses".to_string(),
+          ),
+          start_span,
+        )
       })
     } else {
-      Err(Error {
-        span: start_span,
-        kind: ErrorKind::SyntaxError(
+      Err((
+        ErrorKind::SyntaxError(
           "Invalid grouped expression. To create a tuple, use square brackets `[]`"
             .to_string(),
         ),
-        file_path: None,
-        source: None,
-      })
+        start_span,
+      ))
     }
   }
 
   fn expression_to_parameter(
     &self,
     expr: Expression<'ast>,
-  ) -> Result<Parameter<'ast>, Error> {
+  ) -> Result<Parameter<'ast>, (ErrorKind, Span<'a>)> {
     match expr.kind {
       ExpressionKind::Identifier(name) => Ok(Parameter {
         name,
@@ -80,26 +82,22 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         right,
       } => {
         if operator != krama_core::ast::operator::AssignmentOperator::Assign {
-          return Err(Error {
-            span: expr.span,
-            kind: ErrorKind::SyntaxError(
+          return Err((
+            ErrorKind::SyntaxError(
               "Invalid expression in function parameters.".to_string(),
             ),
-            file_path: None,
-            source: None,
-          });
+            expr.span,
+          ));
         }
         let name = if let ExpressionKind::Identifier(name) = left.kind {
           name
         } else {
-          return Err(Error {
-            span: left.span,
-            kind: ErrorKind::SyntaxError(
+          return Err((
+            ErrorKind::SyntaxError(
               "Expected identifier as parameter name".to_string(),
             ),
-            file_path: None,
-            source: None,
-          });
+            left.span.clone(),
+          ));
         };
         Ok(Parameter {
           name,
@@ -108,14 +106,12 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           span: expr.span,
         })
       }
-      _ => Err(Error {
-        span: expr.span,
-        kind: ErrorKind::SyntaxError(
+      _ => Err((
+        ErrorKind::SyntaxError(
           "Invalid expression in function parameters.".to_string(),
         ),
-        file_path: None,
-        source: None,
-      }),
+        expr.span,
+      )),
     }
   }
 }

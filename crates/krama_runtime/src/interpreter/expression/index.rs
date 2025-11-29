@@ -1,8 +1,4 @@
-use krama_core::{
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
-};
+use krama_core::{error::ErrorKind, object::Object, span::Span};
 
 use crate::interpreter::Interpreter;
 
@@ -11,8 +7,8 @@ impl<'ast> Interpreter<'ast> {
     &self,
     mut object: Object<'ast>,
     index: Object<'ast>,
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let index = self.resolve_object(index).await?;
     match &mut object {
       Object::Array { elements, .. } => {
@@ -25,15 +21,13 @@ impl<'ast> Interpreter<'ast> {
         let idx = match index {
           Object::Integer(i) => i,
           _ => {
-            return Err(Error {
-              kind: ErrorKind::TypeError(format!(
+            return Err((
+              ErrorKind::TypeError(format!(
                 "string indices must be integers, not {}",
                 index.type_name()
               )),
               span,
-              file_path: None,
-              source: None,
-            })
+            ))
           }
         };
 
@@ -50,35 +44,31 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
       }
-      _ => Err(Error {
-        kind: ErrorKind::TypeError(format!(
+      _ => Err((
+        ErrorKind::TypeError(format!(
           "{} does not support indexing",
           object.type_name()
         )),
         span,
-        file_path: None,
-        source: None,
-      }),
+      )),
     }
   }
 
   fn eval_index_expression_for_sequence(
     elements: &[Object<'ast>],
     index: Object<'ast>,
-    span: Span,
-  ) -> Result<Object<'ast>, Error> {
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let idx = match index {
       Object::Integer(i) => i,
       _ => {
-        return Err(Error {
-          kind: ErrorKind::TypeError(format!(
+        return Err((
+          ErrorKind::TypeError(format!(
             "indices must be integers, not {}",
             index.type_name()
           )),
           span,
-          file_path: None,
-          source: None,
-        })
+        ))
       }
     };
 

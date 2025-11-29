@@ -7,7 +7,7 @@ use krama_core::{
       Binding, BlockStatement, DestructuredIdentifier, Statement, StatementKind,
     },
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   object::{Function, Object, UserFunction},
   span::Span,
 };
@@ -19,9 +19,12 @@ impl<'ast> Interpreter<'ast> {
   pub fn eval_statement<'s>(
     &'s self,
     statement: &'s Statement<'ast>,
-  ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error>> {
+  ) -> LocalBoxFuture<'s, Result<Object<'ast>, (ErrorKind, Span<'ast>)>>
+  where
+    'ast: 's,
+  {
     async move {
-      let span = statement.span;
+      let span = statement.span.clone();
       match &statement.kind {
         StatementKind::Expression { expression } => {
           let value = self.eval_expression(expression, None).await?;
@@ -72,19 +75,19 @@ impl<'ast> Interpreter<'ast> {
               items,
             } => {
               if let Object::Scope(_) = &value {
-                self
-                  .env_mut(span)?
-                  .set(module_alias, value.clone(), *public);
+                self.env_mut(span.clone())?.set(
+                  module_alias,
+                  value.clone(),
+                  *public,
+                );
                 self.destructure_scope(span, &value, items, *public)?;
               } else {
-                return Err(Error {
-                  span,
-                  kind: ErrorKind::TypeError(
+                return Err((
+                  ErrorKind::TypeError(
                     "Destructuring can only be done on modules".to_string(),
                   ),
-                  file_path: None,
-                  source: None,
-                });
+                  span,
+                ));
               }
             }
           }
@@ -147,7 +150,7 @@ impl<'ast> Interpreter<'ast> {
   async fn eval_statements<'s>(
     &'s self,
     statements: &'s [Statement<'ast>],
-  ) -> Result<Object<'ast>, Error> {
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let mut result = Object::Void;
 
     for statement in statements {
@@ -167,52 +170,50 @@ impl<'ast> Interpreter<'ast> {
   pub(super) async fn eval_block_statement(
     &self,
     block: &BlockStatement<'ast>,
-  ) -> Result<Object<'ast>, Error> {
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     self.eval_statements(&block.statements).await
   }
 
   pub(super) async fn eval_block_statement_with_new_scope(
     &self,
     block: &BlockStatement<'ast>,
-  ) -> Result<Object<'ast>, Error> {
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let new_interpreter = self.new_enclosed();
     new_interpreter.eval_statements(&block.statements).await
   }
 
   fn destructure_scope(
     &self,
-    span: Span,
+    span: Span<'ast>,
     value: &Object<'ast>,
     items: &BumpVec<'ast, DestructuredIdentifier<'ast>>,
     public: bool,
-  ) -> Result<(), Error> {
+  ) -> Result<(), (ErrorKind, Span<'ast>)> {
     if let Object::Scope(scope) = value {
       for item in items.iter() {
         if let Some(export) = scope.bindings.get(item.name) {
           let name = item.alias.unwrap_or(item.name);
-          self.env_mut(span)?.set(name, export.clone(), public);
+          self
+            .env_mut(span.clone())?
+            .set(name, export.clone(), public);
         } else {
-          return Err(Error {
-            span,
-            kind: ErrorKind::ReferenceError(format!(
+          return Err((
+            ErrorKind::ReferenceError(format!(
               "'{}' is not exported from module '{}'",
               item.name,
               scope.name.unwrap_or("<anonymous>")
             )),
-            file_path: None,
-            source: None,
-          });
+            span,
+          ));
         }
       }
     } else {
-      return Err(Error {
-        span,
-        kind: ErrorKind::TypeError(
+      return Err((
+        ErrorKind::TypeError(
           "Destructuring can only be done on modules".to_string(),
         ),
-        file_path: None,
-        source: None,
-      });
+        span,
+      ));
     }
     Ok(())
   }

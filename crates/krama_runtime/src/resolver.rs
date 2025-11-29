@@ -4,7 +4,8 @@ use krama_core::{
     statement::{Binding, Statement, StatementKind},
     Program,
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
+  span::Span,
 };
 use rustc_hash::FxHashMap;
 
@@ -23,7 +24,10 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
     }
   }
 
-  pub fn resolve(&mut self, program: &Program<'ast>) -> Result<(), Error> {
+  pub fn resolve(
+    &mut self,
+    program: &Program<'ast>,
+  ) -> Result<(), (ErrorKind, Span<'ast>)> {
     for statement in &program.statements {
       self.resolve_statement(statement)?;
     }
@@ -33,7 +37,7 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
   fn resolve_statement(
     &mut self,
     statement: &Statement<'ast>,
-  ) -> Result<(), Error> {
+  ) -> Result<(), (ErrorKind, Span<'ast>)> {
     match &statement.kind {
       StatementKind::Expression { expression } => {
         self.resolve_expression(expression)?
@@ -120,21 +124,19 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
   fn resolve_expression(
     &mut self,
     expression: &Expression<'ast>,
-  ) -> Result<(), Error> {
+  ) -> Result<(), (ErrorKind, Span<'ast>)> {
     match &expression.kind {
       ExpressionKind::Identifier(name) => {
         if let Some(scope) = self.scopes.last() {
           if let Some(defined) = scope.get(name) {
             if !defined {
-              return Err(Error {
-                span: expression.span,
-                kind: ErrorKind::SyntaxError(
+              return Err((
+                ErrorKind::SyntaxError(
                   "Cannot read local variable in its own initializer"
                     .to_string(),
                 ),
-                file_path: None,
-                source: None,
-              });
+                expression.span.clone(),
+              ));
             }
           }
         }
@@ -271,13 +273,13 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
     self.scopes.pop();
   }
 
-  fn declare(&mut self, name: &'ast str) {
+  fn declare(&mut self, name: &'a str) {
     if let Some(scope) = self.scopes.last_mut() {
       scope.insert(name, false);
     }
   }
 
-  fn define(&mut self, name: &'ast str) {
+  fn define(&mut self, name: &'a str) {
     if let Some(scope) = self.scopes.last_mut() {
       scope.insert(name, true);
     }

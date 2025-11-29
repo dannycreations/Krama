@@ -6,14 +6,12 @@ macro_rules! resolve_future {
       if let Some(future) = future {
         future.await
       } else {
-        Err(::krama_core::error::Error {
-          span: Default::default(),
-          kind: ::krama_core::error::ErrorKind::RuntimeError(
+        Err((
+          ::krama_core::error::ErrorKind::RuntimeError(
             "Future already resolved".to_string(),
           ),
-          file_path: None,
-          source: None,
-        })
+          ::krama_core::span::Span::new(0, 0, None, None),
+        ))
       }
     } else {
       Ok($result)
@@ -68,7 +66,7 @@ macro_rules! test_eval_error {
         ::krama_runtime::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await;
-      assert!(matches!(result.unwrap_err().kind, $expected));
+      assert!(matches!(result.unwrap_err().0, $expected));
     }
   };
 
@@ -130,7 +128,7 @@ macro_rules! test_lexer {
   ($name:ident, $input:expr, $expected:expr) => {
     #[test]
     fn $name() {
-      let lexer = ::krama_lexer::lexer::Lexer::new($input);
+      let lexer = ::krama_lexer::lexer::Lexer::new($input, None);
       let tokens: Vec<::krama_core::token::Token> = lexer.collect();
       let kinds: Vec<::krama_core::token::TokenKind> =
         tokens.into_iter().map(|t| t.kind).collect();
@@ -144,7 +142,7 @@ macro_rules! test_lexer_single {
   ($name:ident, $input:expr, $expected:expr) => {
     #[test]
     fn $name() {
-      let mut lexer = ::krama_lexer::lexer::Lexer::new($input);
+      let mut lexer = ::krama_lexer::lexer::Lexer::new($input, None);
       let token = lexer.next().unwrap();
       assert_eq!(token.kind, $expected);
     }
@@ -157,7 +155,7 @@ macro_rules! test_parser {
     #[test]
     fn $name() {
       let arena = ::bumpalo::Bump::new();
-      let lexer = ::krama_lexer::lexer::Lexer::new($source);
+      let lexer = ::krama_lexer::lexer::Lexer::new($source, None);
       let mut parser = ::krama_parser::parser::Parser::new(lexer, &arena);
       let program = parser.parse();
       assert!(program.is_ok());
@@ -168,7 +166,7 @@ macro_rules! test_parser {
     #[test]
     fn $name() {
       let arena = ::bumpalo::Bump::new();
-      let lexer = ::krama_lexer::lexer::Lexer::new($source);
+      let lexer = ::krama_lexer::lexer::Lexer::new($source, None);
       let mut parser = ::krama_parser::parser::Parser::new(lexer, &arena);
       let program = parser.parse();
       assert!(program.is_ok());
@@ -186,7 +184,7 @@ macro_rules! test_parser_error {
     #[test]
     fn $name() {
       let arena = ::bumpalo::Bump::new();
-      let lexer = ::krama_lexer::lexer::Lexer::new($source);
+      let lexer = ::krama_lexer::lexer::Lexer::new($source, None);
       let mut parser = ::krama_parser::parser::Parser::new(lexer, &arena);
       let program = parser.parse();
       assert!(program.is_err());

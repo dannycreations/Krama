@@ -8,11 +8,14 @@ use krama_core::{
 
 use crate::parser::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast> {
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
   pub(super) fn parse_index_expression(
     &mut self,
     left: Expression<'ast>,
-  ) -> ParseError<'ast> {
+  ) -> ParseError<'a, 'ast> {
     self.advance();
 
     let index = self.parse_expression(Precedence::Lowest)?;

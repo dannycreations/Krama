@@ -3,22 +3,23 @@ use krama_core::{
     expression::ExpressionKind,
     statement::{Statement, StatementKind},
   },
-  error::Error,
+  error::ErrorKind,
+  span::Span,
 };
 
 use crate::interpreter::Interpreter;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TestResult {
+pub enum TestResult<'ast> {
   Success(String),
-  Failure(String, Error),
+  Failure(String, (ErrorKind, Span<'ast>)),
 }
 
 impl<'ast> Interpreter<'ast> {
   pub async fn run_tests(
     &self,
     statements: &[Statement<'ast>],
-  ) -> Vec<TestResult> {
+  ) -> Vec<TestResult<'ast>> {
     let test_futures = statements
       .iter()
       .filter_map(|statement| {

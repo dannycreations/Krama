@@ -3,17 +3,21 @@ use krama_core::{
     precedence::Precedence,
     statement::{Statement, StatementKind},
   },
-  error::Error,
+  error::ErrorKind,
+  span::Span,
   token::TokenKind,
 };
 
-use super::Parser;
+use crate::parser::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast> {
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
   pub(super) fn parse_while_statement(
     &mut self,
-  ) -> Result<Statement<'ast>, Error> {
-    let start_span = self.current_token.span;
+  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
+    let start_span = self.current_token.span.clone();
     self.advance();
 
     self.consume_token(TokenKind::LParen)?;

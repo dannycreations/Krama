@@ -15,17 +15,20 @@ use krama_core::{
     expression::{Expression, ExpressionKind},
     precedence::Precedence,
   },
-  error::{Error, ErrorKind},
+  error::ErrorKind,
   token::TokenKind,
 };
 
-use super::{ParseError, Parser};
+use crate::parser::{ParseError, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast> {
+impl<'a, 'ast> Parser<'a, 'ast>
+where
+  'ast: 'a,
+{
   pub(super) fn parse_expression(
     &mut self,
     precedence: Precedence,
-  ) -> ParseError<'ast> {
+  ) -> ParseError<'a, 'ast> {
     let mut left = self.parse_pratt()?;
 
     while precedence < self.current_precedence() {
@@ -47,8 +50,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
     Ok(left)
   }
 
-  fn parse_pratt(&mut self) -> ParseError<'ast> {
-    let token = self.current_token;
+  fn parse_pratt(&mut self) -> ParseError<'a, 'ast> {
+    let token = self.current_token.clone();
 
     match token.kind {
       TokenKind::Identifier(_) => self.parse_identifier_expression(),
@@ -72,18 +75,16 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       TokenKind::Fn => self.parse_fn_expression(),
       TokenKind::LBrace => {
         let block = self.arena.alloc(self.parse_block_statement()?);
-        let span = block.span;
+        let span = block.span.clone();
         Ok(Expression::new(ExpressionKind::Block(block), span))
       }
-      _ => Err(Error {
-        span: token.span,
-        kind: ErrorKind::SyntaxError(format!(
+      _ => Err((
+        ErrorKind::SyntaxError(format!(
           "Unexpected token for prefix expression: {}",
           token.kind
         )),
-        file_path: None,
-        source: None,
-      }),
+        token.span,
+      )),
     }
   }
 }
