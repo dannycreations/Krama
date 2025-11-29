@@ -7,23 +7,32 @@ impl<'a> Lexer<'a> {
     let mut is_float = false;
     let num_start = self.position - 1;
 
-    while let Some(c) = self.peek() {
-      if c == '_' || c.is_ascii_digit() {
-        self.advance();
-      } else if c == '.' && !is_float {
-        if self.peek_next() == Some('.') {
-          break;
+    while let Some(c) = self.peek_byte() {
+      match c {
+        b'_' => {
+          self.advance_byte();
         }
-        is_float = true;
-        self.advance();
-      } else if c == 'e' || c == 'E' {
-        is_float = true;
-        self.advance();
-        if self.peek() == Some('-') || self.peek() == Some('+') {
-          self.advance();
+        b'0'..=b'9' => {
+          self.advance_byte();
         }
-      } else {
-        break;
+        b'.' => {
+          if is_float {
+            break;
+          }
+          if self.peek_byte_nth(1) == Some(b'.') {
+            break;
+          }
+          is_float = true;
+          self.advance_byte();
+        }
+        b'e' | b'E' => {
+          is_float = true;
+          self.advance_byte();
+          if self.peek_byte() == Some(b'-') || self.peek_byte() == Some(b'+') {
+            self.advance_byte();
+          }
+        }
+        _ => break,
       }
     }
 

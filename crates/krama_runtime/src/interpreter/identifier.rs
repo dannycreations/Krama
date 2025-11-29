@@ -11,8 +11,8 @@ impl<'ast> Interpreter<'ast> {
     name: &'ast str,
     span: Span<'ast>,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
-    if let Some(distance) = self.locals.borrow().get(&expression.span) {
-      if let Some(value) = self.get_at(*distance, name) {
+    if let Some(distance) = self.look_up_variable(expression) {
+      if let Some(value) = self.get_at(distance, name) {
         return Ok(value.clone());
       }
     }

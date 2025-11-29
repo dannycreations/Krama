@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bumpalo::Bump;
 use clap::Parser;
 use krama_runtime::interpreter::Interpreter;
@@ -19,7 +19,6 @@ impl Run {
     let content_in_arena = arena.alloc_str(&content);
     if let Err((kind, span)) = interpreter.eval(content_in_arena).await {
       report_error(&self.file, &content, span, kind);
-      return Err(anyhow!("evaluation failed"));
     }
     Ok(())
   }

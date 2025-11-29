@@ -4,9 +4,9 @@ use super::Lexer;
 
 impl<'a> Lexer<'a> {
   pub(super) fn identifier(&mut self, start: usize) -> Token<'a> {
-    while let Some(c) = self.peek() {
-      if c.is_alphanumeric() || c == '_' {
-        self.advance();
+    while let Some(c) = self.peek_byte() {
+      if c.is_ascii_alphanumeric() || c == b'_' {
+        self.advance_byte();
       } else {
         break;
       }

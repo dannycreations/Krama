@@ -13,7 +13,7 @@ macro_rules! token {
   };
 
   ($lexer:ident, $start:expr, $one_char:expr, $next_char:expr, $two_chars:expr) => {{
-    let kind = if $lexer.advance_if($next_char) {
+    let kind = if $lexer.advance_if_byte($next_char) {
       $two_chars
     } else {
       $one_char
@@ -24,7 +24,7 @@ macro_rules! token {
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
-  source: &'a str,
+  source: &'a [u8],
   file: Option<&'a str>,
   position: usize,
 }
@@ -32,7 +32,7 @@ pub struct Lexer<'a> {
 impl<'a> Lexer<'a> {
   pub fn new(source: &'a str, file: Option<&'a str>) -> Self {
     Self {
-      source,
+      source: source.as_bytes(),
       file,
       position: 0,
     }
@@ -42,74 +42,64 @@ impl<'a> Lexer<'a> {
     self.source.len()
   }
 
-  fn current_char(&self) -> Option<(char, usize)> {
-    if self.position >= self.source.len() {
-      return None;
-    }
-    self.source[self.position..]
-      .chars()
-      .next()
-      .map(|c| (c, c.len_utf8()))
+  pub(super) fn peek_byte(&self) -> Option<u8> {
+    self.source.get(self.position).copied()
   }
 
-  pub(super) fn peek(&self) -> Option<char> {
-    self.current_char().map(|(c, _)| c)
+  pub(super) fn peek_byte_nth(&self, n: usize) -> Option<u8> {
+    self.source.get(self.position + n).copied()
   }
 
-  pub(super) fn peek_next(&self) -> Option<char> {
-    let (_, current_len) = self.current_char()?;
-    let next_pos = self.position + current_len;
-    if next_pos >= self.source.len() {
-      return None;
-    }
-    self.source[next_pos..].chars().next()
+  pub(super) fn advance_byte(&mut self) -> Option<u8> {
+    let byte = self.source.get(self.position).copied();
+    self.position += 1;
+    byte
   }
 
-  pub(super) fn advance(&mut self) -> Option<char> {
-    let (c, len) = self.current_char()?;
-    self.position += len;
-    Some(c)
-  }
-
-  pub(super) fn advance_if(&mut self, expected: char) -> bool {
-    if let Some((c, len)) = self.current_char() {
-      if c == expected {
-        self.position += len;
-        return true;
-      }
+  pub(super) fn advance_if_byte(&mut self, expected: u8) -> bool {
+    if self.peek_byte() == Some(expected) {
+      self.position += 1;
+      return true;
     }
     false
   }
 
   pub(super) fn span(&self, start: usize) -> Span<'a> {
-    Span::new(start, self.position, Some(self.source), self.file)
+    Span::new(
+      start,
+      self.position,
+      Some(self.slice(0, self.source_len())),
+      self.file,
+    )
   }
 
   pub(super) fn slice(&self, start: usize, end: usize) -> &'a str {
-    &self.source[start..end]
+    std::str::from_utf8(&self.source[start..end]).unwrap()
   }
 
   fn skip_trivia(&mut self) {
     loop {
-      match self.peek() {
-        Some(c) if c.is_whitespace() => {
-          self.advance();
+      match self.peek_byte() {
+        Some(c) if c.is_ascii_whitespace() => {
+          self.advance_byte();
         }
-        Some('/') => {
-          if self.peek_next() == Some('/') {
-            while self.peek().is_some_and(|c| c != '\n') {
-              self.advance();
-            }
-          } else if self.peek_next() == Some('*') {
-            self.advance();
-            self.advance();
-            while self.peek().is_some_and(|c| c != '*')
-              || self.peek_next().is_some_and(|c| c != '/')
+        Some(b'/') => {
+          if self.peek_byte_nth(1) == Some(b'/') {
+            while self.peek_byte().is_some() && self.peek_byte() != Some(b'\n')
             {
-              self.advance();
+              self.advance_byte();
             }
-            self.advance();
-            self.advance();
+          } else if self.peek_byte_nth(1) == Some(b'*') {
+            self.advance_byte();
+            self.advance_byte();
+            while self.peek_byte().is_some()
+              && (self.peek_byte() != Some(b'*')
+                || self.peek_byte_nth(1) != Some(b'/'))
+            {
+              self.advance_byte();
+            }
+            self.advance_byte();
+            self.advance_byte();
           } else {
             break;
           }
@@ -127,121 +117,123 @@ impl<'a> Iterator for Lexer<'a> {
     self.skip_trivia();
 
     let start = self.position;
-    let char = self.advance()?;
+    let byte = self.advance_byte()?;
 
-    let token = match char {
-      '(' => token!(self, start, TokenKind::LParen),
-      ')' => token!(self, start, TokenKind::RParen),
-      '{' => token!(self, start, TokenKind::LBrace),
-      '}' => token!(self, start, TokenKind::RBrace),
-      '[' => token!(self, start, TokenKind::LBracket),
-      ']' => token!(self, start, TokenKind::RBracket),
-      ',' => token!(self, start, TokenKind::Comma),
-      ':' => token!(self, start, TokenKind::Colon),
-      ';' => token!(self, start, TokenKind::Semicolon),
-      '~' => token!(self, start, TokenKind::Tilde),
-      '%' => token!(
+    let token = match byte {
+      b'(' => token!(self, start, TokenKind::LParen),
+      b')' => token!(self, start, TokenKind::RParen),
+      b'{' => token!(self, start, TokenKind::LBrace),
+      b'}' => token!(self, start, TokenKind::RBrace),
+      b'[' => token!(self, start, TokenKind::LBracket),
+      b']' => token!(self, start, TokenKind::RBracket),
+      b',' => token!(self, start, TokenKind::Comma),
+      b':' => token!(self, start, TokenKind::Colon),
+      b';' => token!(self, start, TokenKind::Semicolon),
+      b'~' => token!(self, start, TokenKind::Tilde),
+      b'%' => token!(
         self,
         start,
         TokenKind::Percent,
-        '=',
+        b'=',
         TokenKind::PercentEqual
       ),
-      '/' => token!(self, start, TokenKind::Slash, '=', TokenKind::SlashEqual),
-      '!' => token!(self, start, TokenKind::Bang, '=', TokenKind::BangEqual),
-      '^' => token!(self, start, TokenKind::Caret, '=', TokenKind::CaretEqual),
-      '.' => token!(self, start, TokenKind::Dot, '.', TokenKind::DotDot),
-      '+' => {
-        let kind = if self.advance_if('+') {
-          TokenKind::PlusPlus
-        } else if self.advance_if('=') {
-          TokenKind::PlusEqual
-        } else {
-          TokenKind::Plus
-        };
-        token!(self, start, kind)
+      b'/' => {
+        token!(self, start, TokenKind::Slash, b'=', TokenKind::SlashEqual)
       }
-      '-' => {
-        let kind = if self.advance_if('-') {
-          TokenKind::MinusMinus
-        } else if self.advance_if('=') {
-          TokenKind::MinusEqual
-        } else {
-          TokenKind::Minus
-        };
-        token!(self, start, kind)
+      b'!' => token!(self, start, TokenKind::Bang, b'=', TokenKind::BangEqual),
+      b'^' => {
+        token!(self, start, TokenKind::Caret, b'=', TokenKind::CaretEqual)
       }
-      '*' => {
-        let kind = if self.advance_if('*') {
-          TokenKind::StarStar
-        } else if self.advance_if('=') {
-          TokenKind::StarEqual
+      b'.' => {
+        if self.advance_if_byte(b'.') {
+          token!(self, start, TokenKind::DotDot)
         } else {
-          TokenKind::Star
-        };
-        token!(self, start, kind)
+          token!(self, start, TokenKind::Dot)
+        }
       }
-      '&' => {
-        let kind = if self.advance_if('&') {
-          TokenKind::AmpersandAmpersand
-        } else if self.advance_if('=') {
-          TokenKind::AmpersandEqual
+      b'+' => {
+        if self.advance_if_byte(b'+') {
+          token!(self, start, TokenKind::PlusPlus)
+        } else if self.advance_if_byte(b'=') {
+          token!(self, start, TokenKind::PlusEqual)
         } else {
-          TokenKind::Ampersand
-        };
-        token!(self, start, kind)
+          token!(self, start, TokenKind::Plus)
+        }
       }
-      '|' => {
-        let kind = if self.advance_if('|') {
-          TokenKind::PipePipe
-        } else if self.advance_if('=') {
-          TokenKind::PipeEqual
+      b'-' => {
+        if self.advance_if_byte(b'-') {
+          token!(self, start, TokenKind::MinusMinus)
+        } else if self.advance_if_byte(b'=') {
+          token!(self, start, TokenKind::MinusEqual)
         } else {
-          TokenKind::Pipe
-        };
-        token!(self, start, kind)
+          token!(self, start, TokenKind::Minus)
+        }
       }
-      '=' => {
-        let kind = if self.advance_if('>') {
-          TokenKind::Arrow
-        } else if self.advance_if('=') {
-          TokenKind::EqualEqual
+      b'*' => {
+        if self.advance_if_byte(b'*') {
+          token!(self, start, TokenKind::StarStar)
+        } else if self.advance_if_byte(b'=') {
+          token!(self, start, TokenKind::StarEqual)
         } else {
-          TokenKind::Equal
-        };
-        token!(self, start, kind)
+          token!(self, start, TokenKind::Star)
+        }
       }
-      '>' => {
-        let kind = if self.advance_if('>') {
-          if self.advance_if('=') {
-            TokenKind::GreaterGreaterEqual
+      b'&' => {
+        if self.advance_if_byte(b'&') {
+          token!(self, start, TokenKind::AmpersandAmpersand)
+        } else if self.advance_if_byte(b'=') {
+          token!(self, start, TokenKind::AmpersandEqual)
+        } else {
+          token!(self, start, TokenKind::Ampersand)
+        }
+      }
+      b'|' => {
+        if self.advance_if_byte(b'|') {
+          token!(self, start, TokenKind::PipePipe)
+        } else if self.advance_if_byte(b'=') {
+          token!(self, start, TokenKind::PipeEqual)
+        } else {
+          token!(self, start, TokenKind::Pipe)
+        }
+      }
+      b'=' => {
+        if self.advance_if_byte(b'>') {
+          token!(self, start, TokenKind::Arrow)
+        } else if self.advance_if_byte(b'=') {
+          token!(self, start, TokenKind::EqualEqual)
+        } else {
+          token!(self, start, TokenKind::Equal)
+        }
+      }
+      b'>' => {
+        if self.advance_if_byte(b'>') {
+          if self.advance_if_byte(b'=') {
+            token!(self, start, TokenKind::GreaterGreaterEqual)
           } else {
-            TokenKind::GreaterGreater
+            token!(self, start, TokenKind::GreaterGreater)
           }
-        } else if self.advance_if('=') {
-          TokenKind::GreaterThanEqual
+        } else if self.advance_if_byte(b'=') {
+          token!(self, start, TokenKind::GreaterThanEqual)
         } else {
-          TokenKind::GreaterThan
-        };
-        token!(self, start, kind)
+          token!(self, start, TokenKind::GreaterThan)
+        }
       }
-      '<' => {
-        let kind = if self.advance_if('<') {
-          if self.advance_if('=') {
-            TokenKind::LessLessEqual
+      b'<' => {
+        if self.advance_if_byte(b'<') {
+          if self.advance_if_byte(b'=') {
+            token!(self, start, TokenKind::LessLessEqual)
           } else {
-            TokenKind::LessLess
+            token!(self, start, TokenKind::LessLess)
           }
-        } else if self.advance_if('=') {
-          TokenKind::LessThanEqual
+        } else if self.advance_if_byte(b'=') {
+          token!(self, start, TokenKind::LessThanEqual)
         } else {
-          TokenKind::LessThan
-        };
-        token!(self, start, kind)
+          token!(self, start, TokenKind::LessThan)
+        }
       }
-      '"' => self.string(start),
+      b'"' => self.string(start),
       c if c.is_ascii_digit() => self.number(start),
-      c if c.is_alphabetic() || c == '_' => self.identifier(start),
+      c if c.is_ascii_alphabetic() || c == b'_' => self.identifier(start),
       _ => token!(self, start, TokenKind::Unknown),
     };
 

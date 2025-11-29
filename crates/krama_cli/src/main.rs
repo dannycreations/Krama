@@ -8,7 +8,5 @@ async fn main() -> Result<()> {
   let args = Args::parse();
   let mut arena = Bump::new();
 
-  let result = args.execute(&mut arena).await;
-
-  result
+  args.execute(&mut arena).await
 }

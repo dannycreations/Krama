@@ -39,143 +39,131 @@ fn clean_path(path: &Path) -> PathBuf {
 }
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) async fn eval_import(
+  async fn resolve_import_path(
     &self,
-    path: &'ast str,
-    _span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
-    if path.starts_with("std:") {
-      let module_name =
-        self.arena.alloc_str(path.strip_prefix("std:").unwrap());
-      if let Ok(modules) = self.modules.try_borrow() {
-        if let Some(module) = modules.get(module_name) {
-          return Ok(module.clone());
-        }
-      }
-      let module = modules::get_modules(module_name)
-        .map(|bindings| {
-          let module = Scope {
-            name: Some(module_name),
-            bindings,
-          };
-          Object::Scope(self.arena.alloc(module))
-        })
-        .ok_or_else(|| {
-          (
-            ErrorKind::ReferenceError(format!(
-              "Standard module not found: {}",
-              module_name
-            )),
-            Span::new(0, 0, None, None),
-          )
-        })?;
-      self
-        .modules
-        .try_borrow_mut()
-        .map_err(|e| {
-          (
-            ErrorKind::RuntimeError(e.to_string()),
-            Span::new(0, 0, None, None),
-          )
-        })?
-        .insert(module_name, module.clone());
-      return Ok(module);
+    path: &str,
+    span: &Span<'ast>,
+  ) -> Result<PathBuf, (ErrorKind, Span<'ast>)> {
+    let base_path = self
+      .path
+      .and_then(|p| Path::new(p).parent())
+      .unwrap_or_else(|| Path::new(""));
+    let path_buf = base_path.join(path);
+
+    if fs::metadata(&path_buf).await.is_ok() {
+      return Ok(clean_path(&path_buf));
     }
 
-    self.eval_and_cache(path).await
+    let path_with_ext = path_buf.with_extension("km");
+    if fs::metadata(&path_with_ext).await.is_ok() {
+      return Ok(clean_path(&path_with_ext));
+    }
+
+    Err((
+      ErrorKind::ReferenceError(format!(
+        "Failed to find module file: {}",
+        path
+      )),
+      span.clone(),
+    ))
   }
 
-  pub async fn eval_and_cache(
+  fn eval_std_module(
     &self,
     path: &'ast str,
+    span: Span<'ast>,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
-    // Try to resolve path and get source content.
-    // First try the path as is, then with a `.km` extension.
-    let path = self
-      .path
-      .and_then(|current_path| {
-        Path::new(current_path).parent().map(|p| p.join(path))
-      })
-      .map(|p| clean_path(&p))
-      .map(|p| {
-        self
-          .arena
-          .alloc_str(p.to_str().unwrap().replace("\\", "/").as_str())
-          as &str
-      })
-      .map_or(path, |v| v);
-    let (source, resolved_path) = match fs::read_to_string(path).await {
-      Ok(source) => (source, path),
-      Err(e1) => {
-        let path_with_ext_str = format!("{}.km", path);
-        let path_with_ext: &str = self.arena.alloc_str(&path_with_ext_str);
-        match fs::read_to_string(path_with_ext).await {
-          Ok(source) => (source, path_with_ext),
-          Err(_) => {
-            // On second failure, return the first, more relevant error.
-            return Err((
-              ErrorKind::ReferenceError(format!(
-                "Failed to read module file: {}",
-                e1
-              )),
-              Span::new(0, 0, None, None),
-            ));
-          }
-        }
-      }
-    };
+    let module_name = self.arena.alloc_str(path.strip_prefix("std:").unwrap());
 
-    // Now that we have the correctly resolved path, check the cache.
-    if let Ok(modules) = self.modules.try_borrow() {
-      if let Some(module) = modules.get(resolved_path) {
-        return Ok(module.clone());
-      }
-    } else {
-      return Err((
-        ErrorKind::RuntimeError("Failed to borrow modules cache".to_string()),
-        Span::new(0, 0, None, None),
-      ));
+    if let Some(module) = self.modules.borrow().get(module_name) {
+      return Ok(module.clone());
     }
 
-    // We have the source from the resolution step, so just allocate it.
+    let module = modules::get_modules(module_name)
+      .map(|bindings| {
+        let module = Scope {
+          name: Some(module_name),
+          bindings,
+        };
+        Object::Scope(self.arena.alloc(module))
+      })
+      .ok_or_else(|| {
+        (
+          ErrorKind::ReferenceError(format!(
+            "Standard module not found: {}",
+            module_name
+          )),
+          span,
+        )
+      })?;
+
+    self
+      .modules
+      .borrow_mut()
+      .insert(module_name, module.clone());
+    Ok(module)
+  }
+
+  async fn eval_file_module(
+    &self,
+    path: &'ast str,
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+    let resolved_path = self.resolve_import_path(path, &span).await?;
+    let resolved_path_str = resolved_path.to_str().ok_or_else(|| {
+      (
+        ErrorKind::RuntimeError("Invalid path encoding".to_string()),
+        span.clone(),
+      )
+    })?;
+    let resolved_path_key = self.alloc_str(resolved_path_str);
+
+    if let Some(module) = self.modules.borrow().get(resolved_path_key) {
+      return Ok(module.clone());
+    }
+
+    let source = fs::read_to_string(&resolved_path)
+      .await
+      .map_err(|e| (ErrorKind::ReferenceError(e.to_string()), span))?;
+
     let source_str = self.arena.alloc_str(&source);
 
-    let new_interpreter = Interpreter::new(self.arena, Some(resolved_path));
+    let new_interpreter = Interpreter::new(self.arena, Some(resolved_path_key));
     if let Err(mut err) = new_interpreter.eval(source_str).await {
-      err.1.file = Some(resolved_path);
+      err.1.file = Some(resolved_path_key);
       err.1.source = Some(source_str);
       return Err(err);
     }
 
     let bindings: FxHashMap<_, _> = new_interpreter
       .environment
-      .try_borrow()
-      .map_err(|e| {
-        (
-          ErrorKind::RuntimeError(e.to_string()),
-          Span::new(0, 0, None, None),
-        )
-      })?
+      .borrow()
       .get_public_bindings()
       .into_iter()
       .collect();
 
     let module = Object::Scope(self.arena.alloc(Scope {
-      name: Some(resolved_path),
+      name: Some(resolved_path_key),
       bindings,
     }));
 
     self
       .modules
-      .try_borrow_mut()
-      .map_err(|e| {
-        (
-          ErrorKind::RuntimeError(e.to_string()),
-          Span::new(0, 0, None, None),
-        )
-      })?
-      .insert(resolved_path, module.clone());
+      .borrow_mut()
+      .insert(resolved_path_key, module.clone());
 
     Ok(module)
+  }
+
+  pub(super) async fn eval_import(
+    &self,
+    path: &'ast str,
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+    if path.starts_with("std:") {
+      self.eval_std_module(path, span)
+    } else {
+      self.eval_file_module(path, span).await
+    }
   }
 }

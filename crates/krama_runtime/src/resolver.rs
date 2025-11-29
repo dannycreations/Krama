@@ -9,35 +9,39 @@ use krama_core::{
 };
 use rustc_hash::FxHashMap;
 
-use crate::interpreter::Interpreter;
-
-pub struct Resolver<'a, 'ast> {
-  interpreter: &'a Interpreter<'ast>,
+pub struct Resolver<'a> {
   scopes: Vec<FxHashMap<&'a str, bool>>,
+  locals: FxHashMap<Span<'a>, usize>,
 }
 
-impl<'a, 'ast> Resolver<'a, 'ast> {
-  pub fn new(interpreter: &'a Interpreter<'ast>) -> Self {
+impl<'a> Default for Resolver<'a> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+impl<'a> Resolver<'a> {
+  pub fn new() -> Self {
     Self {
-      interpreter,
       scopes: vec![FxHashMap::default()],
+      locals: FxHashMap::default(),
     }
   }
 
   pub fn resolve(
     &mut self,
-    program: &Program<'ast>,
-  ) -> Result<(), (ErrorKind, Span<'ast>)> {
+    program: &Program<'a>,
+  ) -> Result<FxHashMap<Span<'a>, usize>, (ErrorKind, Span<'a>)> {
     for statement in &program.statements {
       self.resolve_statement(statement)?;
     }
-    Ok(())
+    Ok(self.locals.clone())
   }
 
   fn resolve_statement(
     &mut self,
-    statement: &Statement<'ast>,
-  ) -> Result<(), (ErrorKind, Span<'ast>)> {
+    statement: &Statement<'a>,
+  ) -> Result<(), (ErrorKind, Span<'a>)> {
     match &statement.kind {
       StatementKind::Expression { expression } => {
         self.resolve_expression(expression)?
@@ -123,8 +127,8 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
 
   fn resolve_expression(
     &mut self,
-    expression: &Expression<'ast>,
-  ) -> Result<(), (ErrorKind, Span<'ast>)> {
+    expression: &Expression<'a>,
+  ) -> Result<(), (ErrorKind, Span<'a>)> {
     match &expression.kind {
       ExpressionKind::Identifier(name) => {
         if let Some(scope) = self.scopes.last() {
@@ -254,12 +258,12 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
     Ok(())
   }
 
-  fn resolve_local(&self, expression: &Expression<'ast>, name: &str) {
+  fn resolve_local(&mut self, expression: &Expression<'a>, name: &str) {
     for (i, scope) in self.scopes.iter().enumerate().rev() {
       if scope.contains_key(name) {
         self
-          .interpreter
-          .resolve(expression, self.scopes.len() - 1 - i);
+          .locals
+          .insert(expression.span.clone(), self.scopes.len() - 1 - i);
         return;
       }
     }

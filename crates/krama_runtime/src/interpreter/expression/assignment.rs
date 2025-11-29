@@ -30,7 +30,7 @@ impl<'ast> Interpreter<'ast> {
     let right_val = self.eval_expression(right, None).await?;
     let resolved_right_val = self.resolve_object(right_val).await?;
 
-    let distance = self.locals.borrow().get(&left.span).copied();
+    let distance = self.look_up_variable(left);
 
     if operator == AssignmentOperator::Assign {
       if let Some(distance) = distance {
@@ -100,7 +100,7 @@ impl<'ast> Interpreter<'ast> {
       ));
     };
 
-    let distance = self.locals.borrow().get(&argument.span).copied();
+    let distance = self.look_up_variable(argument);
     let original_value = if let Some(distance) = distance {
       self.get_at(distance, ident)
     } else {

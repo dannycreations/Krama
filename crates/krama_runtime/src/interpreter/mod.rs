@@ -100,7 +100,8 @@ impl<'ast> Interpreter<'ast> {
     source: &'ast str,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let program = self.parse_and_resolve(source)?;
-    self.eval_program_statements(&program.statements).await
+    let result = self.eval_program_statements(&program.statements).await?;
+    self.resolve_object(result).await
   }
 
   pub fn parse_and_resolve(
@@ -110,12 +111,13 @@ impl<'ast> Interpreter<'ast> {
     let lexer = Lexer::new(source, self.path);
     let mut parser = Parser::new(lexer, self.arena);
     let program = parser.parse()?;
-    let mut resolver = Resolver::new(self);
-    resolver.resolve(&program)?;
+    let mut resolver = Resolver::new();
+    let locals = resolver.resolve(&program)?;
+    *self.locals.borrow_mut() = locals;
     Ok(program)
   }
 
-  pub async fn eval_program_statements<'s>(
+  async fn eval_program_statements<'s>(
     &'s self,
     statements: &'s [Statement<'ast>],
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
@@ -157,7 +159,10 @@ impl<'ast> Interpreter<'ast> {
       .map_err(|e| (ErrorKind::RuntimeError(e.to_string()), span))
   }
 
-  pub(crate) fn resolve(&self, expr: &Expression<'ast>, depth: usize) {
-    self.locals.borrow_mut().insert(expr.span.clone(), depth);
+  pub(crate) fn look_up_variable(
+    &self,
+    expr: &Expression<'ast>,
+  ) -> Option<usize> {
+    self.locals.borrow().get(&expr.span).copied()
   }
 }

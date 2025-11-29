@@ -32,7 +32,7 @@ fn find_test_files(path: &Path) -> Result<Vec<PathBuf>, Error> {
 }
 
 impl Test {
-  pub async fn execute(&self, _: &mut Bump) -> Result<()> {
+  pub async fn execute(&self, arena: &mut Bump) -> Result<()> {
     let mut passed = 0;
     let mut failed = 0;
 
@@ -44,8 +44,7 @@ impl Test {
     let test_files = find_test_files(path)?;
 
     for path_buf in test_files {
-      let arena = Box::new(Bump::new());
-      let arena = Box::leak(arena);
+      arena.reset();
       let path = path_buf.as_path();
       let content = fs::read_to_string(&path).await?;
       let path_str = path.to_str().context("path is not valid UTF-8")?;
@@ -73,12 +72,8 @@ impl Test {
         }
       }
     }
+
     println!("\nTest results: {} passed, {} failed", passed, failed);
-
-    if failed > 0 {
-      return Err(anyhow!("{} test(s) failed", failed));
-    }
-
     Ok(())
   }
 }

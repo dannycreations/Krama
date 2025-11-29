@@ -15,16 +15,13 @@ where
 {
   pub(super) fn parse_collection_expression(&mut self) -> ParseError<'a, 'ast> {
     let start_span = self.current_token.span.clone();
+    self
+      .consume_token(TokenKind::LBracket)
+      .expect("Expected to consume a LBracket");
 
     let mut elements = BumpVec::new_in(self.arena);
 
-    // Check for empty collection
-    if self
-      .lexer
-      .peek()
-      .is_some_and(|t| t.kind == TokenKind::RBracket)
-    {
-      self.advance();
+    if self.current_token.kind == TokenKind::RBracket {
       let end_span = self.current_token.span.clone();
       self.advance();
       return Ok(Expression::new(
@@ -32,7 +29,6 @@ where
         start_span.merge(&end_span),
       ));
     }
-    self.advance();
 
     // Parse expressions
     loop {
