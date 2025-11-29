@@ -75,6 +75,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
               "Invalid integer literal for array size: '{}'",
               val
             )),
+            file_path: None,
+            source: None,
           })?;
         Some(Literal::Integer(parsed_val))
       } else {
@@ -83,6 +85,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           kind: ErrorKind::SyntaxError(
             "Expected integer literal for array size".to_string(),
           ),
+          file_path: None,
+          source: None,
         });
       }
     };
@@ -123,6 +127,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         return Err(Error {
           span,
           kind: ErrorKind::SyntaxError("Expected type".to_string()),
+          file_path: None,
+          source: None,
         })
       }
     };

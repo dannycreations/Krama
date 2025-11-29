@@ -35,6 +35,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Unexpected end of file: missing {}",
           TokenKind::RBrace
         )),
+        file_path: None,
+        source: None,
       });
     }
 

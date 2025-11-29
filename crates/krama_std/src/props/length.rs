@@ -22,6 +22,8 @@ pub(super) fn length<'ast>(
           "Cannot get length of type `{}`",
           object.type_name()
         )),
+        file_path: None,
+        source: None,
       }),
     }
   }

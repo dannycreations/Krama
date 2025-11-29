@@ -64,6 +64,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         return Err(Error {
           span: self.current_token.span,
           kind: ErrorKind::SyntaxError("Expected parameter name".to_string()),
+          file_path: None,
+          source: None,
         });
       };
       self.advance();
@@ -103,6 +105,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Expected {} after parameters",
           TokenKind::RParen
         )),
+        file_path: None,
+        source: None,
       });
     }
     self.advance();

@@ -31,6 +31,8 @@ impl<'ast> Interpreter<'ast> {
                 index.type_name()
               )),
               span,
+              file_path: None,
+              source: None,
             })
           }
         };
@@ -54,6 +56,8 @@ impl<'ast> Interpreter<'ast> {
           object.type_name()
         )),
         span,
+        file_path: None,
+        source: None,
       }),
     }
   }
@@ -72,6 +76,8 @@ impl<'ast> Interpreter<'ast> {
             index.type_name()
           )),
           span,
+          file_path: None,
+          source: None,
         })
       }
     };

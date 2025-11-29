@@ -26,6 +26,8 @@ impl<'ast> Interpreter<'ast> {
         kind: ErrorKind::TypeError(
           "Expected identifier for assignment".to_string(),
         ),
+        file_path: None,
+        source: None,
       });
     };
 
@@ -53,6 +55,8 @@ impl<'ast> Interpreter<'ast> {
     .ok_or_else(|| Error {
       span,
       kind: ErrorKind::ReferenceError(ident.to_string()),
+      file_path: None,
+      source: None,
     })?;
 
     let binary_op = match operator {
@@ -100,6 +104,8 @@ impl<'ast> Interpreter<'ast> {
         kind: ErrorKind::TypeError(
           "Expected identifier for update expression".to_string(),
         ),
+        file_path: None,
+        source: None,
       });
     };
 
@@ -112,6 +118,8 @@ impl<'ast> Interpreter<'ast> {
     .ok_or_else(|| Error {
       span,
       kind: ErrorKind::ReferenceError(ident.to_string()),
+      file_path: None,
+      source: None,
     })?;
     let resolved_original_value = self.resolve_object(original_value).await?;
     let new_value = match (operator, resolved_original_value.clone()) {
@@ -125,6 +133,8 @@ impl<'ast> Interpreter<'ast> {
           kind: ErrorKind::TypeError(
             "Update operator can only be applied to numbers".to_string(),
           ),
+          file_path: None,
+          source: None,
         })
       }
     };

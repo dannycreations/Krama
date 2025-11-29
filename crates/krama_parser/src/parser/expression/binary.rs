@@ -28,6 +28,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         return Err(Error {
           span: token.span,
           kind: ErrorKind::SyntaxError("Invalid postfix operator".to_string()),
+          file_path: None,
+          source: None,
         })
       }
     };
@@ -117,6 +119,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         return Err(Error {
           span: token.span,
           kind: ErrorKind::SyntaxError("Invalid infix operator".to_string()),
+          file_path: None,
+          source: None,
         })
       }
     };

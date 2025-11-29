@@ -44,6 +44,8 @@ impl<'ast> Interpreter<'ast> {
             "Unsupported types for binary operation: {:?} and {:?}",
             l, r
           )),
+          file_path: None,
+          source: None,
         }),
       },
     }
@@ -104,6 +106,8 @@ impl<'ast> Interpreter<'ast> {
           "Unsupported operator for floats: {:?}",
           operator
         )),
+        file_path: None,
+        source: None,
       }),
     }
   }
@@ -129,6 +133,8 @@ impl<'ast> Interpreter<'ast> {
           "Unsupported operator for strings: {:?}",
           operator
         )),
+        file_path: None,
+        source: None,
       }),
     }
   }
@@ -149,6 +155,8 @@ impl<'ast> Interpreter<'ast> {
           "Unsupported operator for booleans: {:?}",
           operator
         )),
+        file_path: None,
+        source: None,
       }),
     }
   }

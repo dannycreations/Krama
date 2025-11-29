@@ -81,6 +81,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Unexpected token for prefix expression: {}",
           token.kind
         )),
+        file_path: None,
+        source: None,
       }),
     }
   }

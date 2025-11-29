@@ -22,6 +22,8 @@ impl<'ast> Interpreter<'ast> {
       return Err(Error {
         span,
         kind: ErrorKind::TypeError("Invalid member expression".to_string()),
+        file_path: None,
+        source: None,
       });
     };
 
@@ -48,6 +50,8 @@ impl<'ast> Interpreter<'ast> {
         property_name,
         resolved_object.type_name()
       )),
+      file_path: None,
+      source: None,
     })
   }
 }

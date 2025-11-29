@@ -24,6 +24,8 @@ impl<'ast> Interpreter<'ast> {
           kind: ErrorKind::TypeError(
             "Unary '-' operator can only be applied to numbers".to_string(),
           ),
+          file_path: None,
+          source: None,
         }),
       },
       UnaryOperator::BitwiseNot => match right {
@@ -33,6 +35,8 @@ impl<'ast> Interpreter<'ast> {
           kind: ErrorKind::TypeError(
             "Bitwise not operator can only be applied to integers".to_string(),
           ),
+          file_path: None,
+          source: None,
         }),
       },
     }

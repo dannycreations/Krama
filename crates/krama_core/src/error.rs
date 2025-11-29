@@ -8,6 +8,8 @@ use crate::span::Span;
 pub struct Error {
   pub span: Span,
   pub kind: ErrorKind,
+  pub file_path: Option<String>,
+  pub source: Option<String>,
 }
 
 impl Display for Error {

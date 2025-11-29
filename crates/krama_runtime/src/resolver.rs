@@ -132,6 +132,8 @@ impl<'a, 'ast> Resolver<'a, 'ast> {
                   "Cannot read local variable in its own initializer"
                     .to_string(),
                 ),
+                file_path: None,
+                source: None,
               });
             }
           }

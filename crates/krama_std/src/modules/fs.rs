@@ -39,10 +39,14 @@ fn read_file<'ast>(
     let contents = fs::read(path).await.map_err(|e| Error {
       span,
       kind: ErrorKind::ReferenceError(e.to_string()),
+      file_path: None,
+      source: None,
     })?;
     let contents_str = str::from_utf8(&contents).map_err(|e| Error {
       span,
       kind: ErrorKind::TypeError(e.to_string()),
+      file_path: None,
+      source: None,
     })?;
     Ok(Object::String(arena.alloc_str(contents_str)))
   }
@@ -60,6 +64,8 @@ fn write_file<'ast>(
     fs::write(*path_str, *contents).await.map_err(|e| Error {
       span,
       kind: ErrorKind::ReferenceError(e.to_string()),
+      file_path: None,
+      source: None,
     })?;
 
     Ok(Object::Void)
@@ -93,6 +99,8 @@ fn rm<'ast>(
     fs::remove_file(*path_str).await.map_err(|e| Error {
       span,
       kind: ErrorKind::ReferenceError(e.to_string()),
+      file_path: None,
+      source: None,
     })?;
 
     Ok(Object::Void)
@@ -111,12 +119,16 @@ fn read_dir<'ast>(
     let mut paths = fs::read_dir(*path_str).await.map_err(|e| Error {
       span,
       kind: ErrorKind::ReferenceError(e.to_string()),
+      file_path: None,
+      source: None,
     })?;
 
     let mut entries = BumpVec::new_in(arena);
     while let Some(path) = paths.next_entry().await.map_err(|e| Error {
       span,
       kind: ErrorKind::ReferenceError(e.to_string()),
+      file_path: None,
+      source: None,
     })? {
       let entry =
         path.file_name().into_string().map_err(|os_string| Error {
@@ -125,6 +137,8 @@ fn read_dir<'ast>(
             "Invalid UTF-8 sequence in file name: {:?}",
             os_string
           )),
+          file_path: None,
+          source: None,
         })?;
       entries.push(Object::String(arena.alloc_str(&entry)));
     }
@@ -148,6 +162,8 @@ fn mkdir<'ast>(
     fs::create_dir_all(*path_str).await.map_err(|e| Error {
       span,
       kind: ErrorKind::ReferenceError(e.to_string()),
+      file_path: None,
+      source: None,
     })?;
 
     Ok(Object::Void)
@@ -166,6 +182,8 @@ fn rmdir<'ast>(
     fs::remove_dir(*path_str).await.map_err(|e| Error {
       span,
       kind: ErrorKind::ReferenceError(e.to_string()),
+      file_path: None,
+      source: None,
     })?;
 
     Ok(Object::Void)

@@ -24,6 +24,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Expected {} after 'if' or 'elif'",
           TokenKind::LParen
         )),
+        file_path: None,
+        source: None,
       });
     }
     self.advance();
@@ -37,6 +39,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Expected {} after if condition'",
           TokenKind::RParen
         )),
+        file_path: None,
+        source: None,
       });
     }
     self.advance();
@@ -82,6 +86,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Expected {} after 'match'",
           TokenKind::LParen
         )),
+        file_path: None,
+        source: None,
       });
     }
     self.advance();
@@ -95,6 +101,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Expected {} after match subject'",
           TokenKind::RParen
         )),
+        file_path: None,
+        source: None,
       });
     }
     self.advance();
@@ -106,6 +114,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Expected {} for match arms",
           TokenKind::LBrace
         )),
+        file_path: None,
+        source: None,
       });
     }
     self.advance();
@@ -128,6 +138,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Unexpected end of file: missing {}",
           TokenKind::RBrace
         )),
+        file_path: None,
+        source: None,
       });
     }
 
@@ -177,6 +189,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           TokenKind::Arrow,
           TokenKind::LBrace
         )),
+        file_path: None,
+        source: None,
       });
     };
 

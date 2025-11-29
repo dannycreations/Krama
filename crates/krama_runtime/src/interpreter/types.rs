@@ -48,6 +48,8 @@ pub(crate) fn check_type<'ast>(
               size,
               elements.len()
             )),
+            file_path: None,
+            source: None,
           });
         }
       }
@@ -65,6 +67,8 @@ pub(crate) fn check_type<'ast>(
             types.len(),
             elements.len()
           )),
+          file_path: None,
+          source: None,
         });
       }
 
@@ -83,6 +87,8 @@ pub(crate) fn check_type<'ast>(
         "Expected type {:?}, but got {:?}",
         expected_type.kind, object
       )),
+      file_path: None,
+      source: None,
     });
   }
 

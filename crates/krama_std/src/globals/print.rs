@@ -19,6 +19,8 @@ pub fn print<'ast>(
         stdout.write_all(b" ").await.map_err(|e| Error {
           span,
           kind: ErrorKind::RuntimeError(e.to_string()),
+          file_path: None,
+          source: None,
         })?;
       }
       stdout
@@ -27,11 +29,15 @@ pub fn print<'ast>(
         .map_err(|e| Error {
           span,
           kind: ErrorKind::RuntimeError(e.to_string()),
+          file_path: None,
+          source: None,
         })?;
     }
     stdout.write_all(b"\n").await.map_err(|e| Error {
       span,
       kind: ErrorKind::RuntimeError(e.to_string()),
+      file_path: None,
+      source: None,
     })?;
 
     Ok(Object::Void)

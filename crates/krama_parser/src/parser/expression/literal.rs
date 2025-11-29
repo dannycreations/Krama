@@ -26,6 +26,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       let value: i64 = value.replace('_', "").parse().map_err(|_| Error {
         span: token.span,
         kind: ErrorKind::SyntaxError("Invalid integer literal".to_string()),
+        file_path: None,
+        source: None,
       })?;
       Ok(Expression::new(
         ExpressionKind::Literal(Literal::Integer(value)),
@@ -35,6 +37,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       Err(Error {
         span: token.span,
         kind: ErrorKind::SyntaxError("Expected integer".to_string()),
+        file_path: None,
+        source: None,
       })
     }
   }
@@ -46,6 +50,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       let value: f64 = value.replace('_', "").parse().map_err(|_| Error {
         span: token.span,
         kind: ErrorKind::SyntaxError("Invalid float literal".to_string()),
+        file_path: None,
+        source: None,
       })?;
       Ok(Expression::new(
         ExpressionKind::Literal(Literal::Float(value)),
@@ -55,6 +61,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       Err(Error {
         span: token.span,
         kind: ErrorKind::SyntaxError("Expected float".to_string()),
+        file_path: None,
+        source: None,
       })
     }
   }
@@ -71,6 +79,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       Err(Error {
         span: token.span,
         kind: ErrorKind::SyntaxError("Expected string".to_string()),
+        file_path: None,
+        source: None,
       })
     }
   }

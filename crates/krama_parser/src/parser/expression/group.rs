@@ -47,6 +47,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         kind: ErrorKind::SyntaxError(
           "Expected expression in parentheses".to_string(),
         ),
+        file_path: None,
+        source: None,
       })
     } else {
       Err(Error {
@@ -55,6 +57,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Invalid grouped expression. To create a tuple, use square brackets `[]`"
             .to_string(),
         ),
+        file_path: None,
+        source: None,
       })
     }
   }
@@ -81,6 +85,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
             kind: ErrorKind::SyntaxError(
               "Invalid expression in function parameters.".to_string(),
             ),
+            file_path: None,
+            source: None,
           });
         }
         let name = if let ExpressionKind::Identifier(name) = left.kind {
@@ -91,6 +97,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
             kind: ErrorKind::SyntaxError(
               "Expected identifier as parameter name".to_string(),
             ),
+            file_path: None,
+            source: None,
           });
         };
         Ok(Parameter {
@@ -105,6 +113,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         kind: ErrorKind::SyntaxError(
           "Invalid expression in function parameters.".to_string(),
         ),
+        file_path: None,
+        source: None,
       }),
     }
   }

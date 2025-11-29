@@ -26,6 +26,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         kind: ErrorKind::SyntaxError(
           "Expected function name after 'fn'".to_string(),
         ),
+        file_path: None,
+        source: None,
       });
     };
     self.advance();
@@ -49,6 +51,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       return Err(Error {
         span: self.current_token.span,
         kind: ErrorKind::SyntaxError("Expected function body".to_string()),
+        file_path: None,
+        source: None,
       });
     };
 

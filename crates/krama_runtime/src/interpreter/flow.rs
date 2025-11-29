@@ -35,6 +35,8 @@ impl<'ast> Interpreter<'ast> {
             kind: ErrorKind::TypeError(
               "Range pattern can only be used on integers".to_string(),
             ),
+            file_path: None,
+            source: None,
           })
         }
       }
@@ -52,6 +54,8 @@ impl<'ast> Interpreter<'ast> {
             kind: ErrorKind::TypeError(
               "Range pattern can only be used on strings".to_string(),
             ),
+            file_path: None,
+            source: None,
           })
         }
       }

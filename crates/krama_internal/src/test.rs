@@ -11,6 +11,8 @@ macro_rules! resolve_future {
           kind: ::krama_core::error::ErrorKind::RuntimeError(
             "Future already resolved".to_string(),
           ),
+          file_path: None,
+          source: None,
         })
       }
     } else {

@@ -95,6 +95,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         Err(Error {
           span: token.span,
           kind: ErrorKind::SyntaxError(message),
+          file_path: None,
+          source: None,
         })
       }
     }
@@ -111,6 +113,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         "Expected token {}, but got {}",
         expected_kind, self.current_token.kind
       )),
+      file_path: None,
+      source: None,
     }
   }
 }

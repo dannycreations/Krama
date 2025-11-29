@@ -15,6 +15,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
       return Err(Error {
         span: start_span,
         kind: ErrorKind::SyntaxError("Expected '(' after 'import'".to_string()),
+        file_path: None,
+        source: None,
       });
     }
     self.advance();
@@ -30,6 +32,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           kind: ErrorKind::SyntaxError(
             "Expected a string literal for the import path".to_string(),
           ),
+          file_path: None,
+          source: None,
         })
       }
     };
@@ -41,6 +45,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         kind: ErrorKind::SyntaxError(
           "Expected ')' after import path".to_string(),
         ),
+        file_path: None,
+        source: None,
       });
     }
     self.advance();

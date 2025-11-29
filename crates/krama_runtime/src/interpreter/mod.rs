@@ -138,6 +138,8 @@ impl<'ast> Interpreter<'ast> {
           kind: ErrorKind::RuntimeError(
             "Future has already been consumed".to_string(),
           ),
+          file_path: None,
+          source: None,
         });
       }
     }
@@ -151,6 +153,8 @@ impl<'ast> Interpreter<'ast> {
     self.environment.try_borrow_mut().map_err(|e| Error {
       span,
       kind: ErrorKind::RuntimeError(e.to_string()),
+      file_path: None,
+      source: None,
     })
   }
 

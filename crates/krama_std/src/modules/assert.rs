@@ -19,6 +19,8 @@ fn create_assertion_error(message: String, span: Span) -> Error {
   Error {
     span,
     kind: ErrorKind::RuntimeError(message),
+    file_path: None,
+    source: None,
   }
 }
 

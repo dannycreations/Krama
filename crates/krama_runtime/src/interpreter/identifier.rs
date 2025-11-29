@@ -25,6 +25,8 @@ impl<'ast> Interpreter<'ast> {
         Err(Error {
           span,
           kind: ErrorKind::ReferenceError(format!("'{}' is not defined", name)),
+          file_path: None,
+          source: None,
         })
       },
       |v| Ok(v.clone()),

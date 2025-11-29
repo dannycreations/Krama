@@ -29,6 +29,8 @@ impl<'ast> Interpreter<'ast> {
           "Expected a function, but got {}",
           function.type_name()
         )),
+        file_path: None,
+        source: None,
       }),
     }
   }
@@ -47,6 +49,8 @@ impl<'ast> Interpreter<'ast> {
           user_fn.parameters.len(),
           arguments.len()
         )),
+        file_path: None,
+        source: None,
       });
     }
     let new_interpreter = self.new_enclosed();
@@ -63,6 +67,8 @@ impl<'ast> Interpreter<'ast> {
             "Missing argument for parameter '{}'",
             param.name
           )),
+          file_path: None,
+          source: None,
         });
       };
       new_interpreter

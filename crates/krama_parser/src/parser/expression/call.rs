@@ -49,6 +49,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
           "Expected {} after arguments",
           TokenKind::RParen
         )),
+        file_path: None,
+        source: None,
       });
     }
     self.advance();

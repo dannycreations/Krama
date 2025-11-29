@@ -26,6 +26,8 @@ macro_rules! parse_args {
                     EXPECTED_ARGS,
                     $objects.len()
                 )),
+                file_path: None,
+                source: None,
             });
         }
 
@@ -42,6 +44,8 @@ macro_rules! parse_args {
                             stringify!($type),
                             other.type_name()
                         )),
+                        file_path: None,
+                        source: None,
                     });
                 }
                 None => unreachable!(),

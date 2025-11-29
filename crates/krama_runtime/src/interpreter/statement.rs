@@ -82,6 +82,8 @@ impl<'ast> Interpreter<'ast> {
                   kind: ErrorKind::TypeError(
                     "Destructuring can only be done on modules".to_string(),
                   ),
+                  file_path: None,
+                  source: None,
                 });
               }
             }
@@ -197,6 +199,8 @@ impl<'ast> Interpreter<'ast> {
               item.name,
               scope.name.unwrap_or("<anonymous>")
             )),
+            file_path: None,
+            source: None,
           });
         }
       }
@@ -206,6 +210,8 @@ impl<'ast> Interpreter<'ast> {
         kind: ErrorKind::TypeError(
           "Destructuring can only be done on modules".to_string(),
         ),
+        file_path: None,
+        source: None,
       });
     }
     Ok(())

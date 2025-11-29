@@ -20,6 +20,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         kind: ErrorKind::SyntaxError(
           "Expected 'const' or 'fn' after 'pub'".to_string(),
         ),
+        file_path: None,
+        source: None,
       }),
     }
   }

@@ -23,6 +23,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         return Err(Error {
           span: token.span,
           kind: ErrorKind::SyntaxError("Invalid unary operator".to_string()),
+          file_path: None,
+          source: None,
         })
       }
     };
@@ -46,6 +48,8 @@ impl<'a, 'ast> Parser<'a, 'ast> {
         return Err(Error {
           span: token.span,
           kind: ErrorKind::SyntaxError("Invalid prefix operator".to_string()),
+          file_path: None,
+          source: None,
         })
       }
     };
