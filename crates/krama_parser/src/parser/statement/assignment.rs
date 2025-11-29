@@ -18,7 +18,7 @@ where
   pub(super) fn parse_let_statement(
     &mut self,
   ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
-    let start_span = self.consume_token_and_get(TokenKind::Let)?.span;
+    let start_span = self.consume(TokenKind::Let)?.span;
     let name = self.parse_identifier()?;
 
     let kind = if self.current_token.kind == TokenKind::Colon {
@@ -28,7 +28,7 @@ where
       None
     };
 
-    self.consume_token(TokenKind::Equal)?;
+    self.consume(TokenKind::Equal)?;
 
     let value = self.parse_expression(Precedence::Lowest)?;
 
@@ -47,20 +47,20 @@ where
     public: bool,
     start_span: Span<'a>,
   ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
-    self.consume_token(TokenKind::Const)?;
+    self.consume(TokenKind::Const)?;
 
     let binding = if self.current_token.kind == TokenKind::LBrace {
-      self.consume_token(TokenKind::LBrace)?;
+      self.consume(TokenKind::LBrace)?;
       let items = self.parse_destructured_items()?;
-      self.consume_token(TokenKind::RBrace)?;
+      self.consume(TokenKind::RBrace)?;
       Binding::Destructure(items)
     } else {
       let name = self.parse_identifier()?;
       if self.current_token.kind == TokenKind::Comma {
-        self.consume_token(TokenKind::Comma)?;
-        self.consume_token(TokenKind::LBrace)?;
+        self.consume(TokenKind::Comma)?;
+        self.consume(TokenKind::LBrace)?;
         let items = self.parse_destructured_items()?;
-        self.consume_token(TokenKind::RBrace)?;
+        self.consume(TokenKind::RBrace)?;
         Binding::ModuleAndDestructure {
           module_alias: name,
           items,
@@ -77,7 +77,7 @@ where
       None
     };
 
-    self.consume_token(TokenKind::Equal)?;
+    self.consume(TokenKind::Equal)?;
 
     let value = self.parse_expression(Precedence::Lowest)?;
     Ok(Statement::new(
@@ -103,7 +103,7 @@ where
       let name = self.parse_identifier()?;
 
       let alias = if self.current_token.kind == TokenKind::As {
-        self.consume_token(TokenKind::As)?;
+        self.consume(TokenKind::As)?;
         let alias_name = self.parse_identifier()?;
         Some(self.arena.alloc_str(alias_name))
       } else {
@@ -118,7 +118,7 @@ where
       if self.current_token.kind != TokenKind::Comma {
         break;
       }
-      self.consume_token(TokenKind::Comma)?;
+      self.consume(TokenKind::Comma)?;
     }
     Ok(items)
   }

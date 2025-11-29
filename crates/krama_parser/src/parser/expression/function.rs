@@ -20,7 +20,7 @@ where
     let start_span = self.current_token.span.clone();
     self.advance();
 
-    self.consume_token(TokenKind::LParen)?;
+    self.consume(TokenKind::LParen)?;
 
     let parameters = self.parse_fn_parameters()?;
 

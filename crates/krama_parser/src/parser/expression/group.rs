@@ -34,7 +34,7 @@ where
       expressions.push(self.parse_expression(Precedence::Lowest)?);
     }
 
-    self.consume_token(TokenKind::RParen)?;
+    self.consume(TokenKind::RParen)?;
 
     if self.current_token.kind == TokenKind::Arrow
       || self.current_token.kind == TokenKind::LBrace

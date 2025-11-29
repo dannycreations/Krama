@@ -14,10 +14,10 @@ where
   'ast: 'a,
 {
   pub(super) fn parse_collection_expression(&mut self) -> ParseError<'a, 'ast> {
-    let start_span = self.current_token.span.clone();
-    self
-      .consume_token(TokenKind::LBracket)
-      .expect("Expected to consume a LBracket");
+    let start_span = self
+      .consume(TokenKind::LBracket)
+      .expect("Expected to consume a LBracket")
+      .span;
 
     let mut elements = BumpVec::new_in(self.arena);
 
@@ -36,15 +36,14 @@ where
       if self.current_token.kind == TokenKind::RBracket {
         break;
       }
-      self.consume_token(TokenKind::Comma)?;
+      self.consume(TokenKind::Comma)?;
       if self.current_token.kind == TokenKind::RBracket {
         // Allow trailing comma
         break;
       }
     }
 
-    let end_span = self.current_token.span.clone();
-    self.consume_token(TokenKind::RBracket)?;
+    let end_span = self.consume(TokenKind::RBracket)?.span;
 
     Ok(Expression::new(
       ExpressionKind::Collection { elements },

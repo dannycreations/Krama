@@ -33,7 +33,7 @@ where
 
   fn parse_tuple_type(&mut self) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
     let start_span = self.current_token.span.clone();
-    self.consume_token(TokenKind::LBracket)?;
+    self.consume(TokenKind::LBracket)?;
 
     let mut types = BumpVec::new_in(self.arena);
 
@@ -44,7 +44,7 @@ where
         if self.current_token.kind == TokenKind::RBracket {
           break;
         }
-        self.consume_token(TokenKind::Comma)?;
+        self.consume(TokenKind::Comma)?;
         if self.current_token.kind == TokenKind::RBracket {
           // Allow trailing comma
           break;
@@ -52,8 +52,7 @@ where
       }
     }
 
-    let end_span = self.current_token.span.clone();
-    self.consume_token(TokenKind::RBracket)?;
+    let end_span = self.consume(TokenKind::RBracket)?.span;
 
     Ok(Type::new(
       TypeKind::Tuple(types),
@@ -66,7 +65,7 @@ where
     element_type: Type<'ast>,
   ) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
     let span = element_type.span.clone();
-    self.consume_token(TokenKind::LBracket)?;
+    self.consume(TokenKind::LBracket)?;
 
     let size = if self.current_token.kind == TokenKind::RBracket {
       None
@@ -93,8 +92,7 @@ where
         ));
       }
     };
-    let end_span = self.current_token.span.clone();
-    self.consume_token(TokenKind::RBracket)?;
+    let end_span = self.consume(TokenKind::RBracket)?.span;
 
     Ok(Type::new(
       TypeKind::Array {

@@ -30,7 +30,7 @@ where
       ));
     };
     self.advance();
-    self.consume_token(TokenKind::LParen)?;
+    self.consume(TokenKind::LParen)?;
     let parameters = self.parse_fn_parameters()?;
     let kind = if self.current_token.kind == TokenKind::Colon {
       self.advance();

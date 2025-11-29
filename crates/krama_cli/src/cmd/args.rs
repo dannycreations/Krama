@@ -12,10 +12,11 @@ pub struct Args {
 }
 
 impl Args {
-  pub async fn execute(self, arena: &mut Bump) -> Result<()> {
+  pub async fn execute(self) -> Result<()> {
+    let mut arena = Bump::new();
     match self.command {
-      Some(command) => command.execute(arena).await,
-      None => Repl.execute(arena).await,
+      Some(command) => command.execute(&mut arena).await,
+      None => Repl.execute(&mut arena).await,
     }
   }
 }

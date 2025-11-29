@@ -53,19 +53,7 @@ where
     });
   }
 
-  pub(super) fn consume_token(
-    &mut self,
-    expected_kind: TokenKind,
-  ) -> Result<(), (ErrorKind, Span<'a>)> {
-    if self.current_token.kind == expected_kind {
-      self.advance();
-      Ok(())
-    } else {
-      Err(self.expected_token_error(expected_kind))
-    }
-  }
-
-  pub(super) fn consume_token_and_get(
+  pub(super) fn consume(
     &mut self,
     expected_kind: TokenKind,
   ) -> Result<Token<'a>, (ErrorKind, Span<'a>)> {

@@ -44,20 +44,20 @@ impl<'ast> Interpreter<'ast> {
         } => {
           if *operator == BinaryOperator::LogicalAnd {
             let left = self.eval_expression(left, None).await?;
-            if !left.is_truthy() {
+            if !bool::from(&left) {
               return Ok(Object::Boolean(false));
             }
             let right = self.eval_expression(right, None).await?;
-            return Ok(Object::Boolean(right.is_truthy()));
+            return Ok(Object::Boolean(bool::from(&right)));
           }
 
           if *operator == BinaryOperator::LogicalOr {
             let left = self.eval_expression(left, None).await?;
-            if left.is_truthy() {
+            if bool::from(&left) {
               return Ok(Object::Boolean(true));
             }
             let right = self.eval_expression(right, None).await?;
-            return Ok(Object::Boolean(right.is_truthy()));
+            return Ok(Object::Boolean(bool::from(&right)));
           }
 
           let (left, right) = join!(

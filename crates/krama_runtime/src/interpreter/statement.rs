@@ -126,7 +126,7 @@ impl<'ast> Interpreter<'ast> {
               self.eval_expression(condition, None).await?;
             let condition_result =
               self.resolve_object(condition_result).await?;
-            if !condition_result.is_truthy() {
+            if !bool::from(&condition_result) {
               break;
             }
             let result = self.eval_block_statement(body).await?;

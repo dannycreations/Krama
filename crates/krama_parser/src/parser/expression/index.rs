@@ -20,7 +20,7 @@ where
 
     let index = self.parse_expression(Precedence::Lowest)?;
 
-    self.consume_token(TokenKind::RBracket)?;
+    self.consume(TokenKind::RBracket)?;
     let span = left.span.merge(&self.current_token.span);
     Ok(Expression::new(
       ExpressionKind::Index {

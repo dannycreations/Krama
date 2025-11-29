@@ -20,11 +20,11 @@ where
     let start_span = self.current_token.span.clone();
     self.advance();
 
-    self.consume_token(TokenKind::LParen)?;
+    self.consume(TokenKind::LParen)?;
 
     let condition = self.parse_expression(Precedence::Lowest)?;
 
-    self.consume_token(TokenKind::RParen)?;
+    self.consume(TokenKind::RParen)?;
     let body = self.parse_block_statement()?;
 
     Ok(Statement::new(

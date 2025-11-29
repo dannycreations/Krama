@@ -7,7 +7,7 @@ pub fn report_error(
   span: Span,
   kind: ErrorKind,
 ) {
-  let msg = kind.message();
+  let msg = kind.to_string();
   let kind_name = kind.as_ref();
 
   let file = span.file.unwrap_or(default_file);
@@ -17,7 +17,7 @@ pub fn report_error(
     ReportKind::Custom(kind_name, Color::Magenta),
     (file, span.start..span.end),
   )
-  .with_message(msg.fg(Color::White))
+  .with_message(msg.clone().fg(Color::White))
   .with_label(
     Label::new((file, span.start..span.end))
       .with_message(msg.fg(Color::White))

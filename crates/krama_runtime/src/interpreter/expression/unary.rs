@@ -12,7 +12,7 @@ impl<'ast> Interpreter<'ast> {
     span: Span<'ast>,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     match operator {
-      UnaryOperator::Not => Ok(Object::Boolean(!right.is_truthy())),
+      UnaryOperator::Not => Ok(Object::Boolean(!bool::from(&right))),
       UnaryOperator::Negate => match right {
         Object::Integer(i) => Ok(Object::Integer(-i)),
         Object::Float(f) => Ok(Object::Float(-f)),

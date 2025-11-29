@@ -51,7 +51,7 @@ impl<'ast> Interpreter<'ast> {
     operator: BinaryOperator,
     left: i64,
     right: i64,
-    _span: Span,
+    span: Span<'ast>,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     match operator {
       BinaryOperator::Add => Ok(Object::Integer(left + right)),
@@ -71,7 +71,13 @@ impl<'ast> Interpreter<'ast> {
       BinaryOperator::GreaterThanOrEqual => Ok(Object::Boolean(left >= right)),
       BinaryOperator::LessThan => Ok(Object::Boolean(left < right)),
       BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(left <= right)),
-      BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => unreachable!(),
+      BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => Err((
+        ErrorKind::TypeError(format!(
+          "Unsupported operator for integers: {:?}",
+          operator
+        )),
+        span,
+      )),
     }
   }
 

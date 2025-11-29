@@ -54,9 +54,9 @@ impl Test {
       let content_in_arena = arena.alloc_str(&content);
       let path_in_arena = arena.alloc_str(path_str);
       let interpreter = Interpreter::new(arena, Some(path_in_arena));
-      let program = interpreter.parse_and_resolve(content_in_arena).map_err(
-        |(kind, span)| anyhow!("Error: {}, Span: {:?}", kind.message(), span),
-      )?;
+      let program = interpreter
+        .parse_and_resolve(content_in_arena)
+        .map_err(|(kind, span)| anyhow!("Error: {}, Span: {:?}", kind, span))?;
       let results = interpreter.run_tests(&program.statements).await;
       for result in results {
         match result {

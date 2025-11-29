@@ -12,20 +12,16 @@ pub enum ErrorKind {
   ArgumentError(String),
 }
 
-impl ErrorKind {
-  pub fn message(&self) -> &str {
-    match self {
-      Self::RuntimeError(msg)
-      | Self::SyntaxError(msg)
-      | Self::TypeError(msg)
-      | Self::ReferenceError(msg)
-      | Self::ArgumentError(msg) => msg,
-    }
-  }
-}
-
 impl Display for ErrorKind {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-    write!(f, "{}: {}", self.as_ref(), self.message())
+    match self {
+      ErrorKind::RuntimeError(msg)
+      | ErrorKind::SyntaxError(msg)
+      | ErrorKind::TypeError(msg)
+      | ErrorKind::ReferenceError(msg)
+      | ErrorKind::ArgumentError(msg) => {
+        write!(f, "{}: {}", self.as_ref(), msg)
+      }
+    }
   }
 }

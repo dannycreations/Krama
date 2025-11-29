@@ -63,7 +63,7 @@ impl<'ast> PartialEq for Function<'ast> {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (Function::Native(a), Function::Native(b)) => a == b,
-      (Function::User(a), Function::User(b)) => ptr::eq(*a, *b),
+      (Function::User(a), Function::User(b)) => a == b,
       _ => false,
     }
   }
@@ -133,19 +133,6 @@ impl<'ast> Object<'ast> {
     }
   }
 
-  pub fn is_truthy(&self) -> bool {
-    match self {
-      Object::Boolean(b) => *b,
-      Object::Integer(i) => *i != 0,
-      Object::Float(f) => *f != 0.0,
-      Object::String(s) => !s.is_empty(),
-      Object::Array { elements, .. } => !elements.is_empty(),
-      Object::Tuple { elements } => !elements.is_empty(),
-      Object::Null | Object::Void => false,
-      _ => true,
-    }
-  }
-
   fn format_elements(
     f: &mut Formatter,
     elements: &[Object<'ast>],
@@ -158,6 +145,21 @@ impl<'ast> Object<'ast> {
       write!(f, "{}", element)?;
     }
     write!(f, "]")
+  }
+}
+
+impl<'ast> From<&Object<'ast>> for bool {
+  fn from(obj: &Object<'ast>) -> bool {
+    match obj {
+      Object::Boolean(b) => *b,
+      Object::Integer(i) => *i != 0,
+      Object::Float(f) => *f != 0.0,
+      Object::String(s) => !s.is_empty(),
+      Object::Array { elements, .. } => !elements.is_empty(),
+      Object::Tuple { elements } => !elements.is_empty(),
+      Object::Null | Object::Void => false,
+      _ => true,
+    }
   }
 }
 
@@ -216,12 +218,15 @@ impl<'ast> Debug for Object<'ast> {
     }
   }
 }
+
 impl<'ast> PartialEq for Object<'ast> {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
+      (Object::Null, Object::Null) => true,
+      (Object::Void, Object::Void) => true,
+      (Object::Boolean(a), Object::Boolean(b)) => a == b,
       (Object::Integer(a), Object::Integer(b)) => a == b,
       (Object::Float(a), Object::Float(b)) => a == b,
-      (Object::Boolean(a), Object::Boolean(b)) => a == b,
       (Object::String(a), Object::String(b)) => a == b,
       (
         Object::Array { elements: a, .. },
@@ -230,13 +235,11 @@ impl<'ast> PartialEq for Object<'ast> {
       | (Object::Tuple { elements: a }, Object::Tuple { elements: b }) => {
         a == b
       }
-      (Object::Null, Object::Null) => true,
-      (Object::Void, Object::Void) => true,
       (Object::Function(a), Object::Function(b)) => a == b,
       (Object::Return(a), Object::Return(b)) => a == b,
       (Object::Break, Object::Break) => true,
       (Object::Continue, Object::Continue) => true,
-      (Object::Scope(a), Object::Scope(b)) => std::ptr::eq(*a, *b),
+      (Object::Scope(a), Object::Scope(b)) => ptr::eq(*a, *b),
       (Object::Future(_), Object::Future(_)) => false,
       _ => false,
     }

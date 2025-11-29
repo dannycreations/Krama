@@ -20,7 +20,7 @@ fn assert<'ast>(
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>> {
   async move {
     parse_args!(objects, "assert"; condition: condition);
-    if !condition.is_truthy() {
+    if !bool::from(condition) {
       return Err(ErrorKind::RuntimeError(
         "Assertion failed: condition is not truthy".to_string(),
       ));
