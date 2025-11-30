@@ -4,6 +4,7 @@ use krama_core::{
     expression::{Expression, ExpressionKind, FunctionBody},
     precedence::Precedence,
     statement::Parameter,
+    types::Type,
   },
   error::ErrorKind,
   span::Span,
@@ -23,22 +24,7 @@ where
     self.consume(TokenKind::LParen)?;
 
     let parameters = self.parse_fn_parameters()?;
-
-    let kind = if self.current_token.kind == TokenKind::Colon {
-      self.advance();
-      Some(self.parse_type()?)
-    } else {
-      None
-    };
-
-    let body = if self.current_token.kind == TokenKind::Arrow {
-      self.advance();
-      let body_expr = self.parse_expression(Precedence::Lowest)?;
-      FunctionBody::Expression(self.arena.alloc(body_expr))
-    } else {
-      let body_block = self.arena.alloc(self.parse_block_statement()?);
-      FunctionBody::Block(body_block)
-    };
+    let (body, kind) = self.parse_fn_body_and_return_type()?;
 
     Ok(Expression::new(
       ExpressionKind::Fn {
@@ -113,26 +99,12 @@ where
     Ok(parameters)
   }
 
-  pub(super) fn parse_fn_expr_with_params(
+  pub(super) fn build_fn_expression(
     &mut self,
     start_span: Span<'a>,
     parameters: BumpVec<'ast, Parameter<'ast>>,
   ) -> ParseResult<'a, 'ast> {
-    let body = if self.current_token.kind == TokenKind::Arrow {
-      self.advance();
-      let body_expr = self.parse_expression(Precedence::Lowest)?;
-      FunctionBody::Expression(self.arena.alloc(body_expr))
-    } else {
-      let body_block = self.arena.alloc(self.parse_block_statement()?);
-      FunctionBody::Block(body_block)
-    };
-
-    let kind = if self.current_token.kind == TokenKind::Colon {
-      self.advance();
-      Some(self.parse_type()?)
-    } else {
-      None
-    };
+    let (body, kind) = self.parse_fn_body_and_return_type()?;
 
     Ok(Expression::new(
       ExpressionKind::Fn {
@@ -142,5 +114,28 @@ where
       },
       start_span,
     ))
+  }
+
+  fn parse_fn_body_and_return_type(
+    &mut self,
+  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), (ErrorKind, Span<'a>)>
+  {
+    let kind = if self.current_token.kind == TokenKind::Colon {
+      self.advance();
+      Some(self.parse_type()?)
+    } else {
+      None
+    };
+
+    let body = if self.current_token.kind == TokenKind::Arrow {
+      self.advance();
+      let body_expr = self.parse_expression(Precedence::Lowest)?;
+      FunctionBody::Expression(self.arena.alloc(body_expr))
+    } else {
+      let body_block = self.arena.alloc(self.parse_block_statement()?);
+      FunctionBody::Block(body_block)
+    };
+
+    Ok((body, kind))
   }
 }

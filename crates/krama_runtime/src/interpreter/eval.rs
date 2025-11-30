@@ -17,7 +17,7 @@ use krama_core::{
 use super::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) fn eval_expression<'s>(
+  pub(crate) fn eval_expression<'s>(
     &'s self,
     expression: &'s Expression<'ast>,
     kind: Option<&'s Type<'ast>>,
@@ -34,7 +34,6 @@ impl<'ast> Interpreter<'ast> {
         }
         ExpressionKind::Unary { operator, right } => {
           let right = self.eval_expression(right, None).await?;
-          let right = self.resolve_object(right).await?;
           self.eval_unary_expression(*operator, right, span.clone())
         }
         ExpressionKind::Binary {
@@ -63,10 +62,7 @@ impl<'ast> Interpreter<'ast> {
               self.eval_expression(left, None),
               self.eval_expression(right, None)
             );
-            let (left_obj, right_obj) = (
-              self.resolve_object(left_res?).await?,
-              self.resolve_object(right_res?).await?,
-            );
+            let (left_obj, right_obj) = (left_res?, right_res?);
             self.eval_binary_expression(
               *operator,
               left_obj,
@@ -152,7 +148,6 @@ impl<'ast> Interpreter<'ast> {
         }
         ExpressionKind::Member { object, property } => {
           let object = self.eval_expression(object, None).await?;
-          let object = self.resolve_object(object).await?;
           self
             .eval_member_expression(object, property, span.clone())
             .await
@@ -162,10 +157,7 @@ impl<'ast> Interpreter<'ast> {
             self.eval_expression(object, None),
             self.eval_expression(index, None)
           );
-          let (object, index) = (
-            self.resolve_object(object?).await?,
-            self.resolve_object(index?).await?,
-          );
+          let (object, index) = (object?, index?);
           self
             .eval_index_expression(object, index, span.clone())
             .await

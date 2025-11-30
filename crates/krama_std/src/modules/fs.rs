@@ -145,7 +145,7 @@ fn read_dir<'ast>(
 
     Ok(Object::Array {
       elements: entries.into_bump_slice(),
-      kind: Type::new(TypeKind::Identifier("str"), Span::new(0, 0, None, None)),
+      kind: Type::new(TypeKind::Str, Span::empty()),
     })
   }
   .boxed_local()

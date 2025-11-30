@@ -1,17 +1,13 @@
 use bumpalo::collections::Vec as BumpVec;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  ast::{
-    expression::FunctionBody,
-    statement::{
-      Binding, BlockStatement, DestructuredIdentifier, Statement, StatementKind,
-    },
+  ast::statement::{
+    Binding, BlockStatement, DestructuredIdentifier, Statement, StatementKind,
   },
   error::ErrorKind,
   object::{Function, Object, UserFunction},
   span::Span,
 };
-use tokio::task;
 
 use super::{types::check_type, Interpreter};
 
@@ -27,12 +23,10 @@ impl<'ast> Interpreter<'ast> {
       let span = statement.span.clone();
       match &statement.kind {
         StatementKind::Expression { expression } => {
-          let value = self.eval_expression(expression, None).await?;
-          self.resolve_object(value).await
+          self.eval_expression(expression, None).await
         }
         StatementKind::Let { name, value, kind } => {
           let value = self.eval_expression(value, kind.as_ref()).await?;
-          let value = self.resolve_object(value).await?;
 
           if let Some(kind) = kind {
             check_type(kind, &value)?;
@@ -42,13 +36,7 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
         StatementKind::Test { name: _, body } => {
-          let function =
-            Object::Function(Function::User(self.arena.alloc(UserFunction {
-              parameters: BumpVec::new_in(self.arena),
-              body: FunctionBody::Block(body),
-              kind: None,
-            })));
-          self.eval_call_expression(function, &[], span).await
+          self.eval_block_statement_with_new_scope(body).await
         }
         StatementKind::Const {
           binding,
@@ -57,7 +45,6 @@ impl<'ast> Interpreter<'ast> {
           kind,
         } => {
           let value = self.eval_expression(value, kind.as_ref()).await?;
-          let value = self.resolve_object(value).await?;
 
           if let Some(kind) = kind {
             check_type(kind, &value)?;
@@ -114,18 +101,14 @@ impl<'ast> Interpreter<'ast> {
             Some(expression) => self.eval_expression(expression, None).await?,
             None => Object::Void,
           };
-          let value = self.resolve_object(value).await?;
           Ok(Object::Return(self.arena.alloc(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),
         StatementKind::While { condition, body } => {
           loop {
-            task::yield_now().await;
             let condition_result =
               self.eval_expression(condition, None).await?;
-            let condition_result =
-              self.resolve_object(condition_result).await?;
             if !bool::from(&condition_result) {
               break;
             }

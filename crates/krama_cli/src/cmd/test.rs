@@ -1,12 +1,11 @@
 use std::{env, path::PathBuf};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use bumpalo::Bump;
 use clap::Parser;
-use futures::future::join_all;
 use krama_core::{error::ErrorKind, span::Span};
 use krama_runtime::{interpreter::Interpreter, testing::TestResult};
-use tokio::{fs, task};
+use tokio::fs;
 use walkdir::WalkDir;
 
 use crate::error::report_error;
@@ -18,34 +17,30 @@ pub struct Test {
 }
 
 #[derive(Debug)]
-struct OwnedFailure {
+struct Failure<'a> {
   name: String,
-  path: String,
-  content: String,
+  path: &'a str,
+  content: &'a str,
   kind: ErrorKind,
-  span: Span<'static>,
+  span: Span<'a>,
 }
 
 #[derive(Debug)]
-enum TestKind {
+enum TestKind<'a> {
   Success(String),
-  Failure(OwnedFailure),
+  Failure(Failure<'a>),
 }
 
-async fn find_test_files(path: PathBuf) -> Result<Vec<PathBuf>> {
-  let found_files = task::spawn_blocking(move || {
-    WalkDir::new(path)
-      .into_iter()
-      .filter_map(Result::ok)
-      .filter(|e| {
-        e.file_type().is_file()
-          && e.path().to_string_lossy().ends_with("_test.km")
-      })
-      .map(|e| e.path().to_path_buf())
-      .collect::<Vec<PathBuf>>()
-  })
-  .await
-  .with_context(|| "Failed to search for test files")?;
+fn find_test_files(path: PathBuf) -> Result<Vec<PathBuf>> {
+  let found_files = WalkDir::new(path)
+    .into_iter()
+    .filter_map(Result::ok)
+    .filter(|e| {
+      e.file_type().is_file()
+        && e.path().to_string_lossy().ends_with("_test.km")
+    })
+    .map(|e| e.path().to_path_buf())
+    .collect::<Vec<PathBuf>>();
 
   Ok(found_files)
 }
@@ -59,9 +54,9 @@ impl Test {
     let mut path_buf = root_path;
     path_buf.push(&self.path);
 
-    let test_files = find_test_files(path_buf).await?;
+    let test_files = find_test_files(path_buf)?;
 
-    let results = test_files.into_iter().map(|path_buf| async move {
+    for path_buf in test_files {
       let arena = Bump::new();
       let path = path_buf.as_path();
       let content = fs::read_to_string(&path).await?;
@@ -72,9 +67,16 @@ impl Test {
       let content_in_arena = arena.alloc_str(&content);
       let path_in_arena = arena.alloc_str(path_str);
       let interpreter = Interpreter::new(&arena, Some(path_in_arena));
-      let program = interpreter
-        .parse_and_resolve(content_in_arena)
-        .map_err(|(kind, span)| anyhow!("Error: {}, Span: {:?}", kind, span))?;
+
+      let program = match interpreter.parse_and_resolve(content_in_arena) {
+        Ok(program) => program,
+        Err((kind, span)) => {
+          report_error(path_str, &content, span, kind);
+          failed += 1;
+          continue;
+        }
+      };
+
       let results = interpreter.run_tests(&program.statements).await;
 
       let cli_results = results
@@ -82,46 +84,33 @@ impl Test {
         .map(|res| match res {
           TestResult::Success(name) => TestKind::Success(name),
           TestResult::Failure(name, (kind, span)) => {
-            TestKind::Failure(OwnedFailure {
+            TestKind::Failure(Failure {
               name,
-              path: path_str.to_string(),
-              content: content.to_string(),
+              path: path_str,
+              content: &content,
               kind,
-              span: span.into_static(),
+              span,
             })
           }
         })
         .collect::<Vec<_>>();
-      Ok::<_, anyhow::Error>(cli_results)
-    });
 
-    let all_results = join_all(results).await;
-
-    for result in all_results {
-      match result {
-        Ok(results) => {
-          for result in results {
-            match result {
-              TestKind::Success(name) => {
-                println!("  test {} ... ok", name);
-                passed += 1;
-              }
-              TestKind::Failure(failure) => {
-                println!("  '{}'... failed", failure.name);
-                report_error(
-                  &failure.path,
-                  &failure.content,
-                  failure.span,
-                  failure.kind,
-                );
-                failed += 1;
-              }
-            }
+      for result in cli_results {
+        match result {
+          TestKind::Success(name) => {
+            println!("  test {} ... ok", name);
+            passed += 1;
           }
-        }
-        Err(e) => {
-          eprintln!("Error running test file: {}", e);
-          failed += 1;
+          TestKind::Failure(failure) => {
+            println!("  '{}'... failed", failure.name);
+            report_error(
+              failure.path,
+              failure.content,
+              failure.span,
+              failure.kind,
+            );
+            failed += 1;
+          }
         }
       }
     }

@@ -1,5 +1,4 @@
 use std::{
-  cell::RefCell,
   fmt::{Debug, Display, Formatter, Result as FmtResult},
   ptr,
 };
@@ -110,8 +109,6 @@ pub enum Object<'ast> {
   Break,
   #[strum(props(name = "continue"))]
   Continue,
-  #[strum(props(name = "future"))]
-  Future(&'ast RefCell<Option<ObjectFuture<'ast>>>),
 }
 
 impl<'ast> Object<'ast> {
@@ -184,7 +181,6 @@ impl<'ast> Display for Object<'ast> {
       Object::Return(value) => write!(f, "{}", value),
       Object::Break => write!(f, "break"),
       Object::Continue => write!(f, "continue"),
-      Object::Future(_) => write!(f, "[future]"),
     }
   }
 }
@@ -196,13 +192,11 @@ impl<'ast> Debug for Object<'ast> {
       Object::Float(fl) => write!(f, "Float({})", fl),
       Object::Boolean(b) => write!(f, "Boolean({})", b),
       Object::String(s) => write!(f, "String(\"{}\")", s),
-      Object::Array { elements, .. } | Object::Tuple { elements } => {
-        let name = if matches!(self, Object::Array { .. }) {
-          "Array"
-        } else {
-          "Tuple"
-        };
-        f.debug_tuple(name).field(elements).finish()
+      Object::Array { elements, .. } => {
+        f.debug_tuple("Array").field(elements).finish()
+      }
+      Object::Tuple { elements } => {
+        f.debug_tuple("Tuple").field(elements).finish()
       }
       Object::Null => write!(f, "Null"),
       Object::Void => write!(f, "Void"),
@@ -211,7 +205,6 @@ impl<'ast> Debug for Object<'ast> {
       Object::Return(value) => f.debug_tuple("Return").field(value).finish(),
       Object::Break => write!(f, "Break"),
       Object::Continue => write!(f, "Continue"),
-      Object::Future(_) => write!(f, "[future]"),
     }
   }
 }
@@ -237,7 +230,6 @@ impl<'ast> PartialEq for Object<'ast> {
       (Object::Break, Object::Break) => true,
       (Object::Continue, Object::Continue) => true,
       (Object::Scope(a), Object::Scope(b)) => ptr::eq(*a, *b),
-      (Object::Future(_), Object::Future(_)) => false,
       _ => false,
     }
   }

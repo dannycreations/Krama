@@ -19,7 +19,6 @@ impl<'ast> Interpreter<'ast> {
     kind: Option<&Type<'ast>>,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let condition = self.eval_expression(condition, None).await?;
-    let condition = self.resolve_object(condition).await?;
 
     if bool::from(&condition) {
       self.eval_expression(then_branch, kind).await
@@ -37,7 +36,6 @@ impl<'ast> Interpreter<'ast> {
     span: Span<'ast>,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let subject = self.eval_expression(subject, None).await?;
-    let subject = self.resolve_object(subject).await?;
 
     for arm in arms {
       for pattern in &arm.patterns {

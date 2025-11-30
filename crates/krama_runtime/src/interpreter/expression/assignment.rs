@@ -28,19 +28,16 @@ impl<'ast> Interpreter<'ast> {
     };
 
     let right_val = self.eval_expression(right, None).await?;
-    let resolved_right_val = self.resolve_object(right_val).await?;
 
     let distance = self.look_up_variable(left);
 
     if operator == AssignmentOperator::Assign {
       if let Some(distance) = distance {
-        self.assign_at(distance, ident, resolved_right_val.clone());
+        self.assign_at(distance, ident, right_val.clone());
       } else {
-        self
-          .env_mut(span)?
-          .set(ident, resolved_right_val.clone(), false);
+        self.env_mut(span)?.set(ident, right_val.clone(), false);
       }
-      return Ok(resolved_right_val);
+      return Ok(right_val);
     }
 
     let left_val = if let Some(distance) = distance {
@@ -69,7 +66,7 @@ impl<'ast> Interpreter<'ast> {
     let new_val = self.eval_binary_expression(
       binary_op,
       left_val.clone(),
-      resolved_right_val,
+      right_val,
       span.clone(),
     )?;
 
@@ -109,8 +106,7 @@ impl<'ast> Interpreter<'ast> {
     .ok_or_else(|| {
       (ErrorKind::ReferenceError(ident.to_string()), span.clone())
     })?;
-    let resolved_original_value = self.resolve_object(original_value).await?;
-    let new_value = match (operator, resolved_original_value.clone()) {
+    let new_value = match (operator, original_value.clone()) {
       (UpdateOperator::Increment, Object::Integer(i)) => Object::Integer(i + 1),
       (UpdateOperator::Decrement, Object::Integer(i)) => Object::Integer(i - 1),
       (UpdateOperator::Increment, Object::Float(f)) => Object::Float(f + 1.0),
@@ -134,7 +130,7 @@ impl<'ast> Interpreter<'ast> {
     if prefix {
       Ok(new_value)
     } else {
-      Ok(resolved_original_value)
+      Ok(original_value)
     }
   }
 }

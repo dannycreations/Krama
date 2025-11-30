@@ -9,7 +9,6 @@ impl<'ast> Interpreter<'ast> {
     index: Object<'ast>,
     span: Span<'ast>,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
-    let index = self.resolve_object(index).await?;
     match &mut object {
       Object::Array { elements, .. } => {
         Self::eval_index_expression_for_sequence(elements, index, span)

@@ -14,7 +14,6 @@ impl<'ast> Interpreter<'ast> {
     property: &Expression<'ast>,
     span: Span<'ast>,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
-    let resolved_object = self.resolve_object(object).await?;
     let property_name = if let ExpressionKind::Identifier(name) = property.kind
     {
       name
@@ -25,15 +24,15 @@ impl<'ast> Interpreter<'ast> {
       ));
     };
 
-    let object_type = resolved_object.type_name();
+    let object_type = object.type_name();
 
     if let Some(props) = self.props.get(object_type) {
       if let Some(prop) = props.get(property_name) {
-        return prop(resolved_object).await.map_err(|kind| (kind, span));
+        return prop(object).await.map_err(|kind| (kind, span));
       }
     }
 
-    if let Object::Scope(scope) = resolved_object {
+    if let Object::Scope(scope) = object {
       if scope.name.is_some() {
         if let Some(export) = scope.bindings.get(property_name) {
           return Ok(export.clone());
@@ -45,7 +44,7 @@ impl<'ast> Interpreter<'ast> {
       ErrorKind::ReferenceError(format!(
         "Property '{}' not found for type '{}'",
         property_name,
-        resolved_object.type_name()
+        object.type_name()
       )),
       span,
     ))

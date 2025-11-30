@@ -21,6 +21,15 @@ impl<'a> Span<'a> {
     }
   }
 
+  pub fn empty() -> Self {
+    Self {
+      start: 0,
+      end: 0,
+      source: None,
+      file: None,
+    }
+  }
+
   pub fn merge(&self, other: &Span) -> Self {
     Self {
       start: self.start,

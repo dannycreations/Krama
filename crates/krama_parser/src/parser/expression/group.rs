@@ -22,8 +22,7 @@ where
 
     if self.current_token.kind == TokenKind::RParen {
       self.advance();
-      return self
-        .parse_fn_expr_with_params(start_span, BumpVec::new_in(self.arena));
+      return self.build_fn_expression(start_span, BumpVec::new_in(self.arena));
     }
 
     let mut expressions = BumpVec::new_in(self.arena);
@@ -44,7 +43,7 @@ where
         let parameter = self.expression_to_parameter(expr)?;
         parameters.push(parameter);
       }
-      self.parse_fn_expr_with_params(start_span, parameters)
+      self.build_fn_expression(start_span, parameters)
     } else if expressions.len() == 1 {
       expressions.pop().ok_or_else(|| {
         (

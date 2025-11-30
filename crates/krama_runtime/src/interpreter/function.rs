@@ -80,12 +80,14 @@ impl<'ast> Interpreter<'ast> {
 
     let result = match &user_fn.body {
       FunctionBody::Block(block) => {
-        new_interpreter.eval_block_statement(block).await?
+        new_interpreter
+          .eval_program_statements(&block.statements)
+          .await
       }
       FunctionBody::Expression(expr) => {
-        new_interpreter.eval_expression(expr, None).await?
+        new_interpreter.eval_expression(expr, None).await
       }
-    };
+    }?;
 
     if let Object::Return(value) = result {
       Ok(value.clone())

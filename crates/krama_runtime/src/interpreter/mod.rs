@@ -1,12 +1,12 @@
-mod eval;
-mod expression;
-mod flow;
-mod function;
-mod identifier;
-mod import;
-mod literal;
-mod statement;
-mod types;
+pub mod eval;
+pub mod expression;
+pub mod flow;
+pub mod function;
+pub mod identifier;
+pub mod import;
+pub mod literal;
+pub mod statement;
+pub mod types;
 
 use std::cell::{RefCell, RefMut};
 
@@ -108,8 +108,7 @@ impl<'ast> Interpreter<'ast> {
     source: &'ast str,
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let program = self.parse_and_resolve(source)?;
-    let result = self.eval_program_statements(&program.statements).await?;
-    self.resolve_object(result).await
+    self.eval_program_statements(&program.statements).await
   }
 
   pub fn parse_and_resolve(
@@ -134,27 +133,6 @@ impl<'ast> Interpreter<'ast> {
       result = self.eval_statement(statement).await?;
     }
     Ok(result)
-  }
-
-  async fn resolve_object(
-    &self,
-    object: Object<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
-    let mut current_object = object;
-    while let Object::Future(future_cell) = current_object {
-      let future = future_cell.borrow_mut().take();
-      if let Some(future) = future {
-        current_object = future.await?;
-      } else {
-        return Err((
-          ErrorKind::RuntimeError(
-            "Future has already been consumed".to_string(),
-          ),
-          Span::new(0, 0, None, None),
-        ));
-      }
-    }
-    Ok(current_object)
   }
 
   pub(super) fn env_mut(
