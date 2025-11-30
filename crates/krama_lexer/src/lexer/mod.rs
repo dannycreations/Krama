@@ -85,17 +85,21 @@ impl<'a> Lexer<'a> {
         }
         Some(b'/') => {
           if self.peek_byte_nth(1) == Some(b'/') {
-            while self.peek_byte().is_some() && self.peek_byte() != Some(b'\n')
-            {
+            // single-line comment
+            while let Some(byte) = self.peek_byte() {
+              if byte == b'\n' {
+                break;
+              }
               self.advance_byte();
             }
           } else if self.peek_byte_nth(1) == Some(b'*') {
+            // multi-line comment
             self.advance_byte();
             self.advance_byte();
-            while self.peek_byte().is_some()
-              && (self.peek_byte() != Some(b'*')
-                || self.peek_byte_nth(1) != Some(b'/'))
-            {
+            while let Some(byte) = self.peek_byte() {
+              if byte == b'*' && self.peek_byte_nth(1) == Some(b'/') {
+                break;
+              }
               self.advance_byte();
             }
             self.advance_byte();

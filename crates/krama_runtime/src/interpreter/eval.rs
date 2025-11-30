@@ -14,7 +14,7 @@ use krama_core::{
   span::Span,
 };
 
-use super::Interpreter;
+use super::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
   pub(super) fn eval_expression<'s>(
@@ -193,6 +193,11 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Tuple {
             elements: elements_slice,
           })
+        }
+        ExpressionKind::Typed { expr, kind } => {
+          let value = self.eval_expression(expr, Some(kind)).await?;
+          check_type(kind, &value)?;
+          Ok(value)
         }
       }
     }

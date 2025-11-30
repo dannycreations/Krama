@@ -40,6 +40,7 @@ where
         TokenKind::LParen => self.parse_call_expression(left)?,
         TokenKind::Dot => self.parse_member_expression(left)?,
         TokenKind::LBracket => self.parse_index_expression(left)?,
+        TokenKind::Colon => self.parse_typed_expression(left)?,
         TokenKind::PlusPlus | TokenKind::MinusMinus => {
           self.parse_postfix_expression(left)?
         }
@@ -87,5 +88,21 @@ where
         token.span,
       )),
     }
+  }
+
+  fn parse_typed_expression(
+    &mut self,
+    expr: Expression<'ast>,
+  ) -> ParseError<'a, 'ast> {
+    self.consume(TokenKind::Colon)?;
+    let kind = self.parse_type()?;
+    let span = expr.span.merge(&kind.span);
+    Ok(Expression::new(
+      ExpressionKind::Typed {
+        expr: self.arena.alloc(expr),
+        kind,
+      },
+      span,
+    ))
   }
 }

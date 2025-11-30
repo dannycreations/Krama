@@ -201,11 +201,13 @@ impl<'ast> Debug for Object<'ast> {
       Object::Float(fl) => write!(f, "Float({})", fl),
       Object::Boolean(b) => write!(f, "Boolean({})", b),
       Object::String(s) => write!(f, "String(\"{}\")", s),
-      Object::Array { elements, .. } => {
-        f.debug_tuple("Array").field(elements).finish()
-      }
-      Object::Tuple { elements } => {
-        f.debug_tuple("Tuple").field(elements).finish()
+      Object::Array { elements, .. } | Object::Tuple { elements } => {
+        let name = if matches!(self, Object::Array { .. }) {
+          "Array"
+        } else {
+          "Tuple"
+        };
+        f.debug_tuple(name).field(elements).finish()
       }
       Object::Null => write!(f, "Null"),
       Object::Void => write!(f, "Void"),

@@ -75,6 +75,10 @@ pub enum ExpressionKind<'ast> {
     object: &'ast Expression<'ast>,
     index: &'ast Expression<'ast>,
   },
+  Typed {
+    expr: &'ast Expression<'ast>,
+    kind: Type<'ast>,
+  },
 }
 
 #[derive(Debug, Clone, PartialEq)]

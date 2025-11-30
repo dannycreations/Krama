@@ -20,6 +20,7 @@ pub enum Precedence {
   Call,        // myFunction(X)
   Member,      // myObject.property
   Index,       // myArray[0]
+  Colon,       // :
 }
 
 impl Precedence {
@@ -56,6 +57,7 @@ impl Precedence {
       TokenKind::LParen => Precedence::Call,
       TokenKind::Dot => Precedence::Member,
       TokenKind::LBracket => Precedence::Index,
+      TokenKind::Colon => Precedence::Colon,
       _ => Precedence::Lowest,
     }
   }

@@ -5,7 +5,7 @@ use krama_core::{
   span::Span,
 };
 
-use crate::interpreter::Interpreter;
+use crate::interpreter::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
   pub(super) async fn eval_call_expression(
@@ -67,6 +67,11 @@ impl<'ast> Interpreter<'ast> {
           span,
         ));
       };
+
+      if let Some(param_type) = &param.kind {
+        check_type(param_type, &value)?;
+      }
+
       new_interpreter
         .environment
         .borrow_mut()

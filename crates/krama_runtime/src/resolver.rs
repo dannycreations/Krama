@@ -253,6 +253,9 @@ impl<'a> Resolver<'a> {
           self.resolve_expression(element)?;
         }
       }
+      ExpressionKind::Typed { expr, .. } => {
+        self.resolve_expression(expr)?;
+      }
       ExpressionKind::Import { .. } | ExpressionKind::Literal(_) => {}
     }
     Ok(())

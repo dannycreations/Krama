@@ -126,3 +126,9 @@ test_eval_error!(
   "let a: i8 = 1.0;",
   ErrorKind::TypeError(_)
 );
+
+test_eval_error!(
+  eval_arrow_function_parameter_type_error,
+  "const a = (b: i8) => b\n a(1.0)",
+  ErrorKind::TypeError(_)
+);

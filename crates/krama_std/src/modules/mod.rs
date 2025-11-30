@@ -33,8 +33,9 @@ macro_rules! parse_args {
                 Some($type) => $arg,
                 Some(other) => {
                      return Err(ErrorKind::ArgumentError(format!(
-                        "Expected argument '{}' to be of type '{}', but got '{}'",
+                        "Expected argument '{}' for function '{}' to be of type '{}', but got '{}'",
                         stringify!($arg),
+                        $fn_name,
                         stringify!($type),
                         other.type_name()
                     )));

@@ -106,6 +106,24 @@ where
           span: expr.span,
         })
       }
+      ExpressionKind::Typed { expr: inner, kind } => {
+        let name = if let ExpressionKind::Identifier(name) = inner.kind {
+          name
+        } else {
+          return Err((
+            ErrorKind::SyntaxError(
+              "Expected identifier as parameter name".to_string(),
+            ),
+            inner.span.clone(),
+          ));
+        };
+        Ok(Parameter {
+          name,
+          kind: Some(kind),
+          default: None,
+          span: expr.span,
+        })
+      }
       _ => Err((
         ErrorKind::SyntaxError(
           "Invalid expression in function parameters.".to_string(),
