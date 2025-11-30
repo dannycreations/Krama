@@ -3,7 +3,7 @@ use std::process;
 use anyhow::Result;
 use bumpalo::{collections::String as BumpString, Bump};
 use clap::Parser;
-use krama_core::object::Object;
+use krama_core::{error::ErrorKind, object::Object};
 use krama_runtime::interpreter::Interpreter;
 use tokio::{
   io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -25,7 +25,7 @@ impl Repl {
     let interpreter = Interpreter::new(&arena, Some("repl"));
 
     loop {
-      let prompt = if history.is_empty() { ">> " } else { ".. " };
+      let prompt = if history.is_empty() { "> " } else { "... " };
       stdout.write_all(prompt.as_bytes()).await?;
       stdout.flush().await?;
       line.clear();
@@ -50,7 +50,7 @@ impl Repl {
                             match interpreter.eval(source).await {
                                 Ok(object) => {
                                     if !matches!(object, Object::Void) {
-                                        println!(">> {}", object);
+                                        println!("{}", object);
                                     }
                                 }
                                 Err((kind, span)) => {
@@ -60,8 +60,16 @@ impl Repl {
                             history.clear();
                         }
                         Err((kind, span)) => {
-                            report_error("repl", source, span, kind);
-                            history.clear();
+                          if let ErrorKind::SyntaxError(msg) = &kind {
+                            let is_unexpected_eof = msg.contains("Unexpected");
+                            let is_missing_closer = msg.contains("Expected") && msg.contains("Eof");
+
+                            if is_unexpected_eof || is_missing_closer {
+                                continue;
+                            }
+                          }
+                          report_error("repl", source, span, kind);
+                          history.clear();
                         }
                       }
                   }

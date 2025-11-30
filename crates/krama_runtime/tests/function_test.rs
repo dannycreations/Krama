@@ -8,20 +8,14 @@ test_eval!(
 );
 
 test_eval!(
-  eval_user_defined_function_call,
-  r#"fn a(x) { x }; a(5)"#,
-  Object::Integer(5)
-);
-
-test_eval!(
   eval_let_bound_function_call,
-  r#"let a = (x) { x }; a(5)"#,
+  r#"let a = fn(x) { x }; a(5)"#,
   Object::Integer(5)
 );
 
 test_eval!(
   eval_const_bound_function_call,
-  r#"const a = (x) { x }; a(5)"#,
+  r#"const a = fn(x) { x }; a(5)"#,
   Object::Integer(5)
 );
 
@@ -29,6 +23,18 @@ test_eval!(
   eval_arrow_function_call,
   r#"let a = (x) => x; a(5)"#,
   Object::Integer(5)
+);
+
+test_eval_error!(
+  eval_arrow_function_call_with_block,
+  r#"let a = (x) => { x }; a(5)"#,
+  ErrorKind::SyntaxError(_)
+);
+
+test_eval_error!(
+  eval_classic_function_call_with_arrow,
+  r#"let a = fn(x) => x; a(5)"#,
+  ErrorKind::SyntaxError(_)
 );
 
 test_eval!(

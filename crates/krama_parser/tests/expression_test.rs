@@ -49,12 +49,30 @@ fn parse_arrow_function_with_no_parameters() {
 
 #[test]
 fn parse_block_function_with_no_parameters() {
-  let source = "() => {}";
+  let source = "fn a() {}";
   let arena = Bump::new();
   let lexer = Lexer::new(source, None);
   let mut parser = Parser::new(lexer, &arena);
   let program = parser.parse().unwrap();
   assert_eq!(program.statements.len(), 1);
+}
+
+#[test]
+fn parse_arrow_function_with_block() {
+  let source = "() => {}";
+  let arena = Bump::new();
+  let lexer = Lexer::new(source, None);
+  let mut parser = Parser::new(lexer, &arena);
+  assert!(parser.parse().is_err());
+}
+
+#[test]
+fn parse_classic_function_with_arrow() {
+  let source = "fn() => 1";
+  let arena = Bump::new();
+  let lexer = Lexer::new(source, None);
+  let mut parser = Parser::new(lexer, &arena);
+  assert!(parser.parse().is_err());
 }
 
 #[test]

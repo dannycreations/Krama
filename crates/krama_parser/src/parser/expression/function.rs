@@ -24,7 +24,7 @@ where
     self.consume(TokenKind::LParen)?;
 
     let parameters = self.parse_fn_parameters()?;
-    let (body, kind) = self.parse_fn_body_and_return_type()?;
+    let (body, kind) = self.parse_classic_fn_body_and_return_type()?;
 
     Ok(Expression::new(
       ExpressionKind::Fn {
@@ -104,7 +104,7 @@ where
     start_span: Span<'a>,
     parameters: BumpVec<'ast, Parameter<'ast>>,
   ) -> ParseResult<'a, 'ast> {
-    let (body, kind) = self.parse_fn_body_and_return_type()?;
+    let (body, kind) = self.parse_arrow_fn_body_and_return_type()?;
 
     Ok(Expression::new(
       ExpressionKind::Fn {
@@ -116,7 +116,7 @@ where
     ))
   }
 
-  fn parse_fn_body_and_return_type(
+  fn parse_classic_fn_body_and_return_type(
     &mut self,
   ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), (ErrorKind, Span<'a>)>
   {
@@ -127,15 +127,43 @@ where
       None
     };
 
-    let body = if self.current_token.kind == TokenKind::Arrow {
+    if self.current_token.kind == TokenKind::Arrow {
+      return Err((
+        ErrorKind::SyntaxError(
+          "`fn` functions cannot use `=>` syntax. Use a block body `{...}` instead.".to_string(),
+        ),
+        self.current_token.span.clone(),
+      ));
+    }
+
+    let body_block = self.arena.alloc(self.parse_block_statement()?);
+    let body = FunctionBody::Block(body_block);
+    Ok((body, kind))
+  }
+
+  fn parse_arrow_fn_body_and_return_type(
+    &mut self,
+  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), (ErrorKind, Span<'a>)>
+  {
+    let kind = if self.current_token.kind == TokenKind::Colon {
       self.advance();
-      let body_expr = self.parse_expression(Precedence::Lowest)?;
-      FunctionBody::Expression(self.arena.alloc(body_expr))
+      Some(self.parse_type()?)
     } else {
-      let body_block = self.arena.alloc(self.parse_block_statement()?);
-      FunctionBody::Block(body_block)
+      None
     };
 
+    self.consume(TokenKind::Arrow)?;
+    if self.current_token.kind == TokenKind::LBrace {
+      return Err((
+        ErrorKind::SyntaxError(
+          "Arrow functions cannot have a block body.".to_string(),
+        ),
+        self.current_token.span.clone(),
+      ));
+    }
+
+    let body_expr = self.parse_expression(Precedence::Lowest)?;
+    let body = FunctionBody::Expression(self.arena.alloc(body_expr));
     Ok((body, kind))
   }
 }
