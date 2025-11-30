@@ -19,7 +19,7 @@ use krama_core::{
   token::TokenKind,
 };
 
-use crate::parser::{ParseError, Parser};
+use crate::parser::{ParseResult, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -28,7 +28,7 @@ where
   pub(super) fn parse_expression(
     &mut self,
     precedence: Precedence,
-  ) -> ParseError<'a, 'ast> {
+  ) -> ParseResult<'a, 'ast> {
     let mut left = self.parse_pratt()?;
 
     while precedence < self.current_precedence() {
@@ -51,7 +51,7 @@ where
     Ok(left)
   }
 
-  fn parse_pratt(&mut self) -> ParseError<'a, 'ast> {
+  fn parse_pratt(&mut self) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
 
     match token.kind {
@@ -93,7 +93,7 @@ where
   fn parse_typed_expression(
     &mut self,
     expr: Expression<'ast>,
-  ) -> ParseError<'a, 'ast> {
+  ) -> ParseResult<'a, 'ast> {
     self.consume(TokenKind::Colon)?;
     let kind = self.parse_type()?;
     let span = expr.span.merge(&kind.span);

@@ -6,7 +6,7 @@ use krama_core::{
   token::TokenKind,
 };
 
-use crate::parser::{ParseError, Parser};
+use crate::parser::{ParseResult, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -15,7 +15,7 @@ where
   pub(super) fn parse_index_expression(
     &mut self,
     left: Expression<'ast>,
-  ) -> ParseError<'a, 'ast> {
+  ) -> ParseResult<'a, 'ast> {
     self.advance();
 
     let index = self.parse_expression(Precedence::Lowest)?;

@@ -3,7 +3,7 @@ use krama_core::ast::{
   precedence::Precedence,
 };
 
-use crate::parser::{ParseError, Parser};
+use crate::parser::{ParseResult, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -12,7 +12,7 @@ where
   pub(super) fn parse_member_expression(
     &mut self,
     object: Expression<'ast>,
-  ) -> ParseError<'a, 'ast> {
+  ) -> ParseResult<'a, 'ast> {
     self.advance();
     let property = self.parse_expression(Precedence::Member)?;
     let span = object.span.merge(&property.span);

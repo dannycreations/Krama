@@ -13,7 +13,7 @@ use krama_core::{
 };
 use krama_lexer::lexer::Lexer;
 
-type ParseError<'a, 'ast> = Result<Expression<'ast>, (ErrorKind, Span<'a>)>;
+type ParseResult<'a, 'ast> = Result<Expression<'ast>, (ErrorKind, Span<'a>)>;
 
 pub struct Parser<'a, 'ast>
 where

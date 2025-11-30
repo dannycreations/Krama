@@ -7,13 +7,13 @@ use krama_core::{
   token::TokenKind,
 };
 
-use crate::parser::{ParseError, Parser};
+use crate::parser::{ParseResult, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
-  pub(super) fn parse_literal(&mut self) -> ParseError<'a, 'ast> {
+  pub(super) fn parse_literal(&mut self) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
     self.advance();
 
@@ -57,7 +57,9 @@ where
     ))
   }
 
-  pub(super) fn parse_identifier_expression(&mut self) -> ParseError<'a, 'ast> {
+  pub(super) fn parse_identifier_expression(
+    &mut self,
+  ) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
     let name = self.parse_identifier()?;
     Ok(Expression::new(

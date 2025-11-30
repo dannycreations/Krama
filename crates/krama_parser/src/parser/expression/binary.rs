@@ -7,7 +7,7 @@ use krama_core::{
   token::TokenKind,
 };
 
-use crate::parser::{ParseError, Parser};
+use crate::parser::{ParseResult, Parser};
 
 enum InfixOperator {
   Binary(BinaryOperator),
@@ -21,7 +21,7 @@ where
   pub(super) fn parse_postfix_expression(
     &mut self,
     argument: Expression<'ast>,
-  ) -> ParseError<'a, 'ast> {
+  ) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
     let operator = match token.kind {
       TokenKind::PlusPlus => UpdateOperator::Increment,
@@ -48,7 +48,7 @@ where
   pub(super) fn parse_infix_expression(
     &mut self,
     left: Expression<'ast>,
-  ) -> ParseError<'a, 'ast> {
+  ) -> ParseResult<'a, 'ast> {
     let precedence = self.current_precedence();
     let token = self.current_token.clone();
 

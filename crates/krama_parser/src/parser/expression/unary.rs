@@ -8,13 +8,13 @@ use krama_core::{
   token::TokenKind,
 };
 
-use crate::parser::{ParseError, Parser};
+use crate::parser::{ParseResult, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
-  pub(super) fn parse_unary_expression(&mut self) -> ParseError<'a, 'ast> {
+  pub(super) fn parse_unary_expression(&mut self) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
     self.advance();
     let operator = match token.kind {
@@ -41,7 +41,7 @@ where
 
   pub(super) fn parse_prefix_update_expression(
     &mut self,
-  ) -> ParseError<'a, 'ast> {
+  ) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
     self.advance();
     let operator = match token.kind {

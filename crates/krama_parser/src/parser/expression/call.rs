@@ -9,7 +9,7 @@ use krama_core::{
   token::TokenKind,
 };
 
-use crate::parser::{ParseError, Parser};
+use crate::parser::{ParseResult, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
@@ -18,7 +18,7 @@ where
   pub(super) fn parse_call_expression(
     &mut self,
     function: Expression<'ast>,
-  ) -> ParseError<'a, 'ast> {
+  ) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
     let arguments = self.parse_call_arguments()?;
     Ok(Expression::new(

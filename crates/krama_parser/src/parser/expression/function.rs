@@ -10,13 +10,13 @@ use krama_core::{
   token::TokenKind,
 };
 
-use crate::parser::{ParseError, Parser};
+use crate::parser::{ParseResult, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
-  pub(super) fn parse_fn_expression(&mut self) -> ParseError<'a, 'ast> {
+  pub(super) fn parse_fn_expression(&mut self) -> ParseResult<'a, 'ast> {
     let start_span = self.current_token.span.clone();
     self.advance();
 
@@ -117,7 +117,7 @@ where
     &mut self,
     start_span: Span<'a>,
     parameters: BumpVec<'ast, Parameter<'ast>>,
-  ) -> ParseError<'a, 'ast> {
+  ) -> ParseResult<'a, 'ast> {
     let body = if self.current_token.kind == TokenKind::Arrow {
       self.advance();
       let body_expr = self.parse_expression(Precedence::Lowest)?;

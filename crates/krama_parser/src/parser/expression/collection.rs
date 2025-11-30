@@ -7,13 +7,15 @@ use krama_core::{
   token::TokenKind,
 };
 
-use crate::parser::{ParseError, Parser};
+use crate::parser::{ParseResult, Parser};
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
-  pub(super) fn parse_collection_expression(&mut self) -> ParseError<'a, 'ast> {
+  pub(super) fn parse_collection_expression(
+    &mut self,
+  ) -> ParseResult<'a, 'ast> {
     let start_span = self
       .consume(TokenKind::LBracket)
       .expect("Expected to consume a LBracket")
