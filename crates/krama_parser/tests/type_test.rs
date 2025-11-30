@@ -7,7 +7,7 @@ use krama_core::{
   },
   span::Span,
 };
-use krama_internal::test_parser;
+use krama_runtime::test_parser;
 
 fn expect_const_statement_with_type<'ast>(
   statement: &Statement<'ast>,

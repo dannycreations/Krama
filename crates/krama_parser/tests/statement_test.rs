@@ -1,5 +1,5 @@
 use krama_core::ast::statement::{Binding, Statement, StatementKind};
-use krama_internal::test_parser;
+use krama_runtime::test_parser;
 
 test_parser!(
   parse_let_statement,

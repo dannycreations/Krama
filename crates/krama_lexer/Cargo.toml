@@ -14,4 +14,4 @@ krama_core = { path = "../krama_core" }
 phf.workspace = true
 
 [dev-dependencies]
-krama_internal = { path = "../krama_internal" }
+krama_runtime = { path = "../krama_runtime" }

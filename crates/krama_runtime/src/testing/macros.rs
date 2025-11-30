@@ -4,8 +4,7 @@ macro_rules! test_eval {
     #[tokio::test]
     async fn $name() {
       let arena = ::bumpalo::Bump::new();
-      let interpreter =
-        ::krama_runtime::interpreter::Interpreter::new(&arena, None);
+      let interpreter = $crate::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
       assert_eq!(result, $expected);
@@ -19,8 +18,7 @@ macro_rules! test_eval_is_native_function {
     #[tokio::test]
     async fn $name() {
       let arena = ::bumpalo::Bump::new();
-      let interpreter =
-        ::krama_runtime::interpreter::Interpreter::new(&arena, None);
+      let interpreter = $crate::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
       assert!(matches!(
@@ -39,8 +37,7 @@ macro_rules! test_eval_error {
     #[tokio::test]
     async fn $name() {
       let arena = ::bumpalo::Bump::new();
-      let interpreter =
-        ::krama_runtime::interpreter::Interpreter::new(&arena, None);
+      let interpreter = $crate::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await;
       assert!(matches!(result.unwrap_err().0, $expected));
@@ -51,8 +48,7 @@ macro_rules! test_eval_error {
     #[tokio::test]
     async fn $name() {
       let arena = ::bumpalo::Bump::new();
-      let interpreter =
-        ::krama_runtime::interpreter::Interpreter::new(&arena, None);
+      let interpreter = $crate::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await;
       assert!(result.is_err());
@@ -66,8 +62,7 @@ macro_rules! test_eval_is_module {
     #[tokio::test]
     async fn $name() {
       let arena = ::bumpalo::Bump::new();
-      let interpreter =
-        ::krama_runtime::interpreter::Interpreter::new(&arena, None);
+      let interpreter = $crate::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
       if let ::krama_core::object::Object::Scope(module) = result {
@@ -85,8 +80,7 @@ macro_rules! test_eval_with_file {
     #[tokio::test]
     async fn $name() {
       let arena = ::bumpalo::Bump::new();
-      let interpreter =
-        ::krama_runtime::interpreter::Interpreter::new(&arena, Some(""));
+      let interpreter = $crate::interpreter::Interpreter::new(&arena, Some(""));
       let input = arena.alloc_str($source);
 
       ::tokio::fs::write($filename, $file_content).await.unwrap();

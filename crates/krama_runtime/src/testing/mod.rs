@@ -1,3 +1,5 @@
+pub mod macros;
+
 use krama_core::{
   ast::{
     expression::ExpressionKind,

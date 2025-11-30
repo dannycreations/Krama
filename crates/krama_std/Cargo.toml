@@ -12,12 +12,13 @@ doctest = false
 [dependencies]
 bumpalo.workspace = true
 futures.workspace = true
+inventory.workspace = true
 krama_core = { path = "../krama_core" }
+krama_macro = { path = "../krama_macro" }
 once_cell.workspace = true
 phf.workspace = true
 rustc-hash.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
-krama_internal = { path = "../krama_internal" }
 krama_runtime = { path = "../krama_runtime" }

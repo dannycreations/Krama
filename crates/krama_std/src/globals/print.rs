@@ -1,32 +1,30 @@
 use bumpalo::Bump;
-use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{error::ErrorKind, object::Object};
+use krama_macro::register_native;
 use tokio::{io, io::AsyncWriteExt};
 
-pub fn print<'ast>(
+#[register_native(name = "print", module = "globals")]
+pub async fn print<'ast>(
   _: &'ast Bump,
   objects: &'ast [Object<'ast>],
-) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>> {
-  async move {
-    let mut stdout = io::stdout();
-    for (i, obj) in objects.iter().enumerate() {
-      if i > 0 {
-        stdout
-          .write_all(b" ")
-          .await
-          .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
-      }
+) -> Result<Object<'ast>, ErrorKind> {
+  let mut stdout = io::stdout();
+  for (i, obj) in objects.iter().enumerate() {
+    if i > 0 {
       stdout
-        .write_all(obj.to_string().as_bytes())
+        .write_all(b" ")
         .await
         .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
     }
     stdout
-      .write_all(b"\n")
+      .write_all(obj.to_string().as_bytes())
       .await
       .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
-
-    Ok(Object::Void)
   }
-  .boxed_local()
+  stdout
+    .write_all(b"\n")
+    .await
+    .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
+
+  Ok(Object::Void)
 }

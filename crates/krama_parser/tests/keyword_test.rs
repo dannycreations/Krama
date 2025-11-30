@@ -1,5 +1,5 @@
 use krama_core::{error::ErrorKind, span::Span};
-use krama_internal::test_parser_error;
+use krama_runtime::test_parser_error;
 
 macro_rules! test_keyword_as_identifier_error {
   ($name:ident, $keyword:expr) => {

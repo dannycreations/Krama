@@ -13,31 +13,32 @@ use crate::{
   ast::{expression::FunctionBody, statement::Parameter, types::Type},
   error::ErrorKind,
   scope::Scope,
-  span::Span,
 };
 
-pub type NativeFunctionCb<'ast> =
-  fn(
+pub type NativeFnCb =
+  for<'ast> fn(
     &'ast Bump,
     &'ast [Object<'ast>],
   ) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>>;
 
-pub type ObjectFuture<'ast> =
-  LocalBoxFuture<'ast, Result<Object<'ast>, (ErrorKind, Span<'ast>)>>;
+pub type PropertyFnCb =
+  for<'ast> fn(
+    Object<'ast>,
+  ) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>>;
 
 #[derive(Clone, Copy)]
-pub struct NativeFunction<'ast> {
+pub struct NativeFunction {
   pub name: &'static str,
-  pub callback: NativeFunctionCb<'ast>,
+  pub callback: NativeFnCb,
 }
 
-impl<'ast> PartialEq for NativeFunction<'ast> {
+impl PartialEq for NativeFunction {
   fn eq(&self, other: &Self) -> bool {
     self.name == other.name && self.callback as usize == other.callback as usize
   }
 }
 
-impl<'ast> Debug for NativeFunction<'ast> {
+impl Debug for NativeFunction {
   fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     f.debug_struct("NativeFunction")
       .field("name", &self.name)
@@ -54,7 +55,7 @@ pub struct UserFunction<'ast> {
 
 #[derive(Copy, Clone)]
 pub enum Function<'ast> {
-  Native(NativeFunction<'ast>),
+  Native(NativeFunction),
   User(&'ast UserFunction<'ast>),
 }
 
@@ -121,7 +122,7 @@ impl<'ast> Object<'ast> {
           "global"
         }
       }
-      _ => self.get_str("name").unwrap(),
+      _ => self.get_str("name").unwrap_or("unknown"),
     }
   }
 
@@ -234,3 +235,19 @@ impl<'ast> PartialEq for Object<'ast> {
     }
   }
 }
+
+pub struct StandardNative {
+  pub name: &'static str,
+  pub callback: NativeFnCb,
+  pub module: &'static str,
+}
+
+inventory::collect!(StandardNative);
+
+pub struct StandardProperty {
+  pub name: &'static str,
+  pub callback: PropertyFnCb,
+  pub types: &'static [&'static str],
+}
+
+inventory::collect!(StandardProperty);

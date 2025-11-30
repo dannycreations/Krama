@@ -16,8 +16,8 @@ krama_core = { path = "../krama_core" }
 krama_lexer = { path = "../krama_lexer" }
 krama_parser = { path = "../krama_parser" }
 krama_std = { path = "../krama_std" }
+path-clean.workspace = true
 rustc-hash.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
-krama_internal = { path = "../krama_internal" }

@@ -3,8 +3,8 @@ resolver = "2"
 members = [
     "crates/krama_cli",
     "crates/krama_core",
-    "crates/krama_internal",
     "crates/krama_lexer",
+    "crates/krama_macro",
     "crates/krama_parser",
     "crates/krama_runtime",
     "crates/krama_std",
@@ -22,10 +22,14 @@ ariadne = { version = "0.6.0", features = ["auto-color"] }
 bumpalo = { version = "3.19.0", features = ["collections", "boxed"] }
 clap = { version = "4.5", features = ["derive"] }
 futures = "0.3"
+inventory = "0.3"
 once_cell = "1.21.3"
+path-clean = "1.0"
 phf = { version = "0.13", features = ["macros"] }
+quote = "1.0"
 rustc-hash = "2.1.1"
 strum = "0.27"
 strum_macros = "0.27"
+syn = "2.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util", "io-std", "signal"] }
 walkdir = "2"

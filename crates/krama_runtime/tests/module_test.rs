@@ -1,5 +1,5 @@
 use krama_core::object::Object;
-use krama_internal::{
+use krama_runtime::{
   test_eval, test_eval_is_module, test_eval_is_native_function,
   test_eval_with_file,
 };

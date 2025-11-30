@@ -1,5 +1,5 @@
 use krama_core::{error::ErrorKind, object::Object};
-use krama_internal::{test_eval, test_eval_error};
+use krama_runtime::{test_eval, test_eval_error};
 
 test_eval!(
   eval_i8_type_declaration,

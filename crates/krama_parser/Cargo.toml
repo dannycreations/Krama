@@ -15,4 +15,4 @@ krama_core = { path = "../krama_core" }
 krama_lexer = { path = "../krama_lexer" }
 
 [dev-dependencies]
-krama_internal = { path = "../krama_internal" }
+krama_runtime = { path = "../krama_runtime" }

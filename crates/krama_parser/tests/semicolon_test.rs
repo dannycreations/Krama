@@ -7,9 +7,9 @@ use krama_core::{
   },
   span::Span,
 };
-use krama_internal::test_parser;
 use krama_lexer::lexer::Lexer;
 use krama_parser::parser::Parser;
+use krama_runtime::test_parser;
 
 test_parser!(
   parse_statement_with_semicolon,

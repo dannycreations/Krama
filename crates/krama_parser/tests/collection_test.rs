@@ -3,7 +3,7 @@ use krama_core::ast::{
   literal::Literal,
   statement::{Statement, StatementKind},
 };
-use krama_internal::test_parser;
+use krama_runtime::test_parser;
 
 test_parser!(
   parse_empty_collection_expression,

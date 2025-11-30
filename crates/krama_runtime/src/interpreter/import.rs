@@ -1,42 +1,14 @@
 use std::{
-  path::{Component, Path, PathBuf},
+  path::{Path, PathBuf},
   str,
 };
 
 use krama_core::{error::ErrorKind, object::Object, scope::Scope, span::Span};
-use krama_std::modules;
+use path_clean::PathClean;
 use rustc_hash::FxHashMap;
 use tokio::fs;
 
 use super::Interpreter;
-
-fn clean_path(path: &Path) -> PathBuf {
-  let mut components = path.components().peekable();
-  let mut ret =
-    if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
-      components.next();
-      PathBuf::from(c.as_os_str())
-    } else {
-      PathBuf::new()
-    };
-
-  for component in components {
-    match component {
-      Component::RootDir => {
-        ret.push(component.as_os_str());
-      }
-      Component::CurDir => {}
-      Component::ParentDir => {
-        ret.pop();
-      }
-      Component::Normal(c) => {
-        ret.push(c);
-      }
-      Component::Prefix(_) => unreachable!(),
-    }
-  }
-  ret
-}
 
 impl<'ast> Interpreter<'ast> {
   async fn resolve_import_path(
@@ -51,12 +23,12 @@ impl<'ast> Interpreter<'ast> {
     let path_buf = base_path.join(path);
 
     if fs::metadata(&path_buf).await.is_ok() {
-      return Ok(clean_path(&path_buf));
+      return Ok(path_buf.clean());
     }
 
     let path_with_ext = path_buf.with_extension("km");
     if fs::metadata(&path_with_ext).await.is_ok() {
-      return Ok(clean_path(&path_with_ext));
+      return Ok(path_with_ext.clean());
     }
 
     Err((
@@ -75,17 +47,24 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
     let module_name = self.arena.alloc_str(path.strip_prefix("std:").unwrap());
 
-    if let Some(module) = self.modules.borrow().get(module_name) {
+    if let Some(module) = self.loaded_modules.borrow().get(module_name) {
       return Ok(module.clone());
     }
 
-    let module = modules::get_modules(module_name)
+    self
+      .native_modules
+      .get(module_name)
       .map(|bindings| {
         let module = Scope {
           name: Some(module_name),
-          bindings,
+          bindings: bindings.clone(),
         };
-        Object::Scope(self.arena.alloc(module))
+        let object = Object::Scope(self.arena.alloc(module));
+        self
+          .loaded_modules
+          .borrow_mut()
+          .insert(module_name, object.clone());
+        object
       })
       .ok_or_else(|| {
         (
@@ -95,13 +74,7 @@ impl<'ast> Interpreter<'ast> {
           )),
           span,
         )
-      })?;
-
-    self
-      .modules
-      .borrow_mut()
-      .insert(module_name, module.clone());
-    Ok(module)
+      })
   }
 
   async fn eval_file_module(
@@ -118,7 +91,7 @@ impl<'ast> Interpreter<'ast> {
     })?;
     let resolved_path_key = self.alloc_str(resolved_path_str);
 
-    if let Some(module) = self.modules.borrow().get(resolved_path_key) {
+    if let Some(module) = self.loaded_modules.borrow().get(resolved_path_key) {
       return Ok(module.clone());
     }
 
@@ -148,7 +121,7 @@ impl<'ast> Interpreter<'ast> {
     }));
 
     self
-      .modules
+      .loaded_modules
       .borrow_mut()
       .insert(resolved_path_key, module.clone());
 

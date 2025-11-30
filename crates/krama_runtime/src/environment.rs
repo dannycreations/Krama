@@ -14,6 +14,14 @@ impl<'ast> Environment<'ast> {
     Default::default()
   }
 
+  pub fn with_globals() -> Self {
+    let mut env = Environment::new();
+    for (name, obj) in krama_std::build_globals() {
+      env.set(name, obj, true);
+    }
+    env
+  }
+
   pub fn new_enclosed(outer: &'ast RefCell<Environment<'ast>>) -> Self {
     Environment {
       store: FxHashMap::default(),

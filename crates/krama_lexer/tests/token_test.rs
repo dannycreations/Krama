@@ -1,5 +1,5 @@
 use krama_core::token::TokenKind;
-use krama_internal::test_lexer;
+use krama_runtime::test_lexer;
 
 test_lexer!(
   lex_keyword_tokens,

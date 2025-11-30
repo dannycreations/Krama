@@ -1,7 +1,6 @@
 use bumpalo::Bump;
 use krama_core::{error::ErrorKind, object::Object};
-use krama_internal::{test_eval, test_eval_error};
-use krama_runtime::interpreter::Interpreter;
+use krama_runtime::{interpreter::Interpreter, test_eval, test_eval_error};
 
 macro_rules! test_eval_to_string {
   ($name:ident, $source:expr, $expected:expr) => {

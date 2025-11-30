@@ -1,5 +1,5 @@
 use krama_core::object::Object;
-use krama_internal::test_eval;
+use krama_runtime::test_eval;
 
 test_eval!(eval_bitwise_and, "5 & 3", Object::Integer(1));
 
