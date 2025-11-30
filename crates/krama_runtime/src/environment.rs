@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use krama_core::object::Object;
+use krama_core::object::{Function, Object};
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, Default, Clone)]
@@ -16,8 +16,9 @@ impl<'ast> Environment<'ast> {
 
   pub fn with_globals() -> Self {
     let mut env = Environment::new();
-    for (name, obj) in krama_std::build_globals() {
-      env.set(name, obj, true);
+    for (name, native_fn) in krama_std::get_globals().iter() {
+      let function = Object::Function(Function::Native(*native_fn));
+      env.set(name, function, true);
     }
     env
   }

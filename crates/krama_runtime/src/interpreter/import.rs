@@ -3,7 +3,12 @@ use std::{
   str,
 };
 
-use krama_core::{error::ErrorKind, object::Object, scope::Scope, span::Span};
+use krama_core::{
+  error::ErrorKind,
+  object::{Function, Object},
+  scope::Scope,
+  span::Span,
+};
 use path_clean::PathClean;
 use rustc_hash::FxHashMap;
 use tokio::fs;
@@ -51,13 +56,19 @@ impl<'ast> Interpreter<'ast> {
       return Ok(module.clone());
     }
 
-    self
-      .native_modules
+    krama_std::get_modules()
       .get(module_name)
       .map(|bindings| {
+        let scope_bindings = bindings
+          .iter()
+          .map(|(name, native_fn)| {
+            (*name, Object::Function(Function::Native(*native_fn)))
+          })
+          .collect();
+
         let module = Scope {
           name: Some(module_name),
-          bindings: bindings.clone(),
+          bindings: scope_bindings,
         };
         let object = Object::Scope(self.arena.alloc(module));
         self

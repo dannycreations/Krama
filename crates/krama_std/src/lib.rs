@@ -3,37 +3,31 @@ pub mod modules;
 pub mod props;
 
 use krama_core::object::{
-  Function, NativeFunction, Object, PropertyFnCb, StandardNative,
-  StandardProperty,
+  NativeFunction, PropertyFnCb, StandardNative, StandardProperty,
 };
+use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
-fn build_object_map<'ast>(
-  natives: impl Iterator<Item = &'static StandardNative>,
-) -> FxHashMap<&'static str, Object<'ast>> {
-  natives
-    .map(|native| {
-      (
-        native.name,
-        Object::Function(Function::Native(NativeFunction {
-          name: native.name,
-          callback: native.callback,
-        })),
-      )
-    })
-    .collect()
-}
-
-pub fn build_globals<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
-  build_object_map(
+static GLOBALS: Lazy<FxHashMap<&'static str, NativeFunction>> =
+  Lazy::new(|| {
     inventory::iter::<StandardNative>
       .into_iter()
-      .filter(|n| n.module == "globals"),
-  )
-}
+      .filter(|n| n.module == "globals")
+      .map(|native| {
+        (
+          native.name,
+          NativeFunction {
+            name: native.name,
+            callback: native.callback,
+          },
+        )
+      })
+      .collect()
+  });
 
-pub fn build_modules<'ast>(
-) -> FxHashMap<String, FxHashMap<&'static str, Object<'ast>>> {
+static MODULES: Lazy<
+  FxHashMap<String, FxHashMap<&'static str, NativeFunction>>,
+> = Lazy::new(|| {
   let mut modules = FxHashMap::default();
 
   for native in inventory::iter::<StandardNative> {
@@ -44,19 +38,20 @@ pub fn build_modules<'ast>(
 
       module.insert(
         native.name,
-        Object::Function(Function::Native(NativeFunction {
+        NativeFunction {
           name: native.name,
           callback: native.callback,
-        })),
+        },
       );
     }
   }
 
   modules
-}
+});
 
-pub fn build_props(
-) -> FxHashMap<&'static str, FxHashMap<&'static str, PropertyFnCb>> {
+static PROPS: Lazy<
+  FxHashMap<&'static str, FxHashMap<&'static str, PropertyFnCb>>,
+> = Lazy::new(|| {
   let mut props = FxHashMap::default();
 
   for prop in inventory::iter::<StandardProperty>() {
@@ -68,4 +63,18 @@ pub fn build_props(
   }
 
   props
+});
+
+pub fn get_globals() -> &'static FxHashMap<&'static str, NativeFunction> {
+  &GLOBALS
+}
+
+pub fn get_modules(
+) -> &'static FxHashMap<String, FxHashMap<&'static str, NativeFunction>> {
+  &MODULES
+}
+
+pub fn get_props(
+) -> &'static FxHashMap<&'static str, FxHashMap<&'static str, PropertyFnCb>> {
+  &PROPS
 }

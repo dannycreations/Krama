@@ -1,7 +1,7 @@
 use std::process;
 
 use anyhow::Result;
-use bumpalo::Bump;
+use bumpalo::{collections::String as BumpString, Bump};
 use clap::Parser;
 use krama_core::object::Object;
 use krama_runtime::interpreter::Interpreter;
@@ -15,37 +15,18 @@ use crate::error::report_error;
 #[derive(Parser)]
 pub struct Repl;
 
-async fn evaluate_line<'a>(
-  interpreter: &Interpreter<'a>,
-  line: &str,
-  arena: &'a Bump,
-) {
-  let trimmed_line = line.trim();
-  if trimmed_line.is_empty() {
-    return;
-  }
-  let line_in_arena = arena.alloc_str(trimmed_line);
-
-  match interpreter.eval(line_in_arena).await {
-    Ok(object) => {
-      if !matches!(object, Object::Void) {
-        println!("{}", object);
-      }
-    }
-    Err((kind, span)) => report_error("repl", line_in_arena, span, kind),
-  };
-}
-
 impl Repl {
   pub async fn execute(&self) -> Result<()> {
     let arena = Bump::new();
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
     let mut line = String::new();
+    let mut history = BumpString::new_in(&arena);
     let interpreter = Interpreter::new(&arena, Some("repl"));
 
     loop {
-      stdout.write_all(b">> ").await?;
+      let prompt = if history.is_empty() { ">> " } else { ".. " };
+      stdout.write_all(prompt.as_bytes()).await?;
       stdout.flush().await?;
       line.clear();
 
@@ -60,7 +41,29 @@ impl Repl {
                       if line.trim() == "exit" {
                           break;
                       }
-                      evaluate_line(&interpreter, &line, &arena).await;
+
+                      history.push_str(&line);
+                      let source = arena.alloc_str(&history);
+
+                      match interpreter.check(source) {
+                        Ok(_) => {
+                            match interpreter.eval(source).await {
+                                Ok(object) => {
+                                    if !matches!(object, Object::Void) {
+                                        println!(">> {}", object);
+                                    }
+                                }
+                                Err((kind, span)) => {
+                                    report_error("repl", source, span, kind);
+                                }
+                            }
+                            history.clear();
+                        }
+                        Err((kind, span)) => {
+                            report_error("repl", source, span, kind);
+                            history.clear();
+                        }
+                      }
                   }
                   Err(e) => {
                       eprintln!("Error: {:?}", e);

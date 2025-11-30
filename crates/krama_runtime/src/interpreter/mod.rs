@@ -14,7 +14,7 @@ use bumpalo::Bump;
 use krama_core::{
   ast::{expression::Expression, statement::Statement, Program},
   error::ErrorKind,
-  object::{Object, PropertyFnCb},
+  object::Object,
   span::Span,
 };
 use krama_lexer::lexer::Lexer;
@@ -26,13 +26,9 @@ use crate::{environment::Environment, resolver::Resolver};
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
   pub environment: &'ast RefCell<Environment<'ast>>,
-  pub(super) native_modules:
-    FxHashMap<String, FxHashMap<&'static str, Object<'ast>>>,
   pub(super) loaded_modules: &'ast RefCell<FxHashMap<&'ast str, Object<'ast>>>,
   pub(super) arena: &'ast Bump,
   pub path: Option<&'ast str>,
-  pub(super) props:
-    &'ast FxHashMap<&'static str, FxHashMap<&'static str, PropertyFnCb>>,
   locals: RefCell<FxHashMap<Span<'ast>, usize>>,
 }
 
@@ -42,11 +38,9 @@ impl<'ast> Interpreter<'ast> {
 
     Self {
       environment: arena.alloc(RefCell::new(env)),
-      native_modules: krama_std::build_modules(),
       loaded_modules: arena.alloc(RefCell::new(FxHashMap::default())),
       arena,
       path,
-      props: arena.alloc(krama_std::build_props()),
       locals: RefCell::new(FxHashMap::default()),
     }
   }
@@ -56,11 +50,9 @@ impl<'ast> Interpreter<'ast> {
       environment: self
         .arena
         .alloc(RefCell::new(Environment::new_enclosed(self.environment))),
-      native_modules: self.native_modules.clone(),
       loaded_modules: self.loaded_modules,
       arena: self.arena,
       path: self.path,
-      props: self.props,
       locals: self.locals.clone(),
     }
   }
