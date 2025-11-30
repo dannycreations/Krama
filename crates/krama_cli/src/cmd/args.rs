@@ -2,7 +2,7 @@ use anyhow::Result;
 use bumpalo::Bump;
 use clap::Parser as ClapParser;
 
-use super::{repl::Repl, run::Run, test::Test};
+use super::{check::Check, repl::Repl, run::Run, test::Test};
 
 #[derive(ClapParser)]
 #[clap(author, version, about, long_about = None)]
@@ -23,6 +23,7 @@ impl Args {
 
 #[derive(ClapParser)]
 enum Command {
+  Check(Check),
   Run(Run),
   Test(Test),
 }
@@ -30,6 +31,7 @@ enum Command {
 impl Command {
   async fn execute(self, arena: &mut Bump) -> Result<()> {
     match self {
+      Command::Check(check) => check.execute(arena).await,
       Command::Run(run) => run.execute(arena).await,
       Command::Test(test) => test.execute(arena).await,
     }

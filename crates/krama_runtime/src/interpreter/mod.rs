@@ -95,6 +95,14 @@ impl<'ast> Interpreter<'ast> {
     self.arena.alloc_str(s)
   }
 
+  pub fn check(
+    &self,
+    source: &'ast str,
+  ) -> Result<(), (ErrorKind, Span<'ast>)> {
+    self.parse_and_resolve(source)?;
+    Ok(())
+  }
+
   pub async fn eval(
     &self,
     source: &'ast str,
