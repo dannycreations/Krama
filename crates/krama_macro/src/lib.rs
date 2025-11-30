@@ -1,8 +1,8 @@
-use proc_macro::TokenStream;
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
   parse::{Parse, ParseStream},
-  parse_macro_input,
+  parse2,
   punctuated::Punctuated,
   Ident, ItemFn, Lit, LitStr, Token,
 };
@@ -80,8 +80,14 @@ fn transform_to_boxed_future_fn(
   item: TokenStream,
   error_msg_prefix: &str,
 ) -> TokenStream {
-  let item_fn = parse_macro_input!(item as ItemFn);
-  let name_attr = parse_macro_input!(attr as NativeArgs);
+  let item_fn: ItemFn = match parse2(item) {
+    Ok(f) => f,
+    Err(e) => return e.to_compile_error(),
+  };
+  let name_attr: NativeArgs = match parse2(attr) {
+    Ok(a) => a,
+    Err(e) => return e.to_compile_error(),
+  };
 
   let vis = &item_fn.vis;
   let body = &item_fn.block;
@@ -95,8 +101,7 @@ fn transform_to_boxed_future_fn(
       sig,
       format!("{} function must be async", error_msg_prefix),
     )
-    .to_compile_error()
-    .into();
+    .to_compile_error();
   }
 
   // Clone signature and modify it.
@@ -116,8 +121,7 @@ fn transform_to_boxed_future_fn(
         error_msg_prefix
       ),
     )
-    .to_compile_error()
-    .into();
+    .to_compile_error();
   }
 
   new_sig.output = syn::parse_quote! {
@@ -139,18 +143,26 @@ fn transform_to_boxed_future_fn(
       }
   };
 
-  TokenStream::from(expanded)
+  expanded
 }
 
 #[proc_macro_attribute]
-pub fn register_native(attr: TokenStream, item: TokenStream) -> TokenStream {
-  transform_to_boxed_future_fn(attr, item, "native")
+pub fn register_native(
+  attr: proc_macro::TokenStream,
+  item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+  transform_to_boxed_future_fn(attr.into(), item.into(), "native").into()
 }
 
-#[proc_macro_attribute]
-pub fn register_property(attr: TokenStream, item: TokenStream) -> TokenStream {
-  let item_fn = parse_macro_input!(item as ItemFn);
-  let name_attr = parse_macro_input!(attr as PropertyArgs);
+fn transform_property_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
+  let item_fn: ItemFn = match parse2(item) {
+    Ok(f) => f,
+    Err(e) => return e.to_compile_error(),
+  };
+  let name_attr: PropertyArgs = match parse2(attr) {
+    Ok(a) => a,
+    Err(e) => return e.to_compile_error(),
+  };
 
   let vis = &item_fn.vis;
   let body = &item_fn.block;
@@ -161,8 +173,7 @@ pub fn register_property(attr: TokenStream, item: TokenStream) -> TokenStream {
 
   if sig.asyncness.is_none() {
     return syn::Error::new_spanned(sig, "property function must be async")
-      .to_compile_error()
-      .into();
+      .to_compile_error();
   }
 
   // Clone signature and modify it.
@@ -179,8 +190,7 @@ pub fn register_property(attr: TokenStream, item: TokenStream) -> TokenStream {
       sig,
       "property function must have a `'ast` lifetime parameter",
     )
-    .to_compile_error()
-    .into();
+    .to_compile_error();
   }
 
   new_sig.output = syn::parse_quote! {
@@ -202,5 +212,13 @@ pub fn register_property(attr: TokenStream, item: TokenStream) -> TokenStream {
       }
   };
 
-  TokenStream::from(expanded)
+  expanded
+}
+
+#[proc_macro_attribute]
+pub fn register_property(
+  attr: proc_macro::TokenStream,
+  item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+  transform_property_fn(attr.into(), item.into()).into()
 }
