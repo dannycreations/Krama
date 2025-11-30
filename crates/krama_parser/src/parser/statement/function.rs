@@ -42,7 +42,7 @@ where
     let body = if self.current_token.kind == TokenKind::LBrace {
       let block = self.parse_block_statement()?;
       FunctionBody::Block(self.arena.alloc(block))
-    } else if self.current_token.kind == TokenKind::Equal {
+    } else if self.current_token.kind == TokenKind::Arrow {
       self.advance();
       let expr = self.parse_expression(Precedence::Lowest)?;
       FunctionBody::Expression(self.arena.alloc(expr))

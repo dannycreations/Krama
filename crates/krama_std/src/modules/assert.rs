@@ -2,8 +2,6 @@ use bumpalo::Bump;
 use krama_core::{error::ErrorKind, object::Object};
 use krama_macro::register_native;
 
-use crate::parse_args;
-
 #[register_native(name = "assert", module = "assert")]
 async fn assert<'ast>(
   _: &'ast Bump,

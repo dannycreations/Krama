@@ -77,16 +77,18 @@ impl<'a> Lexer<'a> {
             }
           } else if self.peek_byte_nth(1) == Some(b'*') {
             // multi-line comment
-            self.advance_byte();
-            self.advance_byte();
-            while let Some(byte) = self.peek_byte() {
-              if byte == b'*' && self.peek_byte_nth(1) == Some(b'/') {
-                break;
+            self.advance_byte(); // consume '/'
+            self.advance_byte(); // consume '*'
+            loop {
+              match self.advance_byte() {
+                Some(b'*') if self.peek_byte() == Some(b'/') => {
+                  self.advance_byte(); // consume '/'
+                  break;
+                }
+                Some(_) => continue,
+                None => break, // EOF
               }
-              self.advance_byte();
             }
-            self.advance_byte();
-            self.advance_byte();
           } else {
             break;
           }

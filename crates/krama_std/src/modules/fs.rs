@@ -10,8 +10,6 @@ use krama_core::{
 use krama_macro::register_native;
 use tokio::fs;
 
-use crate::parse_args;
-
 #[register_native(name = "readFile", module = "fs")]
 async fn read_file<'ast>(
   arena: &'ast Bump,

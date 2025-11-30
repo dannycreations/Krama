@@ -1,7 +1,4 @@
-use std::{
-  fmt::{Debug, Display, Formatter, Result as FmtResult},
-  ptr,
-};
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 
 pub use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
@@ -230,7 +227,7 @@ impl<'ast> PartialEq for Object<'ast> {
       (Object::Return(a), Object::Return(b)) => a == b,
       (Object::Break, Object::Break) => true,
       (Object::Continue, Object::Continue) => true,
-      (Object::Scope(a), Object::Scope(b)) => ptr::eq(*a, *b),
+      (Object::Scope(a), Object::Scope(b)) => a == b,
       _ => false,
     }
   }

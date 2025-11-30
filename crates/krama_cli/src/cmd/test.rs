@@ -46,7 +46,7 @@ fn find_test_files(path: PathBuf) -> Result<Vec<PathBuf>> {
 }
 
 impl Test {
-  pub async fn execute(&self, _arena: &mut Bump) -> Result<()> {
+  pub async fn execute(&self) -> Result<()> {
     let mut passed = 0;
     let mut failed = 0;
 

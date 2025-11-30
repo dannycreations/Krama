@@ -15,28 +15,34 @@ use crate::error::report_error;
 #[derive(Parser)]
 pub struct Repl;
 
-async fn evaluate_line<'a>(interpreter: &Interpreter<'a>, line: &'a str) {
+async fn evaluate_line<'a>(
+  interpreter: &Interpreter<'a>,
+  line: &str,
+  arena: &'a Bump,
+) {
   let trimmed_line = line.trim();
   if trimmed_line.is_empty() {
     return;
   }
+  let line_in_arena = arena.alloc_str(trimmed_line);
 
-  match interpreter.eval(trimmed_line).await {
+  match interpreter.eval(line_in_arena).await {
     Ok(object) => {
       if !matches!(object, Object::Void) {
         println!("{}", object);
       }
     }
-    Err((kind, span)) => report_error("repl", trimmed_line, span, kind),
+    Err((kind, span)) => report_error("repl", line_in_arena, span, kind),
   };
 }
 
 impl Repl {
-  pub async fn execute(&self, arena: &mut Bump) -> Result<()> {
+  pub async fn execute(&self) -> Result<()> {
+    let arena = Bump::new();
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
     let mut line = String::new();
-    let interpreter = Interpreter::new(arena, Some("repl"));
+    let interpreter = Interpreter::new(&arena, Some("repl"));
 
     loop {
       stdout.write_all(b">> ").await?;
@@ -54,8 +60,7 @@ impl Repl {
                       if line.trim() == "exit" {
                           break;
                       }
-                      let line_in_arena = arena.alloc_str(&line);
-                      evaluate_line(&interpreter, line_in_arena).await;
+                      evaluate_line(&interpreter, &line, &arena).await;
                   }
                   Err(e) => {
                       eprintln!("Error: {:?}", e);

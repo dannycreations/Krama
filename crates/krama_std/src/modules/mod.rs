@@ -1,20 +1,15 @@
 #![allow(unreachable_patterns)]
 
-pub mod assert;
-pub mod fs;
-
-#[macro_export]
 macro_rules! count_args {
     ($($x:ident),*) => {
-        <[()]>::len(&[$($crate::count_args!(@subst $x)),*])
+        <[()]>::len(&[$(count_args!(@subst $x)),*])
     };
     (@subst $x:ident) => { () };
 }
 
-#[macro_export]
 macro_rules! parse_args {
     ($objects:expr, $fn_name:expr; $($arg:ident: $type:pat),*) => {
-        const EXPECTED_ARGS: usize = $crate::count_args!($($arg),*);
+        const EXPECTED_ARGS: usize = count_args!($($arg),*);
         if $objects.len() != EXPECTED_ARGS {
             return Err(krama_core::error::ErrorKind::ArgumentError(format!(
                 "{} expected {} arguments, but got {}",
@@ -42,3 +37,6 @@ macro_rules! parse_args {
         )*
     };
 }
+
+pub mod assert;
+pub mod fs;
