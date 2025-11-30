@@ -1,4 +1,4 @@
-use std::{path::Path, str};
+use std::{fs::Metadata, future::Future, path::Path, str};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::{FutureExt, LocalBoxFuture};
@@ -26,6 +26,41 @@ pub fn get_exports<'ast>() -> FxHashMap<&'static str, Object<'ast>> {
     ("isDirectory", is_directory),
   ];
   build_native_functions(functions)
+}
+
+fn get_path_metadata_prop<'ast>(
+  objects: &'ast [Object<'ast>],
+  fn_name: &'static str,
+  prop_fn: impl Fn(&Metadata) -> bool + 'ast,
+) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>> {
+  async move {
+    parse_args!(objects, fn_name; path_str: Object::String(path_str));
+    let path = Path::new(*path_str);
+    let metadata = fs::metadata(path).await;
+    Ok(Object::Boolean(
+      metadata.map(|m| prop_fn(&m)).unwrap_or(false),
+    ))
+  }
+  .boxed_local()
+}
+
+fn fs_path_void_op<'ast, F, Fut>(
+  objects: &'ast [Object<'ast>],
+  fn_name: &'static str,
+  op: F,
+) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>>
+where
+  F: Fn(&'ast str) -> Fut + 'ast,
+  Fut: Future<Output = Result<(), std::io::Error>> + 'ast,
+{
+  async move {
+    parse_args!(objects, fn_name; path_str: Object::String(path_str));
+    op(path_str)
+      .await
+      .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
+    Ok(Object::Void)
+  }
+  .boxed_local()
 }
 
 fn read_file<'ast>(
@@ -79,16 +114,7 @@ fn rm<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>> {
-  async move {
-    parse_args!(objects, "rm"; path_str: Object::String(path_str));
-
-    fs::remove_file(*path_str)
-      .await
-      .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
-
-    Ok(Object::Void)
-  }
-  .boxed_local()
+  fs_path_void_op(objects, "rm", fs::remove_file)
 }
 
 fn read_dir<'ast>(
@@ -129,62 +155,26 @@ fn mkdir<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>> {
-  async move {
-    parse_args!(objects, "mkdir"; path_str: Object::String(path_str));
-
-    fs::create_dir_all(*path_str)
-      .await
-      .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
-
-    Ok(Object::Void)
-  }
-  .boxed_local()
+  fs_path_void_op(objects, "mkdir", fs::create_dir_all)
 }
 
 fn rmdir<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>> {
-  async move {
-    parse_args!(objects, "rmdir"; path_str: Object::String(path_str));
-
-    fs::remove_dir(*path_str)
-      .await
-      .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
-
-    Ok(Object::Void)
-  }
-  .boxed_local()
+  fs_path_void_op(objects, "rmdir", fs::remove_dir)
 }
 
 fn is_file<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>> {
-  async move {
-    parse_args!(objects, "isFile"; path_str: Object::String(path_str));
-    let path = Path::new(*path_str);
-
-    let metadata = fs::metadata(path).await;
-    Ok(Object::Boolean(
-      metadata.map(|m| m.is_file()).unwrap_or(false),
-    ))
-  }
-  .boxed_local()
+  get_path_metadata_prop(objects, "isFile", |m| m.is_file())
 }
 
 fn is_directory<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
 ) -> LocalBoxFuture<'ast, Result<Object<'ast>, ErrorKind>> {
-  async move {
-    parse_args!(objects, "isDirectory"; path_str: Object::String(path_str));
-    let path = Path::new(*path_str);
-
-    let metadata = fs::metadata(path).await;
-    Ok(Object::Boolean(
-      metadata.map(|m| m.is_dir()).unwrap_or(false),
-    ))
-  }
-  .boxed_local()
+  get_path_metadata_prop(objects, "isDirectory", |m| m.is_dir())
 }

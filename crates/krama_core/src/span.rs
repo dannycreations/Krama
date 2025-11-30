@@ -29,4 +29,13 @@ impl<'a> Span<'a> {
       file: self.file,
     }
   }
+
+  pub fn into_static(self) -> Span<'static> {
+    Span {
+      start: self.start,
+      end: self.end,
+      source: None,
+      file: None,
+    }
+  }
 }
