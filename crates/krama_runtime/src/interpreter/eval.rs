@@ -26,49 +26,38 @@ impl<'ast> Interpreter<'ast> {
     'ast: 's,
   {
     async move {
-      let span = expression.span.clone();
+      let span = &expression.span;
       match &expression.kind {
         ExpressionKind::Literal(literal) => self.eval_literal(*literal),
         ExpressionKind::Identifier(name) => {
-          self.eval_identifier(expression, name, span).await
+          self.eval_identifier(expression, name, span.clone()).await
         }
         ExpressionKind::Unary { operator, right } => {
           let right = self.eval_expression(right, None).await?;
           let right = self.resolve_object(right).await?;
-          self.eval_unary_expression(*operator, right, span)
+          self.eval_unary_expression(*operator, right, span.clone())
         }
         ExpressionKind::Binary {
           left,
           operator,
           right,
         } => {
-          if *operator == BinaryOperator::LogicalAnd {
-            let left = self.eval_expression(left, None).await?;
-            if !bool::from(&left) {
-              return Ok(Object::Boolean(false));
-            }
-            let right = self.eval_expression(right, None).await?;
-            return Ok(Object::Boolean(bool::from(&right)));
+          let left_value = self.eval_expression(left, None).await?;
+          if *operator == BinaryOperator::LogicalAnd && !bool::from(&left_value)
+          {
+            return Ok(Object::Boolean(false));
+          }
+          if *operator == BinaryOperator::LogicalOr && bool::from(&left_value) {
+            return Ok(Object::Boolean(true));
           }
 
-          if *operator == BinaryOperator::LogicalOr {
-            let left = self.eval_expression(left, None).await?;
-            if bool::from(&left) {
-              return Ok(Object::Boolean(true));
-            }
-            let right = self.eval_expression(right, None).await?;
-            return Ok(Object::Boolean(bool::from(&right)));
-          }
-
-          let (left, right) = join!(
-            self.eval_expression(left, None),
-            self.eval_expression(right, None)
-          );
+          let right_value = self.eval_expression(right, None).await?;
           let (left, right) = (
-            self.resolve_object(left?).await?,
-            self.resolve_object(right?).await?,
+            self.resolve_object(left_value).await?,
+            self.resolve_object(right_value).await?,
           );
-          self.eval_binary_expression(*operator, left, right, span)
+
+          self.eval_binary_expression(*operator, left, right, span.clone())
         }
         ExpressionKind::Assignment {
           left,
@@ -76,7 +65,7 @@ impl<'ast> Interpreter<'ast> {
           right,
         } => {
           self
-            .eval_assignment_expression(left, *operator, right, span)
+            .eval_assignment_expression(left, *operator, right, span.clone())
             .await
         }
         ExpressionKind::Update {
@@ -85,11 +74,11 @@ impl<'ast> Interpreter<'ast> {
           prefix,
         } => {
           self
-            .eval_update_expression(*operator, argument, *prefix, span)
+            .eval_update_expression(*operator, argument, *prefix, span.clone())
             .await
         }
         ExpressionKind::Import { path, .. } => {
-          self.eval_import(path, span).await
+          self.eval_import(path, span.clone()).await
         }
         ExpressionKind::Call {
           function,
@@ -112,7 +101,7 @@ impl<'ast> Interpreter<'ast> {
             .eval_call_expression(
               function,
               evaluated_args.into_bump_slice(),
-              span,
+              span.clone(),
             )
             .await
         }
@@ -126,7 +115,9 @@ impl<'ast> Interpreter<'ast> {
             .await
         }
         ExpressionKind::Match { subject, arms } => {
-          self.eval_match_expression(subject, arms, span).await
+          self
+            .eval_match_expression(subject, arms, span.clone())
+            .await
         }
         ExpressionKind::Block(block) => {
           self.eval_block_statement_with_new_scope(block).await
@@ -146,7 +137,9 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Member { object, property } => {
           let object = self.eval_expression(object, None).await?;
           let object = self.resolve_object(object).await?;
-          self.eval_member_expression(object, property, span).await
+          self
+            .eval_member_expression(object, property, span.clone())
+            .await
         }
         ExpressionKind::Index { object, index } => {
           let (object, index) = join!(
@@ -157,7 +150,9 @@ impl<'ast> Interpreter<'ast> {
             self.resolve_object(object?).await?,
             self.resolve_object(index?).await?,
           );
-          self.eval_index_expression(object, index, span).await
+          self
+            .eval_index_expression(object, index, span.clone())
+            .await
         }
         ExpressionKind::Collection { elements } => {
           let mut element_kind = None;

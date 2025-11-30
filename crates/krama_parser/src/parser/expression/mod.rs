@@ -55,11 +55,12 @@ where
 
     match token.kind {
       TokenKind::Identifier(_) => self.parse_identifier_expression(),
-      TokenKind::Integer(_) => self.parse_integer(),
-      TokenKind::Float(_) => self.parse_float(),
-      TokenKind::String(_) => self.parse_string(),
-      TokenKind::True | TokenKind::False => self.parse_boolean(),
-      TokenKind::Null => self.parse_null(),
+      TokenKind::Integer(_)
+      | TokenKind::Float(_)
+      | TokenKind::String(_)
+      | TokenKind::True
+      | TokenKind::False
+      | TokenKind::Null => self.parse_literal(),
       TokenKind::Bang
       | TokenKind::Minus
       | TokenKind::Tilde
