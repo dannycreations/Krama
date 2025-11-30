@@ -73,12 +73,7 @@ impl<'ast> Debug for Function<'ast> {
   fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
       Function::Native(n) => n.fmt(f),
-      Function::User(u) => f
-        .debug_struct("UserFunction")
-        .field("parameters", &u.parameters)
-        .field("body", &u.body)
-        .field("kind", &u.kind)
-        .finish(),
+      Function::User(u) => u.fmt(f),
     }
   }
 }

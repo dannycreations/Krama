@@ -21,29 +21,11 @@ where
     let start_span = self.current_token.span.clone();
     self.advance();
 
-    if self.current_token.kind != TokenKind::LParen {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Expected {} after 'if' or 'elif'",
-          TokenKind::LParen
-        )),
-        self.current_token.span.clone(),
-      ));
-    }
-    self.advance();
+    self.consume(TokenKind::LParen)?;
 
     let condition = self.parse_expression(Precedence::Lowest)?;
 
-    if self.current_token.kind != TokenKind::RParen {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Expected {} after if condition'",
-          TokenKind::RParen
-        )),
-        self.current_token.span.clone(),
-      ));
-    }
-    self.advance();
+    self.consume(TokenKind::RParen)?;
 
     let then_branch = self.arena.alloc(self.parse_block_statement()?);
     let then_span = then_branch.span.clone();
@@ -79,40 +61,12 @@ where
     let start_span = self.current_token.span.clone();
     self.advance();
 
-    if self.current_token.kind != TokenKind::LParen {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Expected {} after 'match'",
-          TokenKind::LParen
-        )),
-        start_span,
-      ));
-    }
-    self.advance();
+    self.consume(TokenKind::LParen)?;
 
     let subject = self.parse_expression(Precedence::Lowest)?;
 
-    if self.current_token.kind != TokenKind::RParen {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Expected {} after match subject'",
-          TokenKind::RParen
-        )),
-        start_span,
-      ));
-    }
-    self.advance();
-
-    if self.current_token.kind != TokenKind::LBrace {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Expected {} for match arms",
-          TokenKind::LBrace
-        )),
-        start_span,
-      ));
-    }
-    self.advance();
+    self.consume(TokenKind::RParen)?;
+    self.consume(TokenKind::LBrace)?;
 
     let mut arms = BumpVec::new_in(self.arena);
     while self.current_token.kind != TokenKind::RBrace {

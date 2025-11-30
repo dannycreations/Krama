@@ -41,24 +41,40 @@ impl<'ast> Interpreter<'ast> {
           left,
           operator,
           right,
-        } => {
-          let left_value = self.eval_expression(left, None).await?;
-          if *operator == BinaryOperator::LogicalAnd && !bool::from(&left_value)
-          {
-            return Ok(Object::Boolean(false));
-          }
-          if *operator == BinaryOperator::LogicalOr && bool::from(&left_value) {
-            return Ok(Object::Boolean(true));
-          }
+        } => match operator {
+          // Handle logical operators with short-circuiting
+          BinaryOperator::LogicalOr | BinaryOperator::LogicalAnd => {
+            let left_value = self.eval_expression(left, None).await?;
+            let left_bool = bool::from(&left_value);
 
-          let right_value = self.eval_expression(right, None).await?;
-          let (left, right) = (
-            self.resolve_object(left_value).await?,
-            self.resolve_object(right_value).await?,
-          );
-
-          self.eval_binary_expression(*operator, left, right, span.clone())
-        }
+            if *operator == BinaryOperator::LogicalOr {
+              if left_bool {
+                return Ok(left_value);
+              }
+            } else if !left_bool {
+              return Ok(left_value);
+            }
+            // if we reach here, we evaluate the right side
+            self.eval_expression(right, None).await
+          }
+          // For all other operators, evaluate concurrently
+          _ => {
+            let (left_res, right_res) = join!(
+              self.eval_expression(left, None),
+              self.eval_expression(right, None)
+            );
+            let (left_obj, right_obj) = (
+              self.resolve_object(left_res?).await?,
+              self.resolve_object(right_res?).await?,
+            );
+            self.eval_binary_expression(
+              *operator,
+              left_obj,
+              right_obj,
+              span.clone(),
+            )
+          }
+        },
         ExpressionKind::Assignment {
           left,
           operator,
