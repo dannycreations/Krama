@@ -21,12 +21,7 @@ where
     let start_span = self.consume(TokenKind::Let)?.span;
     let name = self.parse_identifier()?;
 
-    let kind = if self.current_token.kind == TokenKind::Colon {
-      self.advance();
-      Some(self.parse_type()?)
-    } else {
-      None
-    };
+    let kind = self.parse_optional_type()?;
 
     self.consume(TokenKind::Equal)?;
 
@@ -70,12 +65,7 @@ where
       }
     };
 
-    let kind = if self.current_token.kind == TokenKind::Colon {
-      self.advance();
-      Some(self.parse_type()?)
-    } else {
-      None
-    };
+    let kind = self.parse_optional_type()?;
 
     self.consume(TokenKind::Equal)?;
 

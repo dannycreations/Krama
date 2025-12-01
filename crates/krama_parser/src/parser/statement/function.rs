@@ -32,12 +32,7 @@ where
     self.advance();
     self.consume(TokenKind::LParen)?;
     let parameters = self.parse_fn_parameters()?;
-    let kind = if self.current_token.kind == TokenKind::Colon {
-      self.advance();
-      Some(self.parse_type()?)
-    } else {
-      None
-    };
+    let kind = self.parse_optional_type()?;
 
     let body = if self.current_token.kind == TokenKind::LBrace {
       let block = self.parse_block_statement()?;

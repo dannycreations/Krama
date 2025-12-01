@@ -75,26 +75,19 @@ impl Parse for PropertyArgs {
   }
 }
 
-fn transform_to_boxed_future_fn(
-  attr: TokenStream,
+fn transform_fn(
   item: TokenStream,
   error_msg_prefix: &str,
+  inventory_submission: TokenStream,
 ) -> TokenStream {
   let item_fn: ItemFn = match parse2(item) {
     Ok(f) => f,
-    Err(e) => return e.to_compile_error(),
-  };
-  let name_attr: NativeArgs = match parse2(attr) {
-    Ok(a) => a,
     Err(e) => return e.to_compile_error(),
   };
 
   let vis = &item_fn.vis;
   let body = &item_fn.block;
   let sig = &item_fn.sig;
-  let fn_name = &sig.ident;
-  let name = name_attr.name;
-  let module = name_attr.module;
 
   if sig.asyncness.is_none() {
     return syn::Error::new_spanned(
@@ -134,13 +127,7 @@ fn transform_to_boxed_future_fn(
           async move #body.boxed_local()
       }
 
-      inventory::submit! {
-          krama_core::object::StandardNative {
-              name: #name,
-              callback: #fn_name,
-              module: #module,
-          }
-      }
+      #inventory_submission
   };
 
   expanded
@@ -151,58 +138,51 @@ pub fn register_native(
   attr: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-  transform_to_boxed_future_fn(attr.into(), item.into(), "native").into()
+  let name_attr: NativeArgs = match parse2(attr.into()) {
+    Ok(a) => a,
+    Err(e) => return e.to_compile_error().into(),
+  };
+  let item_fn: ItemFn = match parse2(item.clone().into()) {
+    Ok(f) => f,
+    Err(e) => return e.to_compile_error().into(),
+  };
+
+  let fn_name = &item_fn.sig.ident;
+  let name = name_attr.name;
+  let module = name_attr.module;
+
+  let inventory_submission = quote! {
+      inventory::submit! {
+          krama_core::object::StandardNative {
+              name: #name,
+              callback: #fn_name,
+              module: #module,
+          }
+      }
+  };
+
+  transform_fn(item.into(), "native", inventory_submission).into()
 }
 
-fn transform_property_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
-  let item_fn: ItemFn = match parse2(item) {
-    Ok(f) => f,
-    Err(e) => return e.to_compile_error(),
-  };
-  let name_attr: PropertyArgs = match parse2(attr) {
+#[proc_macro_attribute]
+pub fn register_property(
+  attr: proc_macro::TokenStream,
+  item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+  let name_attr: PropertyArgs = match parse2(attr.into()) {
     Ok(a) => a,
-    Err(e) => return e.to_compile_error(),
+    Err(e) => return e.to_compile_error().into(),
+  };
+  let item_fn: ItemFn = match parse2(item.clone().into()) {
+    Ok(f) => f,
+    Err(e) => return e.to_compile_error().into(),
   };
 
-  let vis = &item_fn.vis;
-  let body = &item_fn.block;
-  let sig = &item_fn.sig;
-  let fn_name = &sig.ident;
+  let fn_name = &item_fn.sig.ident;
   let name = name_attr.name;
   let types = name_attr.types;
 
-  if sig.asyncness.is_none() {
-    return syn::Error::new_spanned(sig, "property function must be async")
-      .to_compile_error();
-  }
-
-  // Clone signature and modify it.
-  let mut new_sig = sig.clone();
-  new_sig.asyncness = None;
-
-  // Check for 'ast lifetime.
-  let has_ast_lifetime = new_sig
-    .generics
-    .lifetimes()
-    .any(|lt| lt.lifetime.ident == "ast");
-  if !has_ast_lifetime {
-    return syn::Error::new_spanned(
-      sig,
-      "property function must have a `'ast` lifetime parameter",
-    )
-    .to_compile_error();
-  }
-
-  new_sig.output = syn::parse_quote! {
-      -> futures::future::LocalBoxFuture<'ast, Result<krama_core::object::Object<'ast>, krama_core::error::ErrorKind>>
-  };
-
-  let expanded = quote! {
-      #vis #new_sig {
-          use futures::future::FutureExt;
-          async move #body.boxed_local()
-      }
-
+  let inventory_submission = quote! {
       inventory::submit! {
           krama_core::object::StandardProperty {
               name: #name,
@@ -212,13 +192,5 @@ fn transform_property_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
       }
   };
 
-  expanded
-}
-
-#[proc_macro_attribute]
-pub fn register_property(
-  attr: proc_macro::TokenStream,
-  item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
-  transform_property_fn(attr.into(), item.into()).into()
+  transform_fn(item.into(), "property", inventory_submission).into()
 }

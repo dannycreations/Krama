@@ -57,12 +57,7 @@ where
       };
       self.advance();
 
-      let kind = if self.current_token.kind == TokenKind::Colon {
-        self.advance();
-        Some(self.parse_type()?)
-      } else {
-        None
-      };
+      let kind = self.parse_optional_type()?;
 
       let default = if self.current_token.kind == TokenKind::Equal {
         self.advance();
@@ -120,12 +115,7 @@ where
     &mut self,
   ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), (ErrorKind, Span<'a>)>
   {
-    let kind = if self.current_token.kind == TokenKind::Colon {
-      self.advance();
-      Some(self.parse_type()?)
-    } else {
-      None
-    };
+    let kind = self.parse_optional_type()?;
 
     if self.current_token.kind == TokenKind::Arrow {
       return Err((
@@ -145,12 +135,7 @@ where
     &mut self,
   ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), (ErrorKind, Span<'a>)>
   {
-    let kind = if self.current_token.kind == TokenKind::Colon {
-      self.advance();
-      Some(self.parse_type()?)
-    } else {
-      None
-    };
+    let kind = self.parse_optional_type()?;
 
     self.consume(TokenKind::Arrow)?;
     if self.current_token.kind == TokenKind::LBrace {

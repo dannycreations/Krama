@@ -40,12 +40,7 @@ impl<'ast> Interpreter<'ast> {
       return Ok(right_val);
     }
 
-    let left_val = if let Some(distance) = distance {
-      self.get_at(distance, ident)
-    } else {
-      self.environment.borrow().get(ident)
-    }
-    .ok_or_else(|| {
+    let left_val = self.lookup_variable(left, ident).ok_or_else(|| {
       (ErrorKind::ReferenceError(ident.to_string()), span.clone())
     })?;
 
@@ -98,14 +93,10 @@ impl<'ast> Interpreter<'ast> {
     };
 
     let distance = self.look_up_variable(argument);
-    let original_value = if let Some(distance) = distance {
-      self.get_at(distance, ident)
-    } else {
-      self.environment.borrow().get(ident)
-    }
-    .ok_or_else(|| {
-      (ErrorKind::ReferenceError(ident.to_string()), span.clone())
-    })?;
+    let original_value =
+      self.lookup_variable(argument, ident).ok_or_else(|| {
+        (ErrorKind::ReferenceError(ident.to_string()), span.clone())
+      })?;
     let new_value = match (operator, original_value.clone()) {
       (UpdateOperator::Increment, Object::Integer(i)) => Object::Integer(i + 1),
       (UpdateOperator::Decrement, Object::Integer(i)) => Object::Integer(i - 1),

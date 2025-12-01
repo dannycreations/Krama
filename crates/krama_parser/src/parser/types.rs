@@ -31,6 +31,17 @@ where
     Ok(kind)
   }
 
+  pub(super) fn parse_optional_type(
+    &mut self,
+  ) -> Result<Option<Type<'ast>>, (ErrorKind, Span<'a>)> {
+    if self.current_token.kind == TokenKind::Colon {
+      self.advance();
+      Some(self.parse_type()?).map_or_else(|| Ok(None), |v| Ok(Some(v)))
+    } else {
+      Ok(None)
+    }
+  }
+
   fn parse_tuple_type(&mut self) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
     let start_span = self.current_token.span.clone();
     self.consume(TokenKind::LBracket)?;
