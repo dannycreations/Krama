@@ -57,21 +57,17 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  fn ancestor(&self, distance: usize) -> &'ast RefCell<Environment<'ast>> {
-    let mut environment = self.environment;
-    for _ in 0..distance {
-      let outer = environment.borrow().outer.unwrap();
-      environment = outer;
-    }
-    environment
-  }
-
   pub(super) fn get_at(
     &self,
     distance: usize,
     name: &str,
   ) -> Option<Object<'ast>> {
-    self.ancestor(distance).borrow().get(name)
+    let mut env = self.environment.borrow();
+    for _ in 0..distance {
+      let outer = env.outer.unwrap();
+      env = outer.borrow();
+    }
+    env.get_local(name)
   }
 
   pub(super) fn assign_at(
@@ -80,7 +76,12 @@ impl<'ast> Interpreter<'ast> {
     name: &'ast str,
     value: Object<'ast>,
   ) {
-    self.ancestor(distance).borrow_mut().set(name, value, false);
+    let mut env = self.environment.borrow_mut();
+    for _ in 0..distance {
+      let outer = env.outer.unwrap();
+      env = outer.borrow_mut();
+    }
+    env.set(name, value, false);
   }
 
   pub fn alloc_str(&self, s: &str) -> &'ast str {

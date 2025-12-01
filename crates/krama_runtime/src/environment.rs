@@ -30,18 +30,17 @@ impl<'ast> Environment<'ast> {
     }
   }
 
+  pub fn get_local(&self, name: &str) -> Option<Object<'ast>> {
+    self.store.get(name).map(|(obj, _)| obj.clone())
+  }
+
   pub fn get(&self, name: &str) -> Option<Object<'ast>> {
-    if let Some((obj, _)) = self.store.get(name) {
-      return Some(obj.clone());
+    if let Some(obj) = self.get_local(name) {
+      return Some(obj);
     }
 
-    let mut outer = self.outer;
-    while let Some(outer_cell) = outer {
-      let env = outer_cell.borrow();
-      if let Some((obj, _)) = env.store.get(name) {
-        return Some(obj.clone());
-      }
-      outer = env.outer;
+    if let Some(outer_env) = self.outer {
+      return outer_env.borrow().get(name);
     }
 
     None
