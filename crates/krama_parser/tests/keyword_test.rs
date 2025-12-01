@@ -1,10 +1,10 @@
-use krama_core::{error::ErrorKind, span::Span};
+use krama_core::error::{Error, ErrorKind};
 use krama_runtime::test_parser_error;
 
 macro_rules! test_keyword_as_identifier_error {
   ($name:ident, $keyword:expr) => {
-    test_parser_error!($name, $keyword, |error: (ErrorKind, Span)| {
-      assert!(matches!(error.0, ErrorKind::SyntaxError(_)));
+    test_parser_error!($name, $keyword, |error: Error| {
+      assert!(matches!(error.kind, ErrorKind::SyntaxError(_)));
     });
   };
 }

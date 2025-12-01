@@ -80,13 +80,10 @@ where
         let span = block.span.clone();
         Ok(Expression::new(ExpressionKind::Block(block), span))
       }
-      _ => Err((
-        ErrorKind::SyntaxError(format!(
-          "Unexpected token for prefix expression: {}",
-          token.kind
-        )),
-        token.span,
-      )),
+      _ => Err(ErrorKind::SyntaxError(format!(
+        "Unexpected token for prefix expression: {}",
+        token.kind
+      ))),
     }
   }
 

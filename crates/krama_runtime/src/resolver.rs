@@ -4,7 +4,7 @@ use krama_core::{
     statement::{Binding, Statement, StatementKind},
     Program,
   },
-  error::ErrorKind,
+  error::{Error, ErrorKind},
   span::Span,
 };
 use rustc_hash::FxHashMap;
@@ -31,7 +31,7 @@ impl<'a> Resolver<'a> {
   pub fn resolve(
     &mut self,
     program: &Program<'a>,
-  ) -> Result<FxHashMap<Span<'a>, usize>, (ErrorKind, Span<'a>)> {
+  ) -> Result<FxHashMap<Span<'a>, usize>, Error<'a>> {
     for statement in &program.statements {
       self.resolve_statement(statement)?;
     }
@@ -41,7 +41,7 @@ impl<'a> Resolver<'a> {
   fn resolve_statement(
     &mut self,
     statement: &Statement<'a>,
-  ) -> Result<(), (ErrorKind, Span<'a>)> {
+  ) -> Result<(), Error<'a>> {
     match &statement.kind {
       StatementKind::Expression { expression } => {
         self.resolve_expression(expression)?
@@ -128,13 +128,13 @@ impl<'a> Resolver<'a> {
   fn resolve_expression(
     &mut self,
     expression: &Expression<'a>,
-  ) -> Result<(), (ErrorKind, Span<'a>)> {
+  ) -> Result<(), Error<'a>> {
     match &expression.kind {
       ExpressionKind::Identifier(name) => {
         if let Some(scope) = self.scopes.last() {
           if let Some(defined) = scope.get(name) {
             if !defined {
-              return Err((
+              return Err(Error::new(
                 ErrorKind::SyntaxError(
                   "Cannot read local variable in its own initializer"
                     .to_string(),

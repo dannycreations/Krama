@@ -3,14 +3,15 @@ use std::process;
 use anyhow::Result;
 use bumpalo::{collections::String as BumpString, Bump};
 use clap::Parser;
-use krama_core::{error::ErrorKind, object::Object};
+use krama_core::{
+  error::{report_error, ErrorKind},
+  object::Object,
+};
 use krama_runtime::interpreter::Interpreter;
 use tokio::{
   io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader},
   signal,
 };
-
-use crate::error::report_error;
 
 #[derive(Parser)]
 pub struct Repl;
@@ -53,14 +54,14 @@ impl Repl {
                                         println!("{}", object);
                                     }
                                 }
-                                Err((kind, span)) => {
-                                    report_error("repl", source, span, kind);
+                                Err(error) => {
+                                    report_error("repl", source, error);
                                 }
                             }
                             history.clear();
                         }
-                        Err((kind, span)) => {
-                          if let ErrorKind::SyntaxError(msg) = &kind {
+                        Err(error) => {
+                          if let ErrorKind::SyntaxError(msg) = &error.kind {
                             // Incomplete input errors typically involve "end of file" or expecting a token at EOF.
                             if msg.contains("Unexpected end of file") || msg.ends_with("but got Eof") {
                                 // This indicates that the input is incomplete, so we wait for more.
@@ -69,7 +70,7 @@ impl Repl {
                           }
 
                           // For any other error, report it and clear the history to start fresh.
-                          report_error("repl", source, span, kind);
+                          report_error("repl", source, error);
                           history.clear();
                         }
                       }

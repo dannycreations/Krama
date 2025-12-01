@@ -15,9 +15,8 @@ where
     self.advance();
 
     if self.current_token.kind != TokenKind::LParen {
-      return Err((
-        ErrorKind::SyntaxError("Expected '(' after 'import'".to_string()),
-        start_span,
+      return Err(ErrorKind::SyntaxError(
+        "Expected '(' after 'import'".to_string(),
       ));
     }
     self.advance();
@@ -28,20 +27,16 @@ where
         ..
       } => self.arena.alloc_str(path),
       _ => {
-        return Err((
-          ErrorKind::SyntaxError(
-            "Expected a string literal for the import path".to_string(),
-          ),
-          start_span,
+        return Err(ErrorKind::SyntaxError(
+          "Expected a string literal for the import path".to_string(),
         ))
       }
     };
     self.advance();
 
     if self.current_token.kind != TokenKind::RParen {
-      return Err((
-        ErrorKind::SyntaxError("Expected ')' after import path".to_string()),
-        start_span,
+      return Err(ErrorKind::SyntaxError(
+        "Expected ')' after import path".to_string(),
       ));
     }
     self.advance();

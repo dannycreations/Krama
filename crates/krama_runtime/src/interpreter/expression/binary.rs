@@ -1,6 +1,9 @@
 use bumpalo::collections::String as BumpString;
 use krama_core::{
-  ast::operator::BinaryOperator, error::ErrorKind, object::Object, span::Span,
+  ast::operator::BinaryOperator,
+  error::{Error, ErrorKind},
+  object::Object,
+  span::Span,
 };
 
 use crate::interpreter::Interpreter;
@@ -12,7 +15,7 @@ impl<'ast> Interpreter<'ast> {
     left: Object<'ast>,
     right: Object<'ast>,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     match (left, right) {
       (Object::Integer(left), Object::Integer(right)) => {
         self.eval_integer_binary_expression(operator, left, right, span)
@@ -35,7 +38,7 @@ impl<'ast> Interpreter<'ast> {
       (l, r) => match operator {
         BinaryOperator::Equal => Ok(Object::Boolean(l == r)),
         BinaryOperator::NotEqual => Ok(Object::Boolean(l != r)),
-        _ => Err((
+        _ => Err(Error::new(
           ErrorKind::TypeError(format!(
             "Unsupported types for binary operation: {:?} and {:?}",
             l, r
@@ -52,7 +55,7 @@ impl<'ast> Interpreter<'ast> {
     left: i64,
     right: i64,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
       BinaryOperator::Add => Ok(Object::Integer(left + right)),
       BinaryOperator::Subtract => Ok(Object::Integer(left - right)),
@@ -71,13 +74,15 @@ impl<'ast> Interpreter<'ast> {
       BinaryOperator::GreaterThanOrEqual => Ok(Object::Boolean(left >= right)),
       BinaryOperator::LessThan => Ok(Object::Boolean(left < right)),
       BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(left <= right)),
-      BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => Err((
-        ErrorKind::TypeError(format!(
-          "Unsupported operator for integers: {:?}",
-          operator
-        )),
-        span,
-      )),
+      BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => {
+        Err(Error::new(
+          ErrorKind::TypeError(format!(
+            "Unsupported operator for integers: {:?}",
+            operator
+          )),
+          span,
+        ))
+      }
     }
   }
 
@@ -87,7 +92,7 @@ impl<'ast> Interpreter<'ast> {
     left: f64,
     right: f64,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
       BinaryOperator::Add => Ok(Object::Float(left + right)),
       BinaryOperator::Subtract => Ok(Object::Float(left - right)),
@@ -101,7 +106,7 @@ impl<'ast> Interpreter<'ast> {
       BinaryOperator::GreaterThanOrEqual => Ok(Object::Boolean(left >= right)),
       BinaryOperator::LessThan => Ok(Object::Boolean(left < right)),
       BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(left <= right)),
-      _ => Err((
+      _ => Err(Error::new(
         ErrorKind::TypeError(format!(
           "Unsupported operator for floats: {:?}",
           operator
@@ -117,7 +122,7 @@ impl<'ast> Interpreter<'ast> {
     left: &str,
     right: &str,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
       BinaryOperator::Add => {
         let mut s = BumpString::from_str_in(left, self.arena);
@@ -126,7 +131,7 @@ impl<'ast> Interpreter<'ast> {
       }
       BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
       BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
-      _ => Err((
+      _ => Err(Error::new(
         ErrorKind::TypeError(format!(
           "Unsupported operator for strings: {:?}",
           operator
@@ -142,11 +147,11 @@ impl<'ast> Interpreter<'ast> {
     left: bool,
     right: bool,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
       BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
       BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
-      _ => Err((
+      _ => Err(Error::new(
         ErrorKind::TypeError(format!(
           "Unsupported operator for booleans: {:?}",
           operator

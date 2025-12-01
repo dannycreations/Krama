@@ -6,11 +6,10 @@ use std::{
 use anyhow::{Context, Result};
 use bumpalo::Bump;
 use clap::Parser;
+use krama_core::error::report_error;
 use krama_runtime::{interpreter::Interpreter, testing::TestResult};
 use tokio::fs;
 use walkdir::WalkDir;
-
-use crate::error::report_error;
 
 #[derive(Parser)]
 pub struct Test {
@@ -71,8 +70,8 @@ impl Test {
 
     let program = match interpreter.parse_and_resolve(content_in_arena) {
       Ok(program) => program,
-      Err((kind, span)) => {
-        report_error(path_str, &content, span, kind);
+      Err(error) => {
+        report_error(path_str, &content, error);
         return Ok((0, 1));
       }
     };
@@ -85,9 +84,9 @@ impl Test {
           println!("  test {} ... ok", name);
           passed += 1;
         }
-        TestResult::Failure(name, (kind, span)) => {
+        TestResult::Failure(name, error) => {
           println!("  '{}'... failed", name);
-          report_error(path_str, &content, span, kind);
+          report_error(path_str, &content, error);
           failed += 1;
         }
       }

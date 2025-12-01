@@ -4,7 +4,6 @@ use krama_core::{
     statement::{Statement, StatementKind},
   },
   error::ErrorKind,
-  span::Span,
   token::TokenKind,
 };
 
@@ -16,7 +15,7 @@ where
 {
   pub(super) fn parse_while_statement(
     &mut self,
-  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
+  ) -> Result<Statement<'ast>, ErrorKind> {
     let start_span = self.current_token.span.clone();
     self.advance();
 

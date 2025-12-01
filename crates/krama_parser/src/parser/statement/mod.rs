@@ -12,7 +12,6 @@ use krama_core::{
     statement::{Statement, StatementKind},
   },
   error::ErrorKind,
-  span::Span,
   token::TokenKind,
 };
 
@@ -24,7 +23,7 @@ where
 {
   pub(super) fn parse_statement(
     &mut self,
-  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
+  ) -> Result<Statement<'ast>, ErrorKind> {
     let token = self.current_token.clone();
 
     let statement = match token.kind {

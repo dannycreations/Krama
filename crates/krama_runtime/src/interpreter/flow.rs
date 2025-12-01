@@ -1,6 +1,6 @@
 use krama_core::{
   ast::expression::{ExpressionKind, MatchPattern},
-  error::ErrorKind,
+  error::{Error, ErrorKind},
   object::Object,
   span::Span,
 };
@@ -13,7 +13,7 @@ impl<'ast> Interpreter<'ast> {
     subject: &'s Object<'ast>,
     pattern: &'s MatchPattern<'ast>,
     span: Span<'ast>,
-  ) -> Result<bool, (ErrorKind, Span<'ast>)>
+  ) -> Result<bool, Error<'ast>>
   where
     'ast: 's,
   {
@@ -33,7 +33,7 @@ impl<'ast> Interpreter<'ast> {
         if let (Object::Integer(start), Object::Integer(end)) = (start, end) {
           Ok(*i >= start && *i <= end)
         } else {
-          Err((
+          Err(Error::new(
             ErrorKind::TypeError(
               "Range pattern can only be used on integers".to_string(),
             ),
@@ -50,7 +50,7 @@ impl<'ast> Interpreter<'ast> {
           let subject_char = s.chars().next().unwrap();
           Ok(subject_char >= start_char && subject_char <= end_char)
         } else {
-          Err((
+          Err(Error::new(
             ErrorKind::TypeError(
               "Range pattern can only be used on strings".to_string(),
             ),

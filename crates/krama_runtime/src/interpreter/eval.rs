@@ -9,9 +9,8 @@ use krama_core::{
     operator::BinaryOperator,
     types::{Type, TypeKind},
   },
-  error::ErrorKind,
+  error::Error,
   object::{Function, Object, UserFunction},
-  span::Span,
 };
 
 use super::{types::check_type, Interpreter};
@@ -21,7 +20,7 @@ impl<'ast> Interpreter<'ast> {
     &'s self,
     expression: &'s Expression<'ast>,
     kind: Option<&'s Type<'ast>>,
-  ) -> LocalBoxFuture<'s, Result<Object<'ast>, (ErrorKind, Span<'ast>)>>
+  ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error<'ast>>>
   where
     'ast: 's,
   {

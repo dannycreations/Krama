@@ -1,5 +1,8 @@
 use krama_core::{
-  ast::expression::Expression, error::ErrorKind, object::Object, span::Span,
+  ast::expression::Expression,
+  error::{Error, ErrorKind},
+  object::Object,
+  span::Span,
 };
 
 use super::Interpreter;
@@ -10,10 +13,10 @@ impl<'ast> Interpreter<'ast> {
     expression: &Expression<'ast>,
     name: &'ast str,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     self.lookup_variable(expression, name).map_or_else(
       || {
-        Err((
+        Err(Error::new(
           ErrorKind::ReferenceError(format!("'{}' is not defined", name)),
           span,
         ))

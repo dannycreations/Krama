@@ -13,7 +13,7 @@ use std::cell::{RefCell, RefMut};
 use bumpalo::Bump;
 use krama_core::{
   ast::{expression::Expression, statement::Statement, Program},
-  error::ErrorKind,
+  error::{Error, ErrorKind},
   object::Object,
   span::Span,
 };
@@ -87,10 +87,7 @@ impl<'ast> Interpreter<'ast> {
     self.arena.alloc_str(s)
   }
 
-  pub fn check(
-    &self,
-    source: &'ast str,
-  ) -> Result<(), (ErrorKind, Span<'ast>)> {
+  pub fn check(&self, source: &'ast str) -> Result<(), Error<'ast>> {
     self.parse_and_resolve(source)?;
     Ok(())
   }
@@ -98,7 +95,7 @@ impl<'ast> Interpreter<'ast> {
   pub async fn eval(
     &self,
     source: &'ast str,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let program = self.parse_and_resolve(source)?;
     self.eval_program_statements(&program.statements).await
   }
@@ -106,7 +103,7 @@ impl<'ast> Interpreter<'ast> {
   pub fn parse_and_resolve(
     &self,
     source: &'ast str,
-  ) -> Result<Program<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Program<'ast>, Error<'ast>> {
     let lexer = Lexer::new(source, self.path);
     let mut parser = Parser::new(lexer, self.arena);
     let program = parser.parse()?;
@@ -119,7 +116,7 @@ impl<'ast> Interpreter<'ast> {
   async fn eval_program_statements<'s>(
     &'s self,
     statements: &'s [Statement<'ast>],
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let mut result = Object::Void;
     for statement in statements {
       result = self.eval_statement(statement).await?;
@@ -130,11 +127,11 @@ impl<'ast> Interpreter<'ast> {
   pub(super) fn env_mut(
     &self,
     span: Span<'ast>,
-  ) -> Result<RefMut<'_, Environment<'ast>>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<RefMut<'_, Environment<'ast>>, Error<'ast>> {
     self
       .environment
       .try_borrow_mut()
-      .map_err(|e| (ErrorKind::RuntimeError(e.to_string()), span))
+      .map_err(|e| Error::new(ErrorKind::RuntimeError(e.to_string()), span))
   }
 
   pub(crate) fn look_up_variable(

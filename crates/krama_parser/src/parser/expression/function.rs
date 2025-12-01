@@ -38,7 +38,7 @@ where
 
   pub(crate) fn parse_fn_parameters(
     &mut self,
-  ) -> Result<BumpVec<'ast, Parameter<'ast>>, (ErrorKind, Span<'a>)> {
+  ) -> Result<BumpVec<'ast, Parameter<'ast>>, ErrorKind> {
     let mut parameters = BumpVec::new_in(self.arena);
     if self.current_token.kind == TokenKind::RParen {
       self.advance();
@@ -50,9 +50,8 @@ where
       let name = if let TokenKind::Identifier(name) = self.current_token.kind {
         self.arena.alloc_str(name)
       } else {
-        return Err((
-          ErrorKind::SyntaxError("Expected parameter name".to_string()),
-          self.current_token.span.clone(),
+        return Err(ErrorKind::SyntaxError(
+          "Expected parameter name".to_string(),
         ));
       };
       self.advance();
@@ -81,13 +80,10 @@ where
     }
 
     if self.current_token.kind != TokenKind::RParen {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Expected {} after parameters",
-          TokenKind::RParen
-        )),
-        self.current_token.span.clone(),
-      ));
+      return Err(ErrorKind::SyntaxError(format!(
+        "Expected {} after parameters",
+        TokenKind::RParen
+      )));
     }
     self.advance();
 
@@ -113,17 +109,15 @@ where
 
   fn parse_classic_fn_body_and_return_type(
     &mut self,
-  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), (ErrorKind, Span<'a>)>
-  {
+  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), ErrorKind> {
     let kind = self.parse_optional_type()?;
 
     if self.current_token.kind == TokenKind::Arrow {
-      return Err((
+      return Err(
         ErrorKind::SyntaxError(
           "`fn` functions cannot use `=>` syntax. Use a block body `{...}` instead.".to_string(),
         ),
-        self.current_token.span.clone(),
-      ));
+      );
     }
 
     let body_block = self.arena.alloc(self.parse_block_statement()?);
@@ -133,17 +127,13 @@ where
 
   fn parse_arrow_fn_body_and_return_type(
     &mut self,
-  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), (ErrorKind, Span<'a>)>
-  {
+  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), ErrorKind> {
     let kind = self.parse_optional_type()?;
 
     self.consume(TokenKind::Arrow)?;
     if self.current_token.kind == TokenKind::LBrace {
-      return Err((
-        ErrorKind::SyntaxError(
-          "Arrow functions cannot have a block body.".to_string(),
-        ),
-        self.current_token.span.clone(),
+      return Err(ErrorKind::SyntaxError(
+        "Arrow functions cannot have a block body.".to_string(),
       ));
     }
 

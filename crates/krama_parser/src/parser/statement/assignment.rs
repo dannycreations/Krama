@@ -5,7 +5,6 @@ use krama_core::{
     statement::{Binding, DestructuredIdentifier, Statement, StatementKind},
   },
   error::ErrorKind,
-  span::Span,
   token::TokenKind,
 };
 
@@ -17,7 +16,7 @@ where
 {
   pub(super) fn parse_let_statement(
     &mut self,
-  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
+  ) -> Result<Statement<'ast>, ErrorKind> {
     let start_span = self.consume(TokenKind::Let)?.span;
     let name = self.parse_identifier()?;
 
@@ -40,8 +39,8 @@ where
   pub(super) fn parse_const_statement(
     &mut self,
     public: bool,
-    start_span: Span<'a>,
-  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
+    start_span: krama_core::span::Span<'a>,
+  ) -> Result<Statement<'ast>, ErrorKind> {
     self.consume(TokenKind::Const)?;
 
     let binding = if self.current_token.kind == TokenKind::LBrace {
@@ -83,8 +82,7 @@ where
 
   pub(super) fn parse_destructured_items(
     &mut self,
-  ) -> Result<BumpVec<'ast, DestructuredIdentifier<'ast>>, (ErrorKind, Span<'a>)>
-  {
+  ) -> Result<BumpVec<'ast, DestructuredIdentifier<'ast>>, ErrorKind> {
     let mut items = BumpVec::new_in(self.arena);
     if self.current_token.kind == TokenKind::RBrace {
       return Ok(items);

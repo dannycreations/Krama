@@ -27,9 +27,8 @@ where
       TokenKind::PlusPlus => UpdateOperator::Increment,
       TokenKind::MinusMinus => UpdateOperator::Decrement,
       _ => {
-        return Err((
-          ErrorKind::SyntaxError("Invalid postfix operator".to_string()),
-          token.span,
+        return Err(ErrorKind::SyntaxError(
+          "Invalid postfix operator".to_string(),
         ))
       }
     };
@@ -116,9 +115,8 @@ where
         InfixOperator::Assignment(AssignmentOperator::RightShiftAssign)
       }
       _ => {
-        return Err((
-          ErrorKind::SyntaxError("Invalid infix operator".to_string()),
-          token.span,
+        return Err(ErrorKind::SyntaxError(
+          "Invalid infix operator".to_string(),
         ))
       }
     };

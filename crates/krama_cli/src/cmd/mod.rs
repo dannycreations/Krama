@@ -6,10 +6,9 @@ pub mod test;
 
 use anyhow::{Context, Result};
 use bumpalo::Bump;
+use krama_core::error::report_error;
 use krama_runtime::interpreter::Interpreter;
 use tokio::fs;
-
-use crate::error::report_error;
 
 pub async fn read_file_and_interpret<'a>(
   arena: &'a Bump,
@@ -28,8 +27,8 @@ pub async fn read_file_and_interpret<'a>(
     interpreter.check(content_in_arena).map(|_| ())
   };
 
-  if let Err((kind, span)) = result {
-    report_error(file, &content, span, kind);
+  if let Err(error) = result {
+    report_error(file, &content, error);
   }
   Ok(())
 }

@@ -1,4 +1,8 @@
-use krama_core::{error::ErrorKind, object::Object, span::Span};
+use krama_core::{
+  error::{Error, ErrorKind},
+  object::Object,
+  span::Span,
+};
 
 use crate::interpreter::Interpreter;
 
@@ -8,7 +12,7 @@ impl<'ast> Interpreter<'ast> {
     mut object: Object<'ast>,
     index: Object<'ast>,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     match &mut object {
       Object::Array { elements, .. } => {
         Self::eval_index_expression_for_sequence(elements, index, span)
@@ -20,7 +24,7 @@ impl<'ast> Interpreter<'ast> {
         let idx = match index {
           Object::Integer(i) => i,
           _ => {
-            return Err((
+            return Err(Error::new(
               ErrorKind::TypeError(format!(
                 "string indices must be integers, not {}",
                 index.type_name()
@@ -43,7 +47,7 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
       }
-      _ => Err((
+      _ => Err(Error::new(
         ErrorKind::TypeError(format!(
           "{} does not support indexing",
           object.type_name()
@@ -57,11 +61,11 @@ impl<'ast> Interpreter<'ast> {
     elements: &[Object<'ast>],
     index: Object<'ast>,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let idx = match index {
       Object::Integer(i) => i,
       _ => {
-        return Err((
+        return Err(Error::new(
           ErrorKind::TypeError(format!(
             "indices must be integers, not {}",
             index.type_name()

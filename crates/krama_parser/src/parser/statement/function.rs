@@ -5,7 +5,6 @@ use krama_core::{
     statement::{Statement, StatementKind},
   },
   error::ErrorKind,
-  span::Span,
   token::TokenKind,
 };
 
@@ -18,15 +17,14 @@ where
   pub(super) fn parse_fn_statement(
     &mut self,
     public: bool,
-    start_span: Span<'a>,
-  ) -> Result<Statement<'ast>, (ErrorKind, Span<'a>)> {
+    start_span: krama_core::span::Span<'a>,
+  ) -> Result<Statement<'ast>, ErrorKind> {
     self.advance();
     let name = if let TokenKind::Identifier(name) = self.current_token.kind {
       self.arena.alloc_str(name)
     } else {
-      return Err((
-        ErrorKind::SyntaxError("Expected function name after 'fn'".to_string()),
-        start_span,
+      return Err(ErrorKind::SyntaxError(
+        "Expected function name after 'fn'".to_string(),
       ));
     };
     self.advance();
@@ -42,10 +40,7 @@ where
       let expr = self.parse_expression(Precedence::Lowest)?;
       FunctionBody::Expression(self.arena.alloc(expr))
     } else {
-      return Err((
-        ErrorKind::SyntaxError("Expected function body".to_string()),
-        self.current_token.span.clone(),
-      ));
+      return Err(ErrorKind::SyntaxError("Expected function body".to_string()));
     };
 
     Ok(Statement::new(

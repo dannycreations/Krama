@@ -4,7 +4,7 @@ use std::{
 };
 
 use krama_core::{
-  error::ErrorKind,
+  error::{Error, ErrorKind},
   object::{Function, Object},
   scope::Scope,
   span::Span,
@@ -20,7 +20,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &str,
     span: &Span<'ast>,
-  ) -> Result<PathBuf, (ErrorKind, Span<'ast>)> {
+  ) -> Result<PathBuf, Error<'ast>> {
     let base_path = self
       .path
       .and_then(|p| Path::new(p).parent())
@@ -36,7 +36,7 @@ impl<'ast> Interpreter<'ast> {
       return Ok(path_with_ext.clean());
     }
 
-    Err((
+    Err(Error::new(
       ErrorKind::ReferenceError(format!(
         "Failed to find module file: {}",
         path
@@ -49,7 +49,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &'ast str,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let module_name = self.arena.alloc_str(path.strip_prefix("std:").unwrap());
 
     if let Some(module) = self.loaded_modules.borrow().get(module_name) {
@@ -78,7 +78,7 @@ impl<'ast> Interpreter<'ast> {
         object
       })
       .ok_or_else(|| {
-        (
+        Error::new(
           ErrorKind::ReferenceError(format!(
             "Standard module not found: {}",
             module_name
@@ -92,10 +92,10 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &'ast str,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let resolved_path = self.resolve_import_path(path, &span).await?;
     let resolved_path_str = resolved_path.to_str().ok_or_else(|| {
-      (
+      Error::new(
         ErrorKind::RuntimeError("Invalid path encoding".to_string()),
         span.clone(),
       )
@@ -106,16 +106,16 @@ impl<'ast> Interpreter<'ast> {
       return Ok(module.clone());
     }
 
-    let source = fs::read_to_string(&resolved_path)
-      .await
-      .map_err(|e| (ErrorKind::ReferenceError(e.to_string()), span))?;
+    let source = fs::read_to_string(&resolved_path).await.map_err(|e| {
+      Error::new(ErrorKind::ReferenceError(e.to_string()), span)
+    })?;
 
     let source_str = self.arena.alloc_str(&source);
 
     let new_interpreter = Interpreter::new(self.arena, Some(resolved_path_key));
     if let Err(mut err) = new_interpreter.eval(source_str).await {
-      err.1.file = Some(resolved_path_key);
-      err.1.source = Some(source_str);
+      err.span.file = Some(resolved_path_key);
+      err.span.source = Some(source_str);
       return Err(err);
     }
 
@@ -143,7 +143,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &'ast str,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     if path.starts_with("std:") {
       self.eval_std_module(path, span)
     } else {

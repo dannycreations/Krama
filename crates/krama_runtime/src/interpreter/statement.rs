@@ -4,7 +4,7 @@ use krama_core::{
   ast::statement::{
     Binding, BlockStatement, DestructuredIdentifier, Statement, StatementKind,
   },
-  error::ErrorKind,
+  error::{Error, ErrorKind},
   object::{Function, Object, UserFunction},
   span::Span,
 };
@@ -15,7 +15,7 @@ impl<'ast> Interpreter<'ast> {
   pub fn eval_statement<'s>(
     &'s self,
     statement: &'s Statement<'ast>,
-  ) -> LocalBoxFuture<'s, Result<Object<'ast>, (ErrorKind, Span<'ast>)>>
+  ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error<'ast>>>
   where
     'ast: 's,
   {
@@ -69,7 +69,7 @@ impl<'ast> Interpreter<'ast> {
                 );
                 self.destructure_scope(span, &value, items, *public)?;
               } else {
-                return Err((
+                return Err(Error::new(
                   ErrorKind::TypeError(
                     "Destructuring can only be done on modules".to_string(),
                   ),
@@ -133,7 +133,7 @@ impl<'ast> Interpreter<'ast> {
   async fn eval_statements<'s>(
     &'s self,
     statements: &'s [Statement<'ast>],
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let mut result = Object::Void;
 
     for statement in statements {
@@ -153,14 +153,14 @@ impl<'ast> Interpreter<'ast> {
   pub(super) async fn eval_block_statement(
     &self,
     block: &BlockStatement<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     self.eval_statements(&block.statements).await
   }
 
   pub(super) async fn eval_block_statement_with_new_scope(
     &self,
     block: &BlockStatement<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let new_interpreter = self.new_enclosed();
     new_interpreter.eval_statements(&block.statements).await
   }
@@ -171,7 +171,7 @@ impl<'ast> Interpreter<'ast> {
     value: &Object<'ast>,
     items: &BumpVec<'ast, DestructuredIdentifier<'ast>>,
     public: bool,
-  ) -> Result<(), (ErrorKind, Span<'ast>)> {
+  ) -> Result<(), Error<'ast>> {
     if let Object::Scope(scope) = value {
       for item in items.iter() {
         if let Some(export) = scope.bindings.get(item.name) {
@@ -180,7 +180,7 @@ impl<'ast> Interpreter<'ast> {
             .env_mut(span.clone())?
             .set(name, export.clone(), public);
         } else {
-          return Err((
+          return Err(Error::new(
             ErrorKind::ReferenceError(format!(
               "'{}' is not exported from module '{}'",
               item.name,
@@ -191,7 +191,7 @@ impl<'ast> Interpreter<'ast> {
         }
       }
     } else {
-      return Err((
+      return Err(Error::new(
         ErrorKind::TypeError(
           "Destructuring can only be done on modules".to_string(),
         ),

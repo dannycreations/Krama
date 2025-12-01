@@ -3,7 +3,7 @@ use krama_core::{
     expression::{Expression, FunctionBody, MatchArm},
     types::Type,
   },
-  error::ErrorKind,
+  error::Error,
   object::Object,
   span::Span,
 };
@@ -17,7 +17,7 @@ impl<'ast> Interpreter<'ast> {
     then_branch: &Expression<'ast>,
     else_branch: Option<&'ast Expression<'ast>>,
     kind: Option<&Type<'ast>>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let condition = self.eval_expression(condition, None).await?;
 
     if bool::from(&condition) {
@@ -34,7 +34,7 @@ impl<'ast> Interpreter<'ast> {
     subject: &Expression<'ast>,
     arms: &[MatchArm<'ast>],
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let subject = self.eval_expression(subject, None).await?;
 
     for arm in arms {

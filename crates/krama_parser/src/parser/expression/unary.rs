@@ -23,9 +23,8 @@ where
       TokenKind::Tilde => UnaryOperator::BitwiseNot,
       TokenKind::Plus => return self.parse_expression(Precedence::Prefix),
       _ => {
-        return Err((
-          ErrorKind::SyntaxError("Invalid unary operator".to_string()),
-          token.span,
+        return Err(ErrorKind::SyntaxError(
+          "Invalid unary operator".to_string(),
         ))
       }
     };
@@ -48,9 +47,8 @@ where
       TokenKind::PlusPlus => UpdateOperator::Increment,
       TokenKind::MinusMinus => UpdateOperator::Decrement,
       _ => {
-        return Err((
-          ErrorKind::SyntaxError("Invalid prefix operator".to_string()),
-          token.span,
+        return Err(ErrorKind::SyntaxError(
+          "Invalid prefix operator".to_string(),
         ))
       }
     };

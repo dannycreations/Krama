@@ -6,7 +6,6 @@ use krama_core::{
     statement::Parameter,
   },
   error::ErrorKind,
-  span::Span,
   token::TokenKind,
 };
 
@@ -46,20 +45,12 @@ where
       self.build_fn_expression(start_span, parameters)
     } else if expressions.len() == 1 {
       expressions.pop().ok_or_else(|| {
-        (
-          ErrorKind::SyntaxError(
-            "Expected expression in parentheses".to_string(),
-          ),
-          start_span,
-        )
+        ErrorKind::SyntaxError("Expected expression in parentheses".to_string())
       })
     } else {
-      Err((
-        ErrorKind::SyntaxError(
-          "Invalid grouped expression. To create a tuple, use square brackets `[]`"
-            .to_string(),
-        ),
-        start_span,
+      Err(ErrorKind::SyntaxError(
+        "Invalid grouped expression. To create a tuple, use square brackets `[]`"
+          .to_string(),
       ))
     }
   }
@@ -67,7 +58,7 @@ where
   fn expression_to_parameter(
     &self,
     expr: Expression<'ast>,
-  ) -> Result<Parameter<'ast>, (ErrorKind, Span<'a>)> {
+  ) -> Result<Parameter<'ast>, ErrorKind> {
     match expr.kind {
       ExpressionKind::Identifier(name) => Ok(Parameter {
         name,
@@ -81,21 +72,15 @@ where
         right,
       } => {
         if operator != krama_core::ast::operator::AssignmentOperator::Assign {
-          return Err((
-            ErrorKind::SyntaxError(
-              "Invalid expression in function parameters.".to_string(),
-            ),
-            expr.span,
+          return Err(ErrorKind::SyntaxError(
+            "Invalid expression in function parameters.".to_string(),
           ));
         }
         let name = if let ExpressionKind::Identifier(name) = left.kind {
           name
         } else {
-          return Err((
-            ErrorKind::SyntaxError(
-              "Expected identifier as parameter name".to_string(),
-            ),
-            left.span.clone(),
+          return Err(ErrorKind::SyntaxError(
+            "Expected identifier as parameter name".to_string(),
           ));
         };
         Ok(Parameter {
@@ -109,11 +94,8 @@ where
         let name = if let ExpressionKind::Identifier(name) = inner.kind {
           name
         } else {
-          return Err((
-            ErrorKind::SyntaxError(
-              "Expected identifier as parameter name".to_string(),
-            ),
-            inner.span.clone(),
+          return Err(ErrorKind::SyntaxError(
+            "Expected identifier as parameter name".to_string(),
           ));
         };
         Ok(Parameter {
@@ -123,11 +105,8 @@ where
           span: expr.span,
         })
       }
-      _ => Err((
-        ErrorKind::SyntaxError(
-          "Invalid expression in function parameters.".to_string(),
-        ),
-        expr.span,
+      _ => Err(ErrorKind::SyntaxError(
+        "Invalid expression in function parameters.".to_string(),
       )),
     }
   }

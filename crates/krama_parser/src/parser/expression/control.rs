@@ -7,7 +7,6 @@ use krama_core::{
     precedence::Precedence,
   },
   error::ErrorKind,
-  span::Span,
   token::TokenKind,
 };
 
@@ -80,13 +79,10 @@ where
     }
 
     if self.current_token.kind == TokenKind::Eof {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Unexpected end of file: missing {}",
-          TokenKind::RBrace
-        )),
-        start_span,
-      ));
+      return Err(ErrorKind::SyntaxError(format!(
+        "Unexpected end of file: missing {}",
+        TokenKind::RBrace
+      )));
     }
 
     self.advance();
@@ -100,9 +96,7 @@ where
     ))
   }
 
-  fn parse_match_arm(
-    &mut self,
-  ) -> Result<MatchArm<'ast>, (ErrorKind, Span<'a>)> {
+  fn parse_match_arm(&mut self) -> Result<MatchArm<'ast>, ErrorKind> {
     let mut patterns = BumpVec::new_in(self.arena);
     patterns.push(self.parse_match_pattern()?);
 
@@ -130,14 +124,11 @@ where
       let block = self.arena.alloc(self.parse_block_statement()?);
       FunctionBody::Block(block)
     } else {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Expected {} or {} for match arm body",
-          TokenKind::Arrow,
-          TokenKind::LBrace
-        )),
-        self.current_token.span.clone(),
-      ));
+      return Err(ErrorKind::SyntaxError(format!(
+        "Expected {} or {} for match arm body",
+        TokenKind::Arrow,
+        TokenKind::LBrace
+      )));
     };
 
     if self.current_token.kind == TokenKind::Comma {
@@ -150,9 +141,7 @@ where
     Ok(MatchArm { patterns, body })
   }
 
-  fn parse_match_pattern(
-    &mut self,
-  ) -> Result<MatchPattern<'ast>, (ErrorKind, Span<'a>)> {
+  fn parse_match_pattern(&mut self) -> Result<MatchPattern<'ast>, ErrorKind> {
     if self.current_token.kind == TokenKind::Else {
       self.advance();
       return Ok(MatchPattern::Else);

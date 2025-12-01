@@ -20,19 +20,13 @@ where
     let literal = match token.kind {
       TokenKind::Integer(value) => {
         let value = value.replace('_', "").parse().map_err(|_| {
-          (
-            ErrorKind::SyntaxError("Invalid integer literal".to_string()),
-            token.span.clone(),
-          )
+          ErrorKind::SyntaxError("Invalid integer literal".to_string())
         })?;
         Literal::Integer(value)
       }
       TokenKind::Float(value) => {
         let value = value.replace('_', "").parse().map_err(|_| {
-          (
-            ErrorKind::SyntaxError("Invalid float literal".to_string()),
-            token.span.clone(),
-          )
+          ErrorKind::SyntaxError("Invalid float literal".to_string())
         })?;
         Literal::Float(value)
       }
@@ -41,13 +35,10 @@ where
       TokenKind::False => Literal::Boolean(false),
       TokenKind::Null => Literal::Null,
       _ => {
-        return Err((
-          ErrorKind::SyntaxError(format!(
-            "Unexpected token for literal: {}",
-            token.kind
-          )),
-          token.span,
-        ))
+        return Err(ErrorKind::SyntaxError(format!(
+          "Unexpected token for literal: {}",
+          token.kind
+        )))
       }
     };
 

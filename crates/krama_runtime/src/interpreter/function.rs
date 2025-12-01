@@ -1,6 +1,6 @@
 use krama_core::{
   ast::expression::FunctionBody,
-  error::ErrorKind,
+  error::{Error, ErrorKind},
   object::{Function, Object, UserFunction},
   span::Span,
 };
@@ -13,19 +13,19 @@ impl<'ast> Interpreter<'ast> {
     function: Object<'ast>,
     arguments: &'ast [Object<'ast>],
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     match function {
       Object::Function(function) => match function {
         Function::Native(native_fn) => {
           (native_fn.callback)(self.arena, arguments)
             .await
-            .map_err(|kind| (kind, span))
+            .map_err(|kind| Error::new(kind, span))
         }
         Function::User(user_fn) => {
           self.eval_user_function_call(user_fn, arguments, span).await
         }
       },
-      _ => Err((
+      _ => Err(Error::new(
         ErrorKind::TypeError(format!(
           "Expected a function, but got {}",
           function.type_name()
@@ -40,9 +40,9 @@ impl<'ast> Interpreter<'ast> {
     user_fn: &'ast UserFunction<'ast>,
     arguments: &'ast [Object<'ast>],
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     if arguments.len() > user_fn.parameters.len() {
-      return Err((
+      return Err(Error::new(
         ErrorKind::TypeError(format!(
           "Expected {} arguments, but got {}",
           user_fn.parameters.len(),
@@ -59,7 +59,7 @@ impl<'ast> Interpreter<'ast> {
       } else if let Some(default) = param.default {
         new_interpreter.eval_expression(default, None).await?
       } else {
-        return Err((
+        return Err(Error::new(
           ErrorKind::TypeError(format!(
             "Missing argument for parameter '{}'",
             param.name

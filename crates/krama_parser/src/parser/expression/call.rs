@@ -5,7 +5,6 @@ use krama_core::{
     precedence::Precedence,
   },
   error::ErrorKind,
-  span::Span,
   token::TokenKind,
 };
 
@@ -32,7 +31,7 @@ where
 
   fn parse_call_arguments(
     &mut self,
-  ) -> Result<BumpVec<'ast, Expression<'ast>>, (ErrorKind, Span<'a>)> {
+  ) -> Result<BumpVec<'ast, Expression<'ast>>, ErrorKind> {
     self.advance();
     let mut arguments = BumpVec::new_in(self.arena);
     if self.current_token.kind == TokenKind::RParen {
@@ -47,13 +46,10 @@ where
     }
 
     if self.current_token.kind != TokenKind::RParen {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Expected {} after arguments",
-          TokenKind::RParen
-        )),
-        self.current_token.span.clone(),
-      ));
+      return Err(ErrorKind::SyntaxError(format!(
+        "Expected {} after arguments",
+        TokenKind::RParen
+      )));
     }
     self.advance();
 

@@ -305,6 +305,7 @@ dependencies = [
 name = "krama_core"
 version = "0.1.0"
 dependencies = [
+ "ariadne",
  "bumpalo",
  "futures",
  "inventory",

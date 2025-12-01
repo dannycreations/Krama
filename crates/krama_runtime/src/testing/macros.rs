@@ -40,7 +40,7 @@ macro_rules! test_eval_error {
       let interpreter = $crate::interpreter::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await;
-      assert!(matches!(result.unwrap_err().0, $expected));
+      assert!(matches!(result.unwrap_err().kind, $expected));
     }
   };
 

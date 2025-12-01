@@ -5,8 +5,7 @@ use krama_core::{
     expression::ExpressionKind,
     statement::{Statement, StatementKind},
   },
-  error::ErrorKind,
-  span::Span,
+  error::Error,
 };
 
 use crate::interpreter::Interpreter;
@@ -14,7 +13,7 @@ use crate::interpreter::Interpreter;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TestResult<'ast> {
   Success(String),
-  Failure(String, (ErrorKind, Span<'ast>)),
+  Failure(String, Error<'ast>),
 }
 
 impl<'ast> Interpreter<'ast> {

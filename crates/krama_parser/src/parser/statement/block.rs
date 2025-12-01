@@ -1,7 +1,6 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ast::statement::BlockStatement, error::ErrorKind, span::Span,
-  token::TokenKind,
+  ast::statement::BlockStatement, error::ErrorKind, token::TokenKind,
 };
 
 use crate::parser::Parser;
@@ -12,7 +11,7 @@ where
 {
   pub(in crate::parser) fn parse_block_statement(
     &mut self,
-  ) -> Result<BlockStatement<'ast>, (ErrorKind, Span<'a>)> {
+  ) -> Result<BlockStatement<'ast>, ErrorKind> {
     let start_span = self.current_token.span.clone();
     self.advance();
     let mut statements = BumpVec::new_in(self.arena);
@@ -30,13 +29,10 @@ where
     }
 
     if self.current_token.kind == TokenKind::Eof {
-      return Err((
-        ErrorKind::SyntaxError(format!(
-          "Unexpected end of file: missing {}",
-          TokenKind::RBrace
-        )),
-        start_span,
-      ));
+      return Err(ErrorKind::SyntaxError(format!(
+        "Unexpected end of file: missing {}",
+        TokenKind::RBrace
+      )));
     }
 
     let end_span = self.current_token.span.clone();

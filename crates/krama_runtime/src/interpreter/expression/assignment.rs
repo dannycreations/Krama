@@ -3,7 +3,7 @@ use krama_core::{
     expression::{Expression, ExpressionKind},
     operator::{AssignmentOperator, BinaryOperator, UpdateOperator},
   },
-  error::ErrorKind,
+  error::{Error, ErrorKind},
   object::Object,
   span::Span,
 };
@@ -17,11 +17,11 @@ impl<'ast> Interpreter<'ast> {
     operator: AssignmentOperator,
     right: &Expression<'ast>,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let ident = if let ExpressionKind::Identifier(name) = left.kind {
       name
     } else {
-      return Err((
+      return Err(Error::new(
         ErrorKind::TypeError("Expected identifier for assignment".to_string()),
         span,
       ));
@@ -40,9 +40,12 @@ impl<'ast> Interpreter<'ast> {
       return Ok(right_val);
     }
 
-    let left_val = self.lookup_variable(left, ident).ok_or_else(|| {
-      (ErrorKind::ReferenceError(ident.to_string()), span.clone())
-    })?;
+    let left_val = self
+      .look_up_variable(left)
+      .and_then(|d| self.get_at(d, ident))
+      .ok_or_else(|| {
+        Error::new(ErrorKind::ReferenceError(ident.to_string()), span.clone())
+      })?;
 
     let binary_op = match operator {
       AssignmentOperator::AddAssign => BinaryOperator::Add,
@@ -80,11 +83,11 @@ impl<'ast> Interpreter<'ast> {
     argument: &Expression<'ast>,
     prefix: bool,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let ident = if let ExpressionKind::Identifier(name) = argument.kind {
       name
     } else {
-      return Err((
+      return Err(Error::new(
         ErrorKind::TypeError(
           "Expected identifier for update expression".to_string(),
         ),
@@ -93,9 +96,11 @@ impl<'ast> Interpreter<'ast> {
     };
 
     let distance = self.look_up_variable(argument);
-    let original_value =
-      self.lookup_variable(argument, ident).ok_or_else(|| {
-        (ErrorKind::ReferenceError(ident.to_string()), span.clone())
+    let original_value = self
+      .look_up_variable(argument)
+      .and_then(|d| self.get_at(d, ident))
+      .ok_or_else(|| {
+        Error::new(ErrorKind::ReferenceError(ident.to_string()), span.clone())
       })?;
     let new_value = match (operator, original_value.clone()) {
       (UpdateOperator::Increment, Object::Integer(i)) => Object::Integer(i + 1),
@@ -103,7 +108,7 @@ impl<'ast> Interpreter<'ast> {
       (UpdateOperator::Increment, Object::Float(f)) => Object::Float(f + 1.0),
       (UpdateOperator::Decrement, Object::Float(f)) => Object::Float(f - 1.0),
       _ => {
-        return Err((
+        return Err(Error::new(
           ErrorKind::TypeError(
             "Update operator can only be applied to numbers".to_string(),
           ),

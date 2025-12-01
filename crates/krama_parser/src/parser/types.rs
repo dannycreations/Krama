@@ -5,7 +5,6 @@ use krama_core::{
     types::{Type, TypeKind},
   },
   error::ErrorKind,
-  span::Span,
   token::TokenKind,
 };
 
@@ -15,9 +14,7 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
-  pub(super) fn parse_type(
-    &mut self,
-  ) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
+  pub(super) fn parse_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
     let mut kind = if self.current_token.kind == TokenKind::LBracket {
       self.parse_tuple_type()?
     } else {
@@ -33,7 +30,7 @@ where
 
   pub(super) fn parse_optional_type(
     &mut self,
-  ) -> Result<Option<Type<'ast>>, (ErrorKind, Span<'a>)> {
+  ) -> Result<Option<Type<'ast>>, ErrorKind> {
     if self.current_token.kind == TokenKind::Colon {
       self.advance();
       Some(self.parse_type()?).map_or_else(|| Ok(None), |v| Ok(Some(v)))
@@ -42,7 +39,7 @@ where
     }
   }
 
-  fn parse_tuple_type(&mut self) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
+  fn parse_tuple_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
     let start_span = self.current_token.span.clone();
     self.consume(TokenKind::LBracket)?;
 
@@ -74,34 +71,25 @@ where
   fn parse_array_type(
     &mut self,
     element_type: Type<'ast>,
-  ) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
+  ) -> Result<Type<'ast>, ErrorKind> {
     let span = element_type.span.clone();
     self.consume(TokenKind::LBracket)?;
 
     let size = if self.current_token.kind == TokenKind::RBracket {
       None
+    } else if let TokenKind::Integer(val) = self.current_token.kind {
+      self.advance();
+      let parsed_val: i64 = val.replace('_', "").parse().map_err(|_| {
+        ErrorKind::SyntaxError(format!(
+          "Invalid integer literal for array size: '{}'",
+          val
+        ))
+      })?;
+      Some(Literal::Integer(parsed_val))
     } else {
-      let token = self.current_token.clone();
-      if let TokenKind::Integer(val) = token.kind {
-        self.advance();
-        let parsed_val: i64 = val.replace('_', "").parse().map_err(|_| {
-          (
-            ErrorKind::SyntaxError(format!(
-              "Invalid integer literal for array size: '{}'",
-              val
-            )),
-            token.span,
-          )
-        })?;
-        Some(Literal::Integer(parsed_val))
-      } else {
-        return Err((
-          ErrorKind::SyntaxError(
-            "Expected integer literal for array size".to_string(),
-          ),
-          token.span,
-        ));
-      }
+      return Err(ErrorKind::SyntaxError(
+        "Expected integer literal for array size".to_string(),
+      ));
     };
     let end_span = self.consume(TokenKind::RBracket)?.span;
 
@@ -114,7 +102,7 @@ where
     ))
   }
 
-  fn parse_base_type(&mut self) -> Result<Type<'ast>, (ErrorKind, Span<'a>)> {
+  fn parse_base_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
     let token = self.current_token.clone();
     let span = token.span.clone();
     let kind = match token.kind {
@@ -135,9 +123,7 @@ where
       TokenKind::Bool => TypeKind::Bool,
       TokenKind::Str => TypeKind::Str,
       TokenKind::Identifier(ident) => TypeKind::Identifier(ident),
-      _ => {
-        return Err((ErrorKind::SyntaxError("Expected type".to_string()), span))
-      }
+      _ => return Err(ErrorKind::SyntaxError("Expected type".to_string())),
     };
     self.advance();
     Ok(Type::new(kind, span))

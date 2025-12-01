@@ -1,6 +1,6 @@
 use krama_core::{
   ast::expression::{Expression, ExpressionKind},
-  error::ErrorKind,
+  error::{Error, ErrorKind},
   object::Object,
   span::Span,
 };
@@ -13,12 +13,12 @@ impl<'ast> Interpreter<'ast> {
     object: Object<'ast>,
     property: &Expression<'ast>,
     span: Span<'ast>,
-  ) -> Result<Object<'ast>, (ErrorKind, Span<'ast>)> {
+  ) -> Result<Object<'ast>, Error<'ast>> {
     let property_name = if let ExpressionKind::Identifier(name) = property.kind
     {
       name
     } else {
-      return Err((
+      return Err(Error::new(
         ErrorKind::TypeError("Invalid member expression".to_string()),
         span,
       ));
@@ -28,7 +28,7 @@ impl<'ast> Interpreter<'ast> {
 
     if let Some(props) = krama_std::get_props().get(object_type) {
       if let Some(prop) = props.get(property_name) {
-        return prop(object).await.map_err(|kind| (kind, span));
+        return prop(object).await.map_err(|kind| Error::new(kind, span));
       }
     }
 
@@ -40,7 +40,7 @@ impl<'ast> Interpreter<'ast> {
       }
     }
 
-    Err((
+    Err(Error::new(
       ErrorKind::ReferenceError(format!(
         "Property '{}' not found for type '{}'",
         property_name,
