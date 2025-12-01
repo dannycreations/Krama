@@ -36,14 +36,14 @@ impl Repl {
           }
           result = reader.read_line(&mut line) => {
               match result {
-                  Ok(0) => break,
+                  Ok(0) => break, // EOF
                   Ok(_) => {
                       if line.trim() == "exit" {
                           break;
                       }
 
                       history.push_str(&line);
-                      let source = arena.alloc_str(&history);
+                      let source = arena.alloc_str(history.as_str());
 
                       match interpreter.check(source) {
                         Ok(_) => {
@@ -61,13 +61,14 @@ impl Repl {
                         }
                         Err((kind, span)) => {
                           if let ErrorKind::SyntaxError(msg) = &kind {
-                            let is_unexpected_eof = msg.contains("Unexpected");
-                            let is_missing_closer = msg.contains("Expected") && msg.contains("Eof");
-
-                            if is_unexpected_eof || is_missing_closer {
+                            // Incomplete input errors typically involve "end of file" or expecting a token at EOF.
+                            if msg.contains("Unexpected end of file") || msg.ends_with("but got Eof") {
+                                // This indicates that the input is incomplete, so we wait for more.
                                 continue;
                             }
                           }
+
+                          // For any other error, report it and clear the history to start fresh.
                           report_error("repl", source, span, kind);
                           history.clear();
                         }
