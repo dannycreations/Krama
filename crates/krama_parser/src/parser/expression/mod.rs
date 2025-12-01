@@ -8,6 +8,7 @@ pub(super) mod import;
 pub(super) mod index;
 pub(super) mod literal;
 pub(super) mod member;
+pub(super) mod object;
 pub(super) mod unary;
 
 use krama_core::{
@@ -71,15 +72,21 @@ where
       }
       TokenKind::LParen => self.parse_paren_expression(),
       TokenKind::LBracket => self.parse_collection_expression(),
-      TokenKind::Import => self.parse_import_expression(),
-      TokenKind::If => self.parse_if_expression(),
-      TokenKind::Match => self.parse_match_expression(),
-      TokenKind::Fn => self.parse_fn_expression(),
       TokenKind::LBrace => {
+        let mut object_parser = self.clone();
+        if let Ok(expr) = object_parser.parse_object_expression() {
+          *self = object_parser;
+          return Ok(expr);
+        }
+
         let block = self.arena.alloc(self.parse_block_statement()?);
         let span = block.span.clone();
         Ok(Expression::new(ExpressionKind::Block(block), span))
       }
+      TokenKind::Import => self.parse_import_expression(),
+      TokenKind::If => self.parse_if_expression(),
+      TokenKind::Match => self.parse_match_expression(),
+      TokenKind::Fn => self.parse_fn_expression(),
       _ => Err(ErrorKind::SyntaxError(format!(
         "Unexpected token for prefix expression: {}",
         token.kind

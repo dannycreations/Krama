@@ -26,6 +26,9 @@ pub enum ExpressionKind<'ast> {
   Collection {
     elements: BumpVec<'ast, Expression<'ast>>,
   },
+  Object {
+    properties: BumpVec<'ast, (Expression<'ast>, Expression<'ast>)>,
+  },
   Assignment {
     left: &'ast Expression<'ast>,
     operator: AssignmentOperator,

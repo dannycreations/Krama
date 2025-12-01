@@ -1,4 +1,8 @@
-use krama_core::ast::statement::{Binding, Statement, StatementKind};
+use krama_core::ast::{
+  expression::ExpressionKind,
+  literal::Literal,
+  statement::{Binding, Statement, StatementKind},
+};
 use krama_runtime::test_parser;
 
 test_parser!(
@@ -127,3 +131,44 @@ test_parser!(
     }
   }
 );
+
+test_parser! {
+    simple_object,
+    "const foo = { name: \"admin\", age: 20 }",
+    1,
+    |statement: &Statement| {
+        let expression = match &statement.kind {
+            StatementKind::Const { value, .. } => value,
+            _ => panic!("Expected const statement"),
+        };
+
+        match &expression.kind {
+            ExpressionKind::Object { properties } => {
+                assert_eq!(properties.len(), 2);
+
+                // Check name property
+                let (name_key, name_value) = &properties[0];
+                match &name_key.kind {
+                    ExpressionKind::Literal(Literal::String(s)) => assert_eq!(*s, "name"),
+                    _ => panic!("Expected string literal for key"),
+                }
+                match &name_value.kind {
+                    ExpressionKind::Literal(Literal::String(s)) => assert_eq!(*s, "admin"),
+                    _ => panic!("Expected string literal for value"),
+                }
+
+                // Check age property
+                let (age_key, age_value) = &properties[1];
+                match &age_key.kind {
+                    ExpressionKind::Literal(Literal::String(s)) => assert_eq!(*s, "age"),
+                    _ => panic!("Expected string literal for key"),
+                }
+                match &age_value.kind {
+                    ExpressionKind::Literal(Literal::Integer(i)) => assert_eq!(*i, 20),
+                    _ => panic!("Expected integer literal for value"),
+                }
+            }
+            _ => panic!("Expected object literal"),
+        }
+    }
+}

@@ -9,9 +9,10 @@ use krama_core::{
     operator::BinaryOperator,
     types::{Type, TypeKind},
   },
-  error::Error,
+  error::{Error, ErrorKind},
   object::{Function, Object, UserFunction},
 };
+use rustc_hash::FxHashMap;
 
 use super::{types::check_type, Interpreter};
 
@@ -200,6 +201,24 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Tuple {
             elements: elements_slice,
           })
+        }
+        ExpressionKind::Object { properties } => {
+          let mut object = FxHashMap::default();
+          for (key, value) in properties {
+            let key = match self.eval_expression(key, None).await? {
+              Object::String(s) => s,
+              // for now, we only support string keys
+              _ => {
+                return Err(Error::new(
+                  ErrorKind::TypeError("Expected string key".to_string()),
+                  key.span.clone(),
+                ))
+              }
+            };
+            let value = self.eval_expression(value, None).await?;
+            object.insert(key, value);
+          }
+          Ok(Object::Object(object))
         }
         ExpressionKind::Typed { expr, kind } => {
           let value = self.eval_expression(expr, Some(kind)).await?;

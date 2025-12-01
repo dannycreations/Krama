@@ -3,6 +3,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 pub use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
+use rustc_hash::FxHashMap;
 use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
 
@@ -94,6 +95,8 @@ pub enum Object<'ast> {
   Tuple {
     elements: &'ast [Object<'ast>],
   },
+  #[strum(props(name = "object"))]
+  Object(FxHashMap<&'ast str, Object<'ast>>),
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]
@@ -147,6 +150,7 @@ impl<'ast> From<&Object<'ast>> for bool {
       Object::String(s) => !s.is_empty(),
       Object::Array { elements, .. } => !elements.is_empty(),
       Object::Tuple { elements } => !elements.is_empty(),
+      Object::Object(object) => !object.is_empty(),
       Object::Null | Object::Void => false,
       _ => true,
     }
@@ -162,6 +166,16 @@ impl<'ast> Display for Object<'ast> {
       Object::String(s) => write!(f, "{}", s),
       Object::Array { elements, .. } | Object::Tuple { elements } => {
         Object::format_elements(f, elements)
+      }
+      Object::Object(object) => {
+        write!(f, "{{")?;
+        for (i, (key, value)) in object.iter().enumerate() {
+          if i > 0 {
+            write!(f, ", ")?;
+          }
+          write!(f, "\"{}\": {}", key, value)?;
+        }
+        write!(f, "}}")
       }
       Object::Null => write!(f, "null"),
       Object::Void => write!(f, "void"),
@@ -196,6 +210,7 @@ impl<'ast> Debug for Object<'ast> {
       Object::Tuple { elements } => {
         f.debug_tuple("Tuple").field(elements).finish()
       }
+      Object::Object(object) => f.debug_map().entries(object.iter()).finish(),
       Object::Null => write!(f, "Null"),
       Object::Void => write!(f, "Void"),
       Object::Scope(scope) => f.debug_tuple("Scope").field(scope).finish(),
@@ -223,6 +238,7 @@ impl<'ast> PartialEq for Object<'ast> {
       | (Object::Tuple { elements: a }, Object::Tuple { elements: b }) => {
         a == b
       }
+      (Object::Object(a), Object::Object(b)) => a == b,
       (Object::Function(a), Object::Function(b)) => a == b,
       (Object::Return(a), Object::Return(b)) => a == b,
       (Object::Break, Object::Break) => true,

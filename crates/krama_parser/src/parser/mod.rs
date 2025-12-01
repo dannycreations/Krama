@@ -15,6 +15,7 @@ use krama_lexer::lexer::Lexer;
 
 type ParseResult<'a, 'ast> = Result<Expression<'ast>, ErrorKind>;
 
+#[derive(Clone)]
 pub struct Parser<'a, 'ast>
 where
   'a: 'ast,

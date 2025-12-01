@@ -257,6 +257,12 @@ impl<'a> Resolver<'a> {
         self.resolve_expression(expr)?;
       }
       ExpressionKind::Import { .. } | ExpressionKind::Literal(_) => {}
+      ExpressionKind::Object { properties } => {
+        for (key, value) in properties {
+          self.resolve_expression(key)?;
+          self.resolve_expression(value)?;
+        }
+      }
     }
     Ok(())
   }
