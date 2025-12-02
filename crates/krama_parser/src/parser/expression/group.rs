@@ -27,16 +27,22 @@ where
     let mut expressions = BumpVec::new_in(self.arena);
     expressions.push(self.parse_expression(Precedence::Lowest)?);
 
-    while self.current_token.kind == TokenKind::Comma {
+    if self.current_token.kind == TokenKind::Comma {
       self.advance();
-      expressions.push(self.parse_expression(Precedence::Lowest)?);
+
+      // If there's a comma, it must be an arrow function.
+      if self.current_token.kind != TokenKind::RParen {
+        expressions.push(self.parse_expression(Precedence::Lowest)?);
+        while self.current_token.kind == TokenKind::Comma {
+          self.advance();
+          expressions.push(self.parse_expression(Precedence::Lowest)?);
+        }
+      }
     }
 
     self.consume(TokenKind::RParen)?;
 
-    if self.current_token.kind == TokenKind::Arrow
-      || self.current_token.kind == TokenKind::LBrace
-    {
+    if self.current_token.kind == TokenKind::Arrow {
       let mut parameters = BumpVec::new_in(self.arena);
       for expr in expressions {
         let parameter = self.expression_to_parameter(expr)?;
@@ -49,8 +55,7 @@ where
       })
     } else {
       Err(ErrorKind::SyntaxError(
-        "Invalid grouped expression. To create a tuple, use square brackets `[]`"
-          .to_string(),
+        "Invalid grouped expression. To create a tuple, use square brackets `[]`".to_string(),
       ))
     }
   }

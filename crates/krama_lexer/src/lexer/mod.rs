@@ -39,14 +39,6 @@ impl<'a> Lexer<'a> {
     byte
   }
 
-  pub(super) fn advance_if_byte(&mut self, expected: u8) -> bool {
-    if self.peek_byte() == Some(expected) {
-      self.position += 1;
-      return true;
-    }
-    false
-  }
-
   pub(super) fn span(&self, start: usize) -> Span<'a> {
     Span::new(
       start,
@@ -104,13 +96,24 @@ impl<'a> Iterator for Lexer<'a> {
     self.skip_trivia();
 
     let start = self.position;
-    let byte = self.advance_byte()?;
+    if self.position >= self.source.len() {
+      return None;
+    }
 
-    let token = match byte {
-      b'"' => self.string(start),
-      c if c.is_ascii_digit() => self.number(start),
-      c if c.is_ascii_alphabetic() || c == b'_' => self.identifier(start),
-      _ => self.punctuator(start, byte),
+    let token = match self.peek_byte().unwrap() {
+      b'"' => {
+        self.advance_byte();
+        self.string(start)
+      }
+      c if c.is_ascii_digit() => {
+        self.advance_byte();
+        self.number(start)
+      }
+      c if c.is_ascii_alphabetic() || c == b'_' => {
+        self.advance_byte();
+        self.identifier(start)
+      }
+      _ => self.punctuator(start),
     };
 
     Some(token)

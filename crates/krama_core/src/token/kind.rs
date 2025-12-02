@@ -1,5 +1,6 @@
+use std::fmt;
+
 use phf::{phf_map, Map};
-use strum_macros::Display;
 
 pub static KEYWORDS: Map<&'static str, TokenKind> = phf_map! {
     "const" => TokenKind::Const,
@@ -46,7 +47,6 @@ macro_rules! define_token_enum {
             },
             units: {
                 $(
-                    $(#[$unit_meta:meta])*
                     $unit_variant:ident,
                 )*
             },
@@ -57,11 +57,10 @@ macro_rules! define_token_enum {
             }
         }
     ) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Display)]
+        #[derive(Debug, Clone, Copy, PartialEq)]
         pub enum $name<'a> {
             $( $kw_variant, )*
             $(
-                $(#[$unit_meta])*
                 $unit_variant,
             )*
             $( $data_variant(&'a str), )*
@@ -90,101 +89,54 @@ define_token_enum! {
             I8, I16, I32, I64, I128, Isize, U8, U16, U32, U64, U128, Usize, F32, F64, Bool, Str,
         },
         units: {
-            #[strum(to_string = "+")]
             Plus,
-            #[strum(to_string = "++")]
             PlusPlus,
-            #[strum(to_string = "-")]
             Minus,
-            #[strum(to_string = "--")]
             MinusMinus,
-            #[strum(to_string = "*")]
             Star,
-            #[strum(to_string = "**")]
             StarStar,
-            #[strum(to_string = "/")]
             Slash,
-            #[strum(to_string = "%")]
             Percent,
-            #[strum(to_string = "=")]
             Equal,
-            #[strum(to_string = "==")]
             EqualEqual,
-            #[strum(to_string = "!")]
             Bang,
-            #[strum(to_string = "!=")]
             BangEqual,
-            #[strum(to_string = ">")]
             GreaterThan,
-            #[strum(to_string = ">=")]
             GreaterThanEqual,
-            #[strum(to_string = "<")]
             LessThan,
-            #[strum(to_string = "<=")]
             LessThanEqual,
-            #[strum(to_string = "+=")]
             PlusEqual,
-            #[strum(to_string = "-=")]
             MinusEqual,
-            #[strum(to_string = "*=")]
             StarEqual,
-            #[strum(to_string = "/=")]
             SlashEqual,
-            #[strum(to_string = "%=")]
             PercentEqual,
-            #[strum(to_string = "&")]
             Ampersand,
-            #[strum(to_string = "&&")]
             AmpersandAmpersand,
-            #[strum(to_string = "|")]
             Pipe,
-            #[strum(to_string = "||")]
             PipePipe,
-            #[strum(to_string = "^")]
             Caret,
-            #[strum(to_string = "~")]
             Tilde,
-            #[strum(to_string = "<<")]
             LessLess,
-            #[strum(to_string = ">>")]
             GreaterGreater,
-            #[strum(to_string = "&=")]
             AmpersandEqual,
-            #[strum(to_string = "|=")]
             PipeEqual,
-            #[strum(to_string = "^=")]
             CaretEqual,
-            #[strum(to_string = "<<=")]
             LessLessEqual,
-            #[strum(to_string = ">>=")]
             GreaterGreaterEqual,
 
             // Delimiters
-            #[strum(to_string = "(")]
             LParen,
-            #[strum(to_string = ")")]
             RParen,
-            #[strum(to_string = "{{")]
             LBrace,
-            #[strum(to_string = "}}")]
             RBrace,
-            #[strum(to_string = "[")]
             LBracket,
-            #[strum(to_string = "]")]
             RBracket,
-            #[strum(to_string = ",")]
             Comma,
-            #[strum(to_string = ".")]
             Dot,
-            #[strum(to_string = "..")]
             DotDot,
-            #[strum(to_string = "=>")]
             Arrow,
-            #[strum(to_string = ":")]
             Colon,
-            #[strum(to_string = ";")]
             Semicolon,
-            #[strum(to_string = "\n")]
             Newline,
 
             // Other
@@ -198,4 +150,99 @@ define_token_enum! {
             Identifier(&'a str),
         }
     }
+}
+
+impl<'a> fmt::Display for TokenKind<'a> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let s: &dyn fmt::Display = match self {
+      TokenKind::Const => &"const",
+      TokenKind::Fn => &"fn",
+      TokenKind::Pub => &"pub",
+      TokenKind::Let => &"let",
+      TokenKind::If => &"if",
+      TokenKind::Elif => &"elif",
+      TokenKind::Else => &"else",
+      TokenKind::Match => &"match",
+      TokenKind::Return => &"return",
+      TokenKind::While => &"while",
+      TokenKind::Break => &"break",
+      TokenKind::Continue => &"continue",
+      TokenKind::Test => &"test",
+      TokenKind::True => &"true",
+      TokenKind::False => &"false",
+      TokenKind::Import => &"import",
+      TokenKind::As => &"as",
+      TokenKind::Null => &"null",
+      TokenKind::I8 => &"i8",
+      TokenKind::I16 => &"i16",
+      TokenKind::I32 => &"i32",
+      TokenKind::I64 => &"i64",
+      TokenKind::I128 => &"i128",
+      TokenKind::Isize => &"isize",
+      TokenKind::U8 => &"u8",
+      TokenKind::U16 => &"u16",
+      TokenKind::U32 => &"u32",
+      TokenKind::U64 => &"u64",
+      TokenKind::U128 => &"u128",
+      TokenKind::Usize => &"usize",
+      TokenKind::F32 => &"f32",
+      TokenKind::F64 => &"f64",
+      TokenKind::Bool => &"bool",
+      TokenKind::Str => &"str",
+      TokenKind::Plus => &"+",
+      TokenKind::PlusPlus => &"++",
+      TokenKind::Minus => &"-",
+      TokenKind::MinusMinus => &"--",
+      TokenKind::Star => &"*",
+      TokenKind::StarStar => &"**",
+      TokenKind::Slash => &"/",
+      TokenKind::Percent => &"%",
+      TokenKind::Equal => &"=",
+      TokenKind::EqualEqual => &"==",
+      TokenKind::Bang => &"!",
+      TokenKind::BangEqual => &"!=",
+      TokenKind::GreaterThan => &">",
+      TokenKind::GreaterThanEqual => &">=",
+      TokenKind::LessThan => &"<",
+      TokenKind::LessThanEqual => &"<=",
+      TokenKind::PlusEqual => &"+=",
+      TokenKind::MinusEqual => &"-=",
+      TokenKind::StarEqual => &"*=",
+      TokenKind::SlashEqual => &"/=",
+      TokenKind::PercentEqual => &"%=",
+      TokenKind::Ampersand => &"&",
+      TokenKind::AmpersandAmpersand => &"&&",
+      TokenKind::Pipe => &"|",
+      TokenKind::PipePipe => &"||",
+      TokenKind::Caret => &"^",
+      TokenKind::Tilde => &"~",
+      TokenKind::LessLess => &"<<",
+      TokenKind::GreaterGreater => &">>",
+      TokenKind::AmpersandEqual => &"&=",
+      TokenKind::PipeEqual => &"|=",
+      TokenKind::CaretEqual => &"^=",
+      TokenKind::LessLessEqual => &"<<=",
+      TokenKind::GreaterGreaterEqual => &">>=",
+      TokenKind::LParen => &"(",
+      TokenKind::RParen => &")",
+      TokenKind::LBrace => &"{",
+      TokenKind::RBrace => &"}",
+      TokenKind::LBracket => &"[",
+      TokenKind::RBracket => &"]",
+      TokenKind::Comma => &",",
+      TokenKind::Dot => &".",
+      TokenKind::DotDot => &"..",
+      TokenKind::Arrow => &"=>",
+      TokenKind::Colon => &":",
+      TokenKind::Semicolon => &";",
+      TokenKind::Newline => &"\n",
+      TokenKind::Unknown => &"Unknown",
+      TokenKind::Eof => &"Eof",
+      TokenKind::Integer(s) => s,
+      TokenKind::Float(s) => s,
+      TokenKind::String(s) => s,
+      TokenKind::Identifier(s) => s,
+    };
+    write!(f, "{}", s)
+  }
 }

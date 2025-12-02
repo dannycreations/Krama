@@ -33,7 +33,7 @@ where
   ) -> Result<Option<Type<'ast>>, ErrorKind> {
     if self.current_token.kind == TokenKind::Colon {
       self.advance();
-      Some(self.parse_type()?).map_or_else(|| Ok(None), |v| Ok(Some(v)))
+      self.parse_type().map(Some)
     } else {
       Ok(None)
     }
