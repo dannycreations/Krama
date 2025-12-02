@@ -20,14 +20,7 @@ where
     start_span: krama_core::span::Span<'a>,
   ) -> Result<Statement<'ast>, ErrorKind> {
     self.advance();
-    let name = if let TokenKind::Identifier(name) = self.current_token.kind {
-      self.arena.alloc_str(name)
-    } else {
-      return Err(ErrorKind::SyntaxError(
-        "Expected function name after 'fn'".to_string(),
-      ));
-    };
-    self.advance();
+    let name = self.parse_identifier()?;
     self.consume(TokenKind::LParen)?;
     let parameters = self.parse_fn_parameters()?;
     let kind = self.parse_optional_type()?;

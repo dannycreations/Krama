@@ -61,7 +61,7 @@ where
   }
 
   fn expression_to_parameter(
-    &self,
+    &mut self,
     expr: Expression<'ast>,
   ) -> Result<Parameter<'ast>, ErrorKind> {
     match expr.kind {
@@ -81,34 +81,30 @@ where
             "Invalid expression in function parameters.".to_string(),
           ));
         }
-        let name = if let ExpressionKind::Identifier(name) = left.kind {
-          name
-        } else {
+
+        let mut param_from_left =
+          self.expression_to_parameter((*left).clone())?;
+        if param_from_left.default.is_some() {
           return Err(ErrorKind::SyntaxError(
-            "Expected identifier as parameter name".to_string(),
+            "Cannot have nested default values".to_string(),
           ));
-        };
-        Ok(Parameter {
-          name,
-          kind: None,
-          default: Some(right),
-          span: expr.span,
-        })
+        }
+
+        param_from_left.default = Some(right);
+        param_from_left.span = expr.span;
+        Ok(param_from_left)
       }
       ExpressionKind::Typed { expr: inner, kind } => {
-        let name = if let ExpressionKind::Identifier(name) = inner.kind {
-          name
-        } else {
+        let mut param_from_inner =
+          self.expression_to_parameter((*inner).clone())?;
+        if param_from_inner.kind.is_some() {
           return Err(ErrorKind::SyntaxError(
-            "Expected identifier as parameter name".to_string(),
+            "Cannot have nested type hints".to_string(),
           ));
-        };
-        Ok(Parameter {
-          name,
-          kind: Some(kind),
-          default: None,
-          span: expr.span,
-        })
+        }
+        param_from_inner.kind = Some(kind);
+        param_from_inner.span = expr.span;
+        Ok(param_from_inner)
       }
       _ => Err(ErrorKind::SyntaxError(
         "Invalid expression in function parameters.".to_string(),

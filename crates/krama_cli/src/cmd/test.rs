@@ -70,8 +70,9 @@ impl Test {
 
     let program = match interpreter.parse_and_resolve(content_in_arena) {
       Ok(program) => program,
-      Err(error) => {
-        report_error(path_str, &content, error);
+      Err(mut error) => {
+        error.span.source = Some(content_in_arena);
+        report_error(error);
         return Ok((0, 1));
       }
     };
@@ -84,9 +85,10 @@ impl Test {
           println!("  test {} ... ok", name);
           passed += 1;
         }
-        TestResult::Failure(name, error) => {
+        TestResult::Failure(name, mut error) => {
           println!("  '{}'... failed", name);
-          report_error(path_str, &content, error);
+          error.span.source = Some(content_in_arena);
+          report_error(error);
           failed += 1;
         }
       }

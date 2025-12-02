@@ -75,7 +75,7 @@ impl Repl {
             }
           }
           Err(error) => {
-            report_error("repl", source, error);
+            report_error(error);
           }
         }
         history.clear();
@@ -88,7 +88,7 @@ impl Repl {
             return Ok(());
           }
         }
-        report_error("repl", source, error);
+        report_error(error);
         history.clear();
       }
     }

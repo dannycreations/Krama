@@ -41,17 +41,13 @@ impl Display for ErrorKind {
   }
 }
 
-pub fn report_error<'a>(
-  default_file: &str,
-  default_content: &str,
-  error: Error<'a>,
-) {
+pub fn report_error(error: Error<'_>) {
   let msg = error.kind.to_string();
   let kind_name = error.kind.as_ref();
   let span = error.span;
 
-  let file = span.file.unwrap_or(default_file);
-  let content = span.source.unwrap_or(default_content);
+  let file = span.file.unwrap_or("<unknown>");
+  let content = span.source.unwrap_or("");
 
   Report::build(
     ReportKind::Custom(kind_name, Color::Magenta),
