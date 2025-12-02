@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser as ClapParser;
 
-use super::{check::Check, repl::Repl, run::Run, test::Test};
+use super::{repl::Repl, run::Run, test::Test};
 
 #[derive(ClapParser)]
 #[clap(author, version, about, long_about = None)]
@@ -21,17 +21,17 @@ impl Args {
 
 #[derive(ClapParser)]
 enum Command {
-  Check(Check),
   Run(Run),
   Test(Test),
+  Check(Run),
 }
 
 impl Command {
   async fn execute(self) -> Result<()> {
     match self {
-      Command::Check(check) => check.execute().await,
-      Command::Run(run) => run.execute().await,
+      Command::Run(run) => run.execute(true).await,
       Command::Test(test) => test.execute().await,
+      Command::Check(check) => check.execute(false).await,
     }
   }
 }

@@ -76,15 +76,10 @@ impl Parse for PropertyArgs {
 }
 
 fn transform_fn(
-  item: TokenStream,
+  item_fn: &ItemFn,
   error_msg_prefix: &str,
   inventory_submission: TokenStream,
 ) -> TokenStream {
-  let item_fn: ItemFn = match parse2(item) {
-    Ok(f) => f,
-    Err(e) => return e.to_compile_error(),
-  };
-
   let vis = &item_fn.vis;
   let body = &item_fn.block;
   let sig = &item_fn.sig;
@@ -121,16 +116,35 @@ fn transform_fn(
       -> futures::future::LocalBoxFuture<'ast, Result<krama_core::object::Object<'ast>, krama_core::error::ErrorKind>>
   };
 
-  let expanded = quote! {
+  quote! {
       #vis #new_sig {
           use futures::future::FutureExt;
           async move #body.boxed_local()
       }
 
       #inventory_submission
+  }
+}
+
+fn implement_register_macro<T: Parse>(
+  attr: TokenStream,
+  item: TokenStream,
+  macro_type: &str,
+  submission_generator: impl Fn(&T, &Ident) -> TokenStream,
+) -> TokenStream {
+  let args: T = match parse2(attr) {
+    Ok(a) => a,
+    Err(e) => return e.to_compile_error(),
+  };
+  let item_fn: ItemFn = match parse2(item) {
+    Ok(f) => f,
+    Err(e) => return e.to_compile_error(),
   };
 
-  expanded
+  let fn_name = &item_fn.sig.ident;
+  let inventory_submission = submission_generator(&args, fn_name);
+
+  transform_fn(&item_fn, macro_type, inventory_submission)
 }
 
 #[proc_macro_attribute]
@@ -138,30 +152,25 @@ pub fn register_native(
   attr: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-  let name_attr: NativeArgs = match parse2(attr.into()) {
-    Ok(a) => a,
-    Err(e) => return e.to_compile_error().into(),
-  };
-  let item_fn: ItemFn = match parse2(item.clone().into()) {
-    Ok(f) => f,
-    Err(e) => return e.to_compile_error().into(),
-  };
-
-  let fn_name = &item_fn.sig.ident;
-  let name = name_attr.name;
-  let module = name_attr.module;
-
-  let inventory_submission = quote! {
-      inventory::submit! {
-          krama_core::object::StandardNative {
-              name: #name,
-              callback: #fn_name,
-              module: #module,
+  implement_register_macro::<NativeArgs>(
+    attr.into(),
+    item.into(),
+    "native",
+    |args, fn_name| {
+      let name = &args.name;
+      let module = &args.module;
+      quote! {
+          inventory::submit! {
+              krama_core::object::StandardNative {
+                  name: #name,
+                  callback: #fn_name,
+                  module: #module,
+              }
           }
       }
-  };
-
-  transform_fn(item.into(), "native", inventory_submission).into()
+    },
+  )
+  .into()
 }
 
 #[proc_macro_attribute]
@@ -169,28 +178,23 @@ pub fn register_property(
   attr: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-  let name_attr: PropertyArgs = match parse2(attr.into()) {
-    Ok(a) => a,
-    Err(e) => return e.to_compile_error().into(),
-  };
-  let item_fn: ItemFn = match parse2(item.clone().into()) {
-    Ok(f) => f,
-    Err(e) => return e.to_compile_error().into(),
-  };
-
-  let fn_name = &item_fn.sig.ident;
-  let name = name_attr.name;
-  let types = name_attr.types;
-
-  let inventory_submission = quote! {
-      inventory::submit! {
-          krama_core::object::StandardProperty {
-              name: #name,
-              callback: #fn_name,
-              types: &[#types],
+  implement_register_macro::<PropertyArgs>(
+    attr.into(),
+    item.into(),
+    "property",
+    |args, fn_name| {
+      let name = &args.name;
+      let types = &args.types;
+      quote! {
+          inventory::submit! {
+              krama_core::object::StandardProperty {
+                  name: #name,
+                  callback: #fn_name,
+                  types: &[#types],
+              }
           }
       }
-  };
-
-  transform_fn(item.into(), "property", inventory_submission).into()
+    },
+  )
+  .into()
 }

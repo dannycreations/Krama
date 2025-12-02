@@ -37,7 +37,7 @@ impl Repl {
           }
           result = reader.read_line(&mut line) => {
               match result {
-                  Ok(0) => break, // EOF
+                  Ok(0) => break,
                   Ok(_) => {
                       if line.trim() == "exit" {
                           break;

@@ -58,9 +58,9 @@ test_lexer!(
 test_lexer!(
   lex_single_line_comment,
   r#"
-// this is a comment
-123 // number with a comment
-// another comment
+// This is a comment
+123 // Number with a comment
+// Another comment
 "#,
   vec![TokenKind::Integer("123")]
 );
@@ -69,7 +69,7 @@ test_lexer!(
   lex_multi_line_comment,
   r#"
 /*
-   this is a 
+   This is a 
    multi-line comment
 */
 123

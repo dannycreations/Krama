@@ -28,7 +28,7 @@ impl<'a> Lexer<'a> {
     let content_end = self.position;
     let value = self.slice(content_start, content_end);
 
-    self.advance_byte(); // consume closing quote
+    self.advance_byte();
 
     Token::new(TokenKind::String(value), self.span(start))
   }

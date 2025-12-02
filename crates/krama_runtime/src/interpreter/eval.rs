@@ -53,7 +53,7 @@ impl<'ast> Interpreter<'ast> {
             } else if !left_bool {
               return Ok(left_value);
             }
-            // if we reach here, we evaluate the right side
+            // If we reach here, we evaluate the right side
             self.eval_expression(right, None).await
           }
           // For all other operators, evaluate concurrently
@@ -207,7 +207,7 @@ impl<'ast> Interpreter<'ast> {
           for (key, value) in properties {
             let key = match self.eval_expression(key, None).await? {
               Object::String(s) => s,
-              // for now, we only support string keys
+              // For now, we only support string keys
               _ => {
                 return Err(Error::new(
                   ErrorKind::TypeError("Expected string key".to_string()),
