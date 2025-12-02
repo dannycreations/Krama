@@ -19,11 +19,11 @@ pub struct Repl;
 impl Repl {
   pub async fn execute(&self) -> Result<()> {
     let arena = Bump::new();
+    let interpreter = Interpreter::new(&arena, Some("repl"));
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
     let mut line = String::new();
     let mut history = BumpString::new_in(&arena);
-    let interpreter = Interpreter::new(&arena, Some("repl"));
 
     loop {
       let prompt = if history.is_empty() { "> " } else { "... " };
@@ -42,37 +42,8 @@ impl Repl {
                       if line.trim() == "exit" {
                           break;
                       }
-
-                      history.push_str(&line);
-                      let source = arena.alloc_str(history.as_str());
-
-                      match interpreter.check(source) {
-                        Ok(_) => {
-                            match interpreter.eval(source).await {
-                                Ok(object) => {
-                                    if !matches!(object, Object::Void) {
-                                        println!("{}", object);
-                                    }
-                                }
-                                Err(error) => {
-                                    report_error("repl", source, error);
-                                }
-                            }
-                            history.clear();
-                        }
-                        Err(error) => {
-                          if let ErrorKind::SyntaxError(msg) = &error.kind {
-                            // Incomplete input errors typically involve "end of file" or expecting a token at EOF.
-                            if msg.contains("Unexpected end of file") || msg.ends_with("but got Eof") {
-                                // This indicates that the input is incomplete, so we wait for more.
-                                continue;
-                            }
-                          }
-
-                          // For any other error, report it and clear the history to start fresh.
-                          report_error("repl", source, error);
-                          history.clear();
-                        }
+                      if Self::process_line(&interpreter, &arena, &mut history, &line).await.is_err() {
+                          break;
                       }
                   }
                   Err(e) => {
@@ -81,6 +52,44 @@ impl Repl {
                   }
               }
           }
+      }
+    }
+    Ok(())
+  }
+
+  async fn process_line<'a>(
+    interpreter: &Interpreter<'a>,
+    arena: &'a Bump,
+    history: &mut BumpString<'a>,
+    line: &str,
+  ) -> Result<()> {
+    history.push_str(line);
+    let source = arena.alloc_str(history.as_str());
+
+    match interpreter.check(source) {
+      Ok(_) => {
+        match interpreter.eval(source).await {
+          Ok(object) => {
+            if !matches!(object, Object::Void) {
+              println!("{}", object);
+            }
+          }
+          Err(error) => {
+            report_error("repl", source, error);
+          }
+        }
+        history.clear();
+      }
+      Err(error) => {
+        if let ErrorKind::SyntaxError(msg) = &error.kind {
+          if msg.contains("Unexpected end of file")
+            || msg.ends_with("but got Eof")
+          {
+            return Ok(());
+          }
+        }
+        report_error("repl", source, error);
+        history.clear();
       }
     }
     Ok(())

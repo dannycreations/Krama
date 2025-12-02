@@ -1,4 +1,4 @@
-use std::{path::Path, str};
+use std::{io::Error, path::Path, str};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use krama_core::{
@@ -10,6 +10,10 @@ use krama_core::{
 use krama_macro::register_native;
 use tokio::fs;
 
+fn io_err_to_krama_err(e: Error) -> ErrorKind {
+  ErrorKind::ReferenceError(e.to_string())
+}
+
 #[register_native(name = "readFile", module = "fs")]
 async fn read_file<'ast>(
   arena: &'ast Bump,
@@ -17,9 +21,7 @@ async fn read_file<'ast>(
 ) -> Result<Object<'ast>, ErrorKind> {
   parse_args!(objects, "readFile"; path_str: Object::String(path_str));
   let path = Path::new(*path_str);
-  let contents = fs::read(path)
-    .await
-    .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
+  let contents = fs::read(path).await.map_err(io_err_to_krama_err)?;
   let contents_str = str::from_utf8(&contents)
     .map_err(|e| ErrorKind::TypeError(e.to_string()))?;
   Ok(Object::String(arena.alloc_str(contents_str)))
@@ -34,7 +36,7 @@ async fn write_file<'ast>(
 
   fs::write(*path_str, *contents)
     .await
-    .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
+    .map_err(io_err_to_krama_err)?;
 
   Ok(Object::Void)
 }
@@ -59,7 +61,7 @@ async fn rm<'ast>(
   parse_args!(objects, "rm"; path_str: Object::String(path_str));
   fs::remove_file(*path_str)
     .await
-    .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
+    .map_err(io_err_to_krama_err)?;
   Ok(Object::Void)
 }
 
@@ -70,15 +72,11 @@ async fn read_dir<'ast>(
 ) -> Result<Object<'ast>, ErrorKind> {
   parse_args!(objects, "readDir"; path_str: Object::String(path_str));
 
-  let mut paths = fs::read_dir(*path_str)
-    .await
-    .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
+  let mut paths = fs::read_dir(*path_str).await.map_err(io_err_to_krama_err)?;
 
   let mut entries = BumpVec::new_in(arena);
-  while let Some(path) = paths
-    .next_entry()
-    .await
-    .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?
+  while let Some(path) =
+    paths.next_entry().await.map_err(io_err_to_krama_err)?
   {
     let entry = path.file_name().into_string().map_err(|os_string| {
       ErrorKind::TypeError(format!(
@@ -103,7 +101,7 @@ async fn mkdir<'ast>(
   parse_args!(objects, "mkdir"; path_str: Object::String(path_str));
   fs::create_dir_all(*path_str)
     .await
-    .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
+    .map_err(io_err_to_krama_err)?;
   Ok(Object::Void)
 }
 
@@ -115,7 +113,7 @@ async fn rmdir<'ast>(
   parse_args!(objects, "rmdir"; path_str: Object::String(path_str));
   fs::remove_dir(*path_str)
     .await
-    .map_err(|e| ErrorKind::ReferenceError(e.to_string()))?;
+    .map_err(io_err_to_krama_err)?;
   Ok(Object::Void)
 }
 
