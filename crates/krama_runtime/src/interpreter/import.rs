@@ -1,4 +1,5 @@
 use std::{
+  io,
   path::{Path, PathBuf},
   str,
 };
@@ -16,24 +17,53 @@ use tokio::fs;
 use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
+  pub(super) async fn eval_import(
+    &self,
+    path: &'ast str,
+    span: Span<'ast>,
+  ) -> Result<Object<'ast>, Error<'ast>> {
+    if path.starts_with("std:") {
+      self.eval_std_module(path, span)
+    } else {
+      self.eval_file_module(path, span).await
+    }
+  }
+
   async fn resolve_import_path(
     &self,
     path: &str,
     span: &Span<'ast>,
-  ) -> Result<PathBuf, Error<'ast>> {
+  ) -> Result<(PathBuf, String), Error<'ast>> {
     let base_path = self
       .path
       .and_then(|p| Path::new(p).parent())
       .unwrap_or_else(|| Path::new(""));
-    let path_buf = base_path.join(path);
 
-    if fs::metadata(&path_buf).await.is_ok() {
-      return Ok(path_buf.clean());
+    let path_buf = base_path.join(path).clean();
+
+    // Try reading path_buf directly
+    match fs::read_to_string(&path_buf).await {
+      Ok(content) => return Ok((path_buf, content)),
+      Err(e) if e.kind() != io::ErrorKind::NotFound => {
+        return Err(Error::new(
+          ErrorKind::ReferenceError(e.to_string()),
+          span.clone(),
+        ));
+      }
+      _ => {}
     }
 
+    // Try reading path_buf with .km extension
     let path_with_ext = path_buf.with_extension("km");
-    if fs::metadata(&path_with_ext).await.is_ok() {
-      return Ok(path_with_ext.clean());
+    match fs::read_to_string(&path_with_ext).await {
+      Ok(content) => return Ok((path_with_ext, content)),
+      Err(e) if e.kind() != io::ErrorKind::NotFound => {
+        return Err(Error::new(
+          ErrorKind::ReferenceError(e.to_string()),
+          span.clone(),
+        ));
+      }
+      _ => {}
     }
 
     Err(Error::new(
@@ -93,7 +123,7 @@ impl<'ast> Interpreter<'ast> {
     path: &'ast str,
     span: Span<'ast>,
   ) -> Result<Object<'ast>, Error<'ast>> {
-    let resolved_path = self.resolve_import_path(path, &span).await?;
+    let (resolved_path, source) = self.resolve_import_path(path, &span).await?;
     let resolved_path_str = resolved_path.to_str().ok_or_else(|| {
       Error::new(
         ErrorKind::RuntimeError("Invalid path encoding".to_string()),
@@ -105,10 +135,6 @@ impl<'ast> Interpreter<'ast> {
     if let Some(module) = self.loaded_modules.borrow().get(resolved_path_key) {
       return Ok(module.clone());
     }
-
-    let source = fs::read_to_string(&resolved_path).await.map_err(|e| {
-      Error::new(ErrorKind::ReferenceError(e.to_string()), span)
-    })?;
 
     let source_str = self.arena.alloc_str(&source);
 
@@ -137,17 +163,5 @@ impl<'ast> Interpreter<'ast> {
       .insert(resolved_path_key, module.clone());
 
     Ok(module)
-  }
-
-  pub(super) async fn eval_import(
-    &self,
-    path: &'ast str,
-    span: Span<'ast>,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    if path.starts_with("std:") {
-      self.eval_std_module(path, span)
-    } else {
-      self.eval_file_module(path, span).await
-    }
   }
 }
