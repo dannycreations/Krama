@@ -134,7 +134,7 @@ test_parser!(
 
 test_parser! {
     simple_object,
-    "const foo = { name: \"admin\", age: 20 }",
+    "const foo = { name: \"admin\", age: 20, \"user-id\": 123 }",
     1,
     |statement: &Statement| {
         let expression = match &statement.kind {
@@ -144,7 +144,7 @@ test_parser! {
 
         match &expression.kind {
             ExpressionKind::Object { properties } => {
-                assert_eq!(properties.len(), 2);
+                assert_eq!(properties.len(), 3);
 
                 // Check name property
                 let (name_key, name_value) = &properties[0];
@@ -165,6 +165,17 @@ test_parser! {
                 }
                 match &age_value.kind {
                     ExpressionKind::Literal(Literal::Integer(i)) => assert_eq!(*i, 20),
+                    _ => panic!("Expected integer literal for value"),
+                }
+
+                // Check user-id property
+                let (user_id_key, user_id_value) = &properties[2];
+                match &user_id_key.kind {
+                    ExpressionKind::Literal(Literal::String(s)) => assert_eq!(*s, "user-id"),
+                    _ => panic!("Expected string literal for key"),
+                }
+                match &user_id_value.kind {
+                    ExpressionKind::Literal(Literal::Integer(i)) => assert_eq!(*i, 123),
                     _ => panic!("Expected integer literal for value"),
                 }
             }

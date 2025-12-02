@@ -5,6 +5,7 @@ use krama_core::{
     literal::Literal,
     precedence::Precedence,
   },
+  error::ErrorKind,
   token::TokenKind,
 };
 
@@ -30,12 +31,22 @@ where
 
     // Parse properties
     loop {
-      let key_span = self.current_token.span.clone();
-      let key_ident = self.parse_identifier()?;
-      let key = Expression::new(
-        ExpressionKind::Literal(Literal::String(key_ident)),
-        key_span,
-      );
+      let key = match self.current_token.kind {
+        TokenKind::Identifier(_) => {
+          let key_span = self.current_token.span.clone();
+          let key_ident = self.parse_identifier()?;
+          Expression::new(
+            ExpressionKind::Literal(Literal::String(key_ident)),
+            key_span,
+          )
+        }
+        TokenKind::String(_) => self.parse_literal()?,
+        _ => {
+          return Err(ErrorKind::SyntaxError(
+            "Expected string for object key".to_string(),
+          ));
+        }
+      };
       self.consume(TokenKind::Colon)?;
       let value = self.parse_expression(Precedence::Lowest)?;
       properties.push((key, value));
