@@ -10,11 +10,11 @@ repository.workspace = true
 doctest = false
 
 [dependencies]
+ahash.workspace = true
 ariadne.workspace = true
 bumpalo.workspace = true
 futures.workspace = true
 inventory.workspace = true
 phf.workspace = true
-rustc-hash.workspace = true
 strum.workspace = true
 strum_macros.workspace = true

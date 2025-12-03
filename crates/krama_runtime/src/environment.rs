@@ -1,11 +1,11 @@
 use std::cell::RefCell;
 
+use ahash::AHashMap;
 use krama_core::object::{Function, Object};
-use rustc_hash::FxHashMap;
 
 #[derive(Debug, Default, Clone)]
 pub struct Environment<'ast> {
-  pub store: FxHashMap<&'ast str, (Object<'ast>, bool)>,
+  pub store: AHashMap<&'ast str, (Object<'ast>, bool)>,
   pub outer: Option<&'ast RefCell<Environment<'ast>>>,
 }
 
@@ -25,7 +25,7 @@ impl<'ast> Environment<'ast> {
 
   pub fn new_enclosed(outer: &'ast RefCell<Environment<'ast>>) -> Self {
     Environment {
-      store: FxHashMap::default(),
+      store: AHashMap::default(),
       outer: Some(outer),
     }
   }
@@ -50,7 +50,7 @@ impl<'ast> Environment<'ast> {
     self.store.insert(name, (value, public));
   }
 
-  pub fn get_public_bindings(&self) -> FxHashMap<&'ast str, Object<'ast>> {
+  pub fn get_public_bindings(&self) -> AHashMap<&'ast str, Object<'ast>> {
     self
       .store
       .iter()

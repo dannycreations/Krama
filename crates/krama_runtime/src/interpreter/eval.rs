@@ -1,3 +1,4 @@
+use ahash::AHashMap;
 use bumpalo::collections::Vec as BumpVec;
 use futures::{
   future::{join_all, FutureExt, LocalBoxFuture},
@@ -12,7 +13,6 @@ use krama_core::{
   error::{Error, ErrorKind},
   object::{Function, Object, UserFunction},
 };
-use rustc_hash::FxHashMap;
 
 use super::{types::check_type, Interpreter};
 
@@ -203,7 +203,7 @@ impl<'ast> Interpreter<'ast> {
           })
         }
         ExpressionKind::Object { properties } => {
-          let mut object = FxHashMap::default();
+          let mut object = AHashMap::default();
           for (key, value) in properties {
             let key = match self.eval_expression(key, None).await? {
               Object::String(s) => s,

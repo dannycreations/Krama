@@ -4,6 +4,7 @@ use std::{
   str,
 };
 
+use ahash::AHashMap;
 use krama_core::{
   error::{Error, ErrorKind},
   object::{Function, Object},
@@ -11,7 +12,6 @@ use krama_core::{
   span::Span,
 };
 use path_clean::PathClean;
-use rustc_hash::FxHashMap;
 use tokio::fs;
 
 use super::Interpreter;
@@ -145,7 +145,7 @@ impl<'ast> Interpreter<'ast> {
       return Err(err);
     }
 
-    let bindings: FxHashMap<_, _> = new_interpreter
+    let bindings: AHashMap<_, _> = new_interpreter
       .environment
       .borrow()
       .get_public_bindings()

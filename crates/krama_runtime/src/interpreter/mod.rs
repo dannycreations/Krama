@@ -10,6 +10,7 @@ pub mod types;
 
 use std::cell::{RefCell, RefMut};
 
+use ahash::AHashMap;
 use bumpalo::Bump;
 use krama_core::{
   ast::{expression::Expression, statement::Statement, Program},
@@ -19,17 +20,16 @@ use krama_core::{
 };
 use krama_lexer::lexer::Lexer;
 use krama_parser::parser::Parser;
-use rustc_hash::FxHashMap;
 
 use crate::{environment::Environment, resolver::Resolver};
 
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
   pub environment: &'ast RefCell<Environment<'ast>>,
-  pub(super) loaded_modules: &'ast RefCell<FxHashMap<&'ast str, Object<'ast>>>,
+  pub(super) loaded_modules: &'ast RefCell<AHashMap<&'ast str, Object<'ast>>>,
   pub(super) arena: &'ast Bump,
   pub path: Option<&'ast str>,
-  locals: RefCell<FxHashMap<Span<'ast>, usize>>,
+  locals: RefCell<AHashMap<Span<'ast>, usize>>,
 }
 
 impl<'ast> Interpreter<'ast> {
@@ -38,10 +38,10 @@ impl<'ast> Interpreter<'ast> {
 
     Self {
       environment: arena.alloc(RefCell::new(env)),
-      loaded_modules: arena.alloc(RefCell::new(FxHashMap::default())),
+      loaded_modules: arena.alloc(RefCell::new(AHashMap::default())),
       arena,
       path,
-      locals: RefCell::new(FxHashMap::default()),
+      locals: RefCell::new(AHashMap::default()),
     }
   }
 

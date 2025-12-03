@@ -1,9 +1,9 @@
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 
+use ahash::AHashMap;
 pub use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 use futures::future::LocalBoxFuture;
-use rustc_hash::FxHashMap;
 use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
 
@@ -96,7 +96,7 @@ pub enum Object<'ast> {
     elements: &'ast [Object<'ast>],
   },
   #[strum(props(name = "object"))]
-  Object(FxHashMap<&'ast str, Object<'ast>>),
+  Object(AHashMap<&'ast str, Object<'ast>>),
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]

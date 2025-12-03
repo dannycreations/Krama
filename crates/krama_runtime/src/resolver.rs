@@ -1,3 +1,4 @@
+use ahash::AHashMap;
 use krama_core::{
   ast::{
     expression::{Expression, ExpressionKind, FunctionBody, MatchPattern},
@@ -7,11 +8,10 @@ use krama_core::{
   error::{Error, ErrorKind},
   span::Span,
 };
-use rustc_hash::FxHashMap;
 
 pub struct Resolver<'a> {
-  scopes: Vec<FxHashMap<&'a str, bool>>,
-  locals: FxHashMap<Span<'a>, usize>,
+  scopes: Vec<AHashMap<&'a str, bool>>,
+  locals: AHashMap<Span<'a>, usize>,
 }
 
 impl<'a> Default for Resolver<'a> {
@@ -23,15 +23,15 @@ impl<'a> Default for Resolver<'a> {
 impl<'a> Resolver<'a> {
   pub fn new() -> Self {
     Self {
-      scopes: vec![FxHashMap::default()],
-      locals: FxHashMap::default(),
+      scopes: vec![AHashMap::default()],
+      locals: AHashMap::default(),
     }
   }
 
   pub fn resolve(
     &mut self,
     program: &Program<'a>,
-  ) -> Result<FxHashMap<Span<'a>, usize>, Error<'a>> {
+  ) -> Result<AHashMap<Span<'a>, usize>, Error<'a>> {
     for statement in &program.statements {
       self.resolve_statement(statement)?;
     }
@@ -279,7 +279,7 @@ impl<'a> Resolver<'a> {
   }
 
   fn begin_scope(&mut self) {
-    self.scopes.push(FxHashMap::default());
+    self.scopes.push(AHashMap::default());
   }
 
   fn end_scope(&mut self) {
