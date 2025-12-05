@@ -93,7 +93,8 @@ impl<'ast> Interpreter<'ast> {
     let distance = self.get_resolved_distance(argument);
     let original_value =
       self.eval_identifier(argument, ident, span.clone()).await?;
-    let new_value = match (operator, original_value.clone()) {
+
+    let new_value = match (operator, &original_value) {
       (UpdateOperator::Increment, Object::Integer(i)) => Object::Integer(i + 1),
       (UpdateOperator::Decrement, Object::Integer(i)) => Object::Integer(i - 1),
       (UpdateOperator::Increment, Object::Float(f)) => Object::Float(f + 1.0),

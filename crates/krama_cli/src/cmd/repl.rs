@@ -42,9 +42,7 @@ impl Repl {
                       if line.trim() == "exit" {
                           break;
                       }
-                      if Self::process_line(&interpreter, &arena, &mut history, &line).await.is_err() {
-                          break;
-                      }
+                      Self::process_line(&interpreter, &arena, &mut history, &line).await?;
                   }
                   Err(e) => {
                       eprintln!("Error: {:?}", e);

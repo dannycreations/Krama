@@ -2,7 +2,7 @@ use ahash::AHashMap;
 use bumpalo::collections::Vec as BumpVec;
 use futures::{
   future::{join_all, FutureExt, LocalBoxFuture},
-  join,
+  join, try_join,
 };
 use krama_core::{
   ast::{
@@ -40,9 +40,10 @@ impl<'ast> Interpreter<'ast> {
           left,
           operator,
           right,
-        } => match operator {
-          // Handle logical operators with short-circuiting
-          BinaryOperator::LogicalOr | BinaryOperator::LogicalAnd => {
+        } => {
+          if *operator == BinaryOperator::LogicalOr
+            || *operator == BinaryOperator::LogicalAnd
+          {
             let left_value = self.eval_expression(left, None).await?;
             let left_bool = bool::from(&left_value);
 
@@ -53,24 +54,16 @@ impl<'ast> Interpreter<'ast> {
             } else if !left_bool {
               return Ok(left_value);
             }
-            // If we reach here, we evaluate the right side
-            self.eval_expression(right, None).await
+            return self.eval_expression(right, None).await;
           }
-          // For all other operators, evaluate concurrently
-          _ => {
-            let (left_res, right_res) = join!(
-              self.eval_expression(left, None),
-              self.eval_expression(right, None)
-            );
-            let (left_obj, right_obj) = (left_res?, right_res?);
-            self.eval_binary_expression(
-              *operator,
-              left_obj,
-              right_obj,
-              span.clone(),
-            )
-          }
-        },
+
+          let (left, right) = try_join!(
+            self.eval_expression(left, None),
+            self.eval_expression(right, None)
+          )?;
+
+          self.eval_binary_expression(*operator, left, right, span.clone())
+        }
         ExpressionKind::Assignment {
           left,
           operator,
@@ -100,21 +93,20 @@ impl<'ast> Interpreter<'ast> {
           let args_futures =
             arguments.iter().map(|arg| self.eval_expression(arg, None));
 
-          let (function_obj, evaluated_args_res) =
+          let (function_obj_res, evaluated_args_res) =
             join!(func_future, join_all(args_futures));
 
-          let function = function_obj?;
+          let function_obj = function_obj_res?;
+
           let mut evaluated_args = BumpVec::new_in(self.arena);
-          for arg in evaluated_args_res {
-            evaluated_args.push(arg?);
+          for arg_res in evaluated_args_res {
+            evaluated_args.push(arg_res?);
           }
 
+          let args_slice = evaluated_args.into_bump_slice();
+
           self
-            .eval_call_expression(
-              function,
-              evaluated_args.into_bump_slice(),
-              span.clone(),
-            )
+            .eval_call_expression(function_obj, args_slice, span.clone())
             .await
         }
         ExpressionKind::If {
@@ -153,11 +145,11 @@ impl<'ast> Interpreter<'ast> {
             .await
         }
         ExpressionKind::Index { object, index } => {
-          let (object, index) = join!(
+          let (object, index) = try_join!(
             self.eval_expression(object, None),
             self.eval_expression(index, None)
-          );
-          let (object, index) = (object?, index?);
+          )?;
+
           self
             .eval_index_expression(object, index, span.clone())
             .await

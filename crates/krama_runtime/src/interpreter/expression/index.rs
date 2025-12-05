@@ -14,11 +14,31 @@ impl<'ast> Interpreter<'ast> {
     span: Span<'ast>,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match &mut object {
-      Object::Array { elements, .. } => {
-        Self::eval_index_expression_for_sequence(elements, index, span)
-      }
-      Object::Tuple { elements } => {
-        Self::eval_index_expression_for_sequence(elements, index, span)
+      Object::Array { elements, .. } | Object::Tuple { elements } => {
+        let idx = match index {
+          Object::Integer(i) => i,
+          _ => {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "indices must be integers, not {}",
+                index.type_name()
+              )),
+              span,
+            ))
+          }
+        };
+
+        let element = if idx < 0 {
+          elements.get((elements.len() as i64 + idx) as usize)
+        } else {
+          elements.get(idx as usize)
+        };
+
+        if let Some(element) = element {
+          Ok(element.clone())
+        } else {
+          Ok(Object::Void)
+        }
       }
       Object::String(s) => {
         let idx = match index {
@@ -54,37 +74,6 @@ impl<'ast> Interpreter<'ast> {
         )),
         span,
       )),
-    }
-  }
-
-  fn eval_index_expression_for_sequence(
-    elements: &[Object<'ast>],
-    index: Object<'ast>,
-    span: Span<'ast>,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    let idx = match index {
-      Object::Integer(i) => i,
-      _ => {
-        return Err(Error::new(
-          ErrorKind::TypeError(format!(
-            "indices must be integers, not {}",
-            index.type_name()
-          )),
-          span,
-        ))
-      }
-    };
-
-    let element = if idx < 0 {
-      elements.get((elements.len() as i64 + idx) as usize)
-    } else {
-      elements.get(idx as usize)
-    };
-
-    if let Some(element) = element {
-      Ok(element.clone())
-    } else {
-      Ok(Object::Void)
     }
   }
 }
