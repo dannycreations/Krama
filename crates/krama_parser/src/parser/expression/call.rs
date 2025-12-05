@@ -19,40 +19,46 @@ where
     function: Expression<'ast>,
   ) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
-    let arguments = self.parse_call_arguments()?;
+    self.consume(TokenKind::LParen)?;
+
+    let arguments =
+      self.parse_comma_separated_expressions(TokenKind::RParen)?;
+    let end_token = self.consume(TokenKind::RParen)?;
+    let span = token.span.merge(&end_token.span);
     Ok(Expression::new(
       ExpressionKind::Call {
         function: self.arena.alloc(function),
         arguments,
       },
-      token.span,
+      span,
     ))
   }
 
-  fn parse_call_arguments(
+  pub(super) fn parse_comma_separated_expressions(
     &mut self,
+    end_token: TokenKind,
   ) -> Result<BumpVec<'ast, Expression<'ast>>, ErrorKind> {
-    self.advance();
-    let mut arguments = BumpVec::new_in(self.arena);
-    if self.current_token.kind == TokenKind::RParen {
-      self.advance();
-      return Ok(arguments);
+    let mut expressions = BumpVec::new_in(self.arena);
+
+    if self.current_token.kind == end_token {
+      return Ok(expressions);
     }
 
-    arguments.push(self.parse_expression(Precedence::Lowest)?);
-    while self.current_token.kind == TokenKind::Comma {
-      self.advance();
-      arguments.push(self.parse_expression(Precedence::Lowest)?);
+    loop {
+      expressions.push(self.parse_expression(Precedence::Lowest)?);
+
+      if self.current_token.kind == end_token {
+        break;
+      }
+
+      self.consume(TokenKind::Comma)?;
+
+      if self.current_token.kind == end_token {
+        // Trailing comma
+        break;
+      }
     }
 
-    if self.current_token.kind != TokenKind::RParen {
-      return Err(ErrorKind::SyntaxError(format!(
-        "Expected {} after arguments",
-        TokenKind::RParen
-      )));
-    }
-    self.advance();
-
-    Ok(arguments)
+    Ok(expressions)
   }
 }

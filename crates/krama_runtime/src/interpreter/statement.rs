@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use bumpalo::collections::Vec as BumpVec;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
@@ -101,7 +103,7 @@ impl<'ast> Interpreter<'ast> {
             Some(expression) => self.eval_expression(expression, None).await?,
             None => Object::Void,
           };
-          Ok(Object::Return(self.arena.alloc(value)))
+          Ok(Object::Return(Rc::new(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),

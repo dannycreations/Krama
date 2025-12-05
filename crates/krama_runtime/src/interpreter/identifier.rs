@@ -14,7 +14,13 @@ impl<'ast> Interpreter<'ast> {
     name: &'ast str,
     span: Span<'ast>,
   ) -> Result<Object<'ast>, Error<'ast>> {
-    self.lookup_variable(expression, name).map_or_else(
+    if let Some(distance) = self.get_resolved_distance(expression) {
+      if let Some(value) = self.get_at(distance, name) {
+        return Ok(value.clone());
+      }
+    }
+
+    self.environment.borrow().get(name).map_or_else(
       || {
         Err(Error::new(
           ErrorKind::ReferenceError(format!("'{}' is not defined", name)),
@@ -23,19 +29,5 @@ impl<'ast> Interpreter<'ast> {
       },
       Ok,
     )
-  }
-
-  pub(super) fn lookup_variable(
-    &self,
-    expression: &Expression<'ast>,
-    name: &'ast str,
-  ) -> Option<Object<'ast>> {
-    if let Some(distance) = self.look_up_variable(expression) {
-      if let Some(value) = self.get_at(distance, name) {
-        return Some(value.clone());
-      }
-    }
-
-    self.environment.borrow().get(name)
   }
 }

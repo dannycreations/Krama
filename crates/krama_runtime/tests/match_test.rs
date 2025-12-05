@@ -95,3 +95,21 @@ test_eval!(
     "#,
   Object::Integer(5)
 );
+
+test_eval!(
+  eval_match_string_lexicographical_prefix,
+  r#"match ("car") { "cart".."carz" => 1, else => 2 }"#,
+  Object::Integer(2)
+);
+
+test_eval!(
+  eval_match_string_lexicographical_deeper,
+  r#"match ("cat") { "car".."caz" => 1, else => 2 }"#,
+  Object::Integer(1)
+);
+
+test_eval!(
+  eval_match_string_lexicographical_equal,
+  r#"match ("car") { "car".."car" => 1, else => 2 }"#,
+  Object::Integer(1)
+);

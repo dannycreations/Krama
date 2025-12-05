@@ -1,9 +1,5 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ast::{
-    expression::{Expression, ExpressionKind},
-    precedence::Precedence,
-  },
+  ast::expression::{Expression, ExpressionKind},
   token::TokenKind,
 };
 
@@ -16,34 +12,10 @@ where
   pub(super) fn parse_collection_expression(
     &mut self,
   ) -> ParseResult<'a, 'ast> {
-    let start_span = self
-      .consume(TokenKind::LBracket)
-      .expect("Expected to consume a LBracket")
-      .span;
+    let start_span = self.consume(TokenKind::LBracket)?.span;
 
-    let mut elements = BumpVec::new_in(self.arena);
-
-    if self.current_token.kind == TokenKind::RBracket {
-      let end_span = self.current_token.span.clone();
-      self.advance();
-      return Ok(Expression::new(
-        ExpressionKind::Collection { elements },
-        start_span.merge(&end_span),
-      ));
-    }
-
-    // Parse expressions
-    loop {
-      elements.push(self.parse_expression(Precedence::Lowest)?);
-      if self.current_token.kind == TokenKind::RBracket {
-        break;
-      }
-      self.consume(TokenKind::Comma)?;
-      if self.current_token.kind == TokenKind::RBracket {
-        // Allow trailing comma
-        break;
-      }
-    }
+    let elements =
+      self.parse_comma_separated_expressions(TokenKind::RBracket)?;
 
     let end_span = self.consume(TokenKind::RBracket)?.span;
 

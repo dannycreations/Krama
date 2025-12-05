@@ -29,7 +29,7 @@ impl<'ast> Interpreter<'ast> {
 
     let right_val = self.eval_expression(right, None).await?;
 
-    let distance = self.look_up_variable(left);
+    let distance = self.get_resolved_distance(left);
 
     if operator == AssignmentOperator::Assign {
       if let Some(distance) = distance {
@@ -40,12 +40,7 @@ impl<'ast> Interpreter<'ast> {
       return Ok(right_val);
     }
 
-    let left_val = self
-      .look_up_variable(left)
-      .and_then(|d| self.get_at(d, ident))
-      .ok_or_else(|| {
-        Error::new(ErrorKind::ReferenceError(ident.to_string()), span.clone())
-      })?;
+    let left_val = self.eval_identifier(left, ident, span.clone()).await?;
 
     let binary_op = match operator {
       AssignmentOperator::AddAssign => BinaryOperator::Add,
@@ -95,13 +90,9 @@ impl<'ast> Interpreter<'ast> {
       ));
     };
 
-    let distance = self.look_up_variable(argument);
-    let original_value = self
-      .look_up_variable(argument)
-      .and_then(|d| self.get_at(d, ident))
-      .ok_or_else(|| {
-        Error::new(ErrorKind::ReferenceError(ident.to_string()), span.clone())
-      })?;
+    let distance = self.get_resolved_distance(argument);
+    let original_value =
+      self.eval_identifier(argument, ident, span.clone()).await?;
     let new_value = match (operator, original_value.clone()) {
       (UpdateOperator::Increment, Object::Integer(i)) => Object::Integer(i + 1),
       (UpdateOperator::Decrement, Object::Integer(i)) => Object::Integer(i - 1),

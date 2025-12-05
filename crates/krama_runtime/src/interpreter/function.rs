@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use krama_core::{
   ast::expression::FunctionBody,
   error::{Error, ErrorKind},
@@ -90,7 +92,8 @@ impl<'ast> Interpreter<'ast> {
     }?;
 
     if let Object::Return(value) = result {
-      Ok(value.clone())
+      let object = Rc::unwrap_or_clone(value);
+      Ok(object)
     } else {
       Ok(result)
     }

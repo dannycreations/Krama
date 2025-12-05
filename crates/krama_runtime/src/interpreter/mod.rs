@@ -135,7 +135,7 @@ impl<'ast> Interpreter<'ast> {
       .map_err(|e| Error::new(ErrorKind::RuntimeError(e.to_string()), span))
   }
 
-  pub(crate) fn look_up_variable(
+  pub(crate) fn get_resolved_distance(
     &self,
     expr: &Expression<'ast>,
   ) -> Option<usize> {

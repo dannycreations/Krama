@@ -1,8 +1,10 @@
-use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use std::{
+  fmt::{Debug, Display, Formatter, Result as FmtResult},
+  rc::Rc,
+};
 
 use ahash::AHashMap;
-pub use bumpalo::collections::Vec as BumpVec;
-use bumpalo::Bump;
+use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
 use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
@@ -76,7 +78,7 @@ impl<'ast> Debug for Function<'ast> {
   }
 }
 
-#[derive(Clone, EnumPropertyMacro)]
+#[derive(Clone, EnumPropertyMacro, PartialEq)]
 pub enum Object<'ast> {
   #[strum(props(name = "integer"))]
   Integer(i64),
@@ -105,7 +107,7 @@ pub enum Object<'ast> {
   #[strum(props(name = "function"))]
   Function(Function<'ast>),
   #[strum(props(name = "return"))]
-  Return(&'ast Object<'ast>),
+  Return(Rc<Object<'ast>>),
   #[strum(props(name = "break"))]
   Break,
   #[strum(props(name = "continue"))]
@@ -218,33 +220,6 @@ impl<'ast> Debug for Object<'ast> {
       Object::Return(value) => f.debug_tuple("Return").field(value).finish(),
       Object::Break => write!(f, "Break"),
       Object::Continue => write!(f, "Continue"),
-    }
-  }
-}
-
-impl<'ast> PartialEq for Object<'ast> {
-  fn eq(&self, other: &Self) -> bool {
-    match (self, other) {
-      (Object::Null, Object::Null) => true,
-      (Object::Void, Object::Void) => true,
-      (Object::Boolean(a), Object::Boolean(b)) => a == b,
-      (Object::Integer(a), Object::Integer(b)) => a == b,
-      (Object::Float(a), Object::Float(b)) => a == b,
-      (Object::String(a), Object::String(b)) => a == b,
-      (
-        Object::Array { elements: a, .. },
-        Object::Array { elements: b, .. },
-      )
-      | (Object::Tuple { elements: a }, Object::Tuple { elements: b }) => {
-        a == b
-      }
-      (Object::Object(a), Object::Object(b)) => a == b,
-      (Object::Function(a), Object::Function(b)) => a == b,
-      (Object::Return(a), Object::Return(b)) => a == b,
-      (Object::Break, Object::Break) => true,
-      (Object::Continue, Object::Continue) => true,
-      (Object::Scope(a), Object::Scope(b)) => a == b,
-      _ => false,
     }
   }
 }

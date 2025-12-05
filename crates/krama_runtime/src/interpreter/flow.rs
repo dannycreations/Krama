@@ -42,13 +42,12 @@ impl<'ast> Interpreter<'ast> {
         }
       }
       (MatchPattern::Range(start, end), Object::String(s)) => {
-        let start = self.eval_expression(start, None).await?;
-        let end = self.eval_expression(end, None).await?;
-        if let (Object::String(start), Object::String(end)) = (start, end) {
-          let start_char = start.chars().next().unwrap();
-          let end_char = end.chars().next().unwrap();
-          let subject_char = s.chars().next().unwrap();
-          Ok(subject_char >= start_char && subject_char <= end_char)
+        let start_obj = self.eval_expression(start, None).await?;
+        let end_obj = self.eval_expression(end, None).await?;
+        if let (Object::String(start_str), Object::String(end_str)) =
+          (start_obj, end_obj)
+        {
+          Ok(*s >= start_str && *s <= end_str)
         } else {
           Err(Error::new(
             ErrorKind::TypeError(

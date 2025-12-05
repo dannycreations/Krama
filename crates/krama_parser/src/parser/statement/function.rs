@@ -23,6 +23,7 @@ where
     let name = self.parse_identifier()?;
     self.consume(TokenKind::LParen)?;
     let parameters = self.parse_fn_parameters()?;
+    self.consume(TokenKind::RParen)?;
     let kind = self.parse_optional_type()?;
 
     let body = if self.current_token.kind == TokenKind::LBrace {

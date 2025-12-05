@@ -7,7 +7,6 @@ use krama_core::{
     types::Type,
   },
   error::ErrorKind,
-  span::Span,
   token::TokenKind,
 };
 
@@ -19,11 +18,12 @@ where
 {
   pub(super) fn parse_fn_expression(&mut self) -> ParseResult<'a, 'ast> {
     let start_span = self.current_token.span.clone();
-    self.advance();
-
+    self.consume(TokenKind::Fn)?;
     self.consume(TokenKind::LParen)?;
 
     let parameters = self.parse_fn_parameters()?;
+    self.consume(TokenKind::RParen)?;
+
     let (body, kind) = self.parse_classic_fn_body_and_return_type()?;
 
     Ok(Expression::new(
@@ -41,7 +41,6 @@ where
   ) -> Result<BumpVec<'ast, Parameter<'ast>>, ErrorKind> {
     let mut parameters = BumpVec::new_in(self.arena);
     if self.current_token.kind == TokenKind::RParen {
-      self.advance();
       return Ok(parameters);
     }
 
@@ -60,7 +59,7 @@ where
 
       let default = if self.current_token.kind == TokenKind::Equal {
         self.advance();
-        Some(self.arena.alloc(self.parse_expression(Precedence::Lowest)?))
+        Some(&*self.arena.alloc(self.parse_expression(Precedence::Lowest)?))
       } else {
         None
       };
@@ -69,7 +68,7 @@ where
       parameters.push(Parameter {
         name,
         kind,
-        default: default.map(|expr| &*expr),
+        default,
         span,
       });
 
@@ -79,32 +78,24 @@ where
       self.advance();
     }
 
-    if self.current_token.kind != TokenKind::RParen {
-      return Err(ErrorKind::SyntaxError(format!(
-        "Expected {} after parameters",
-        TokenKind::RParen
-      )));
-    }
-    self.advance();
-
     Ok(parameters)
   }
 
-  pub(super) fn build_fn_expression(
+  pub(super) fn parse_arrow_fn_body_and_return_type(
     &mut self,
-    start_span: Span<'a>,
-    parameters: BumpVec<'ast, Parameter<'ast>>,
-  ) -> ParseResult<'a, 'ast> {
-    let (body, kind) = self.parse_arrow_fn_body_and_return_type()?;
+  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), ErrorKind> {
+    let kind = self.parse_optional_type()?;
 
-    Ok(Expression::new(
-      ExpressionKind::Fn {
-        parameters,
-        body,
-        kind,
-      },
-      start_span,
-    ))
+    self.consume(TokenKind::Arrow)?;
+    if self.current_token.kind == TokenKind::LBrace {
+      return Err(ErrorKind::SyntaxError(
+        "Arrow functions cannot have a block body.".to_string(),
+      ));
+    }
+
+    let body_expr = self.parse_expression(Precedence::Lowest)?;
+    let body = FunctionBody::Expression(self.arena.alloc(body_expr));
+    Ok((body, kind))
   }
 
   fn parse_classic_fn_body_and_return_type(
@@ -122,23 +113,6 @@ where
 
     let body_block = self.arena.alloc(self.parse_block_statement()?);
     let body = FunctionBody::Block(body_block);
-    Ok((body, kind))
-  }
-
-  fn parse_arrow_fn_body_and_return_type(
-    &mut self,
-  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), ErrorKind> {
-    let kind = self.parse_optional_type()?;
-
-    self.consume(TokenKind::Arrow)?;
-    if self.current_token.kind == TokenKind::LBrace {
-      return Err(ErrorKind::SyntaxError(
-        "Arrow functions cannot have a block body.".to_string(),
-      ));
-    }
-
-    let body_expr = self.parse_expression(Precedence::Lowest)?;
-    let body = FunctionBody::Expression(self.arena.alloc(body_expr));
     Ok((body, kind))
   }
 }
