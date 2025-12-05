@@ -54,33 +54,30 @@ impl<'a> Lexer<'a> {
 
   fn skip_trivia(&mut self) {
     loop {
-      match self.peek_byte() {
-        Some(c) if c.is_ascii_whitespace() => {
+      match (self.peek_byte(), self.peek_byte_nth(1)) {
+        (Some(c), _) if c.is_ascii_whitespace() => {
           self.advance_byte();
         }
-        Some(b'/') => {
-          if self.peek_byte_nth(1) == Some(b'/') {
-            // Single-line comment
+        (Some(b'/'), Some(b'/')) => {
+          // Single-line comment
+          self.advance_byte();
+          self.advance_byte();
+          while let Some(byte) = self.peek_byte() {
+            if byte == b'\n' {
+              break;
+            }
             self.advance_byte();
-            self.advance_byte();
-            while let Some(byte) = self.peek_byte() {
-              if byte == b'\n' {
-                break;
-              }
+          }
+        }
+        (Some(b'/'), Some(b'*')) => {
+          // Multi-line comment
+          self.advance_byte();
+          self.advance_byte();
+          while let Some(byte) = self.advance_byte() {
+            if byte == b'*' && self.peek_byte() == Some(b'/') {
               self.advance_byte();
+              break;
             }
-          } else if self.peek_byte_nth(1) == Some(b'*') {
-            // Multi-line comment
-            self.advance_byte();
-            self.advance_byte();
-            while let Some(byte) = self.advance_byte() {
-              if byte == b'*' && self.peek_byte() == Some(b'/') {
-                self.advance_byte();
-                break;
-              }
-            }
-          } else {
-            break;
           }
         }
         _ => break,

@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
+use ariadne::{Color, Label, Report, ReportKind, Source};
 use strum_macros::AsRefStr;
 
 use crate::span::Span;
@@ -53,10 +53,10 @@ pub fn report_error(error: Error<'_>) {
     ReportKind::Custom(kind_name, Color::Magenta),
     (file, span.start..span.end),
   )
-  .with_message((&msg).fg(Color::White))
+  .with_message(&msg)
   .with_label(
     Label::new((file, span.start..span.end))
-      .with_message((&msg).fg(Color::White))
+      .with_message(&msg)
       .with_color(Color::Red),
   )
   .finish()
