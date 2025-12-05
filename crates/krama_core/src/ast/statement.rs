@@ -16,7 +16,7 @@ pub struct BlockStatement<'ast> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DestructuredIdentifier<'ast> {
+pub struct Destructure<'ast> {
   pub name: &'ast str,
   pub alias: Option<&'ast str>,
 }
@@ -24,10 +24,10 @@ pub struct DestructuredIdentifier<'ast> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Binding<'ast> {
   Identifier(&'ast str),
-  Destructure(BumpVec<'ast, DestructuredIdentifier<'ast>>),
+  Destructure(BumpVec<'ast, Destructure<'ast>>),
   ModuleAndDestructure {
-    module_alias: &'ast str,
-    items: BumpVec<'ast, DestructuredIdentifier<'ast>>,
+    alias: &'ast str,
+    items: BumpVec<'ast, Destructure<'ast>>,
   },
 }
 

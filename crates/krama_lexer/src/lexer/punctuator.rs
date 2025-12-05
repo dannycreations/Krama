@@ -54,27 +54,12 @@ static PUNCTUATORS: Map<&'static [u8], TokenKind> = phf_map! {
 
 impl<'a> Lexer<'a> {
   pub(super) fn punctuator(&mut self, start: usize) -> Token<'a> {
-    // Check for 3-byte punctuator
-    if let Some(bytes) = self.source.get(start..start + 3) {
-      if let Some(&kind) = PUNCTUATORS.get(bytes) {
-        self.position = start + 3;
-        return Token::new(kind, self.span(start));
-      }
-    }
-
-    // Check for 2-byte punctuator
-    if let Some(bytes) = self.source.get(start..start + 2) {
-      if let Some(&kind) = PUNCTUATORS.get(bytes) {
-        self.position = start + 2;
-        return Token::new(kind, self.span(start));
-      }
-    }
-
-    // Check for 1-byte punctuator
-    if let Some(bytes) = self.source.get(start..start + 1) {
-      if let Some(&kind) = PUNCTUATORS.get(bytes) {
-        self.position = start + 1;
-        return Token::new(kind, self.span(start));
+    for len in (1..=3).rev() {
+      if let Some(bytes) = self.source.get(start..start + len) {
+        if let Some(&kind) = PUNCTUATORS.get(bytes) {
+          self.position = start + len;
+          return Token::new(kind, self.span(start));
+        }
       }
     }
 

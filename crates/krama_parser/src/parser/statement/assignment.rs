@@ -2,7 +2,7 @@ use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ast::{
     precedence::Precedence,
-    statement::{Binding, DestructuredIdentifier, Statement, StatementKind},
+    statement::{Binding, Destructure, Statement, StatementKind},
   },
   error::ErrorKind,
   token::TokenKind,
@@ -43,26 +43,7 @@ where
   ) -> Result<Statement<'ast>, ErrorKind> {
     self.consume(TokenKind::Const)?;
 
-    let binding = if self.current_token.kind == TokenKind::LBrace {
-      self.consume(TokenKind::LBrace)?;
-      let items = self.parse_destructured_items()?;
-      self.consume(TokenKind::RBrace)?;
-      Binding::Destructure(items)
-    } else {
-      let name = self.parse_identifier()?;
-      if self.current_token.kind == TokenKind::Comma {
-        self.consume(TokenKind::Comma)?;
-        self.consume(TokenKind::LBrace)?;
-        let items = self.parse_destructured_items()?;
-        self.consume(TokenKind::RBrace)?;
-        Binding::ModuleAndDestructure {
-          module_alias: name,
-          items,
-        }
-      } else {
-        Binding::Identifier(name)
-      }
-    };
+    let binding = self.parse_binding()?;
 
     let kind = self.parse_optional_type()?;
 
@@ -80,9 +61,29 @@ where
     ))
   }
 
-  pub(super) fn parse_destructured_items(
+  fn parse_binding(&mut self) -> Result<Binding<'ast>, ErrorKind> {
+    if self.current_token.kind == TokenKind::LBrace {
+      self.consume(TokenKind::LBrace)?;
+      let items = self.parse_destructured_items()?;
+      self.consume(TokenKind::RBrace)?;
+      Ok(Binding::Destructure(items))
+    } else {
+      let alias = self.parse_identifier()?;
+      if self.current_token.kind == TokenKind::Comma {
+        self.consume(TokenKind::Comma)?;
+        self.consume(TokenKind::LBrace)?;
+        let items = self.parse_destructured_items()?;
+        self.consume(TokenKind::RBrace)?;
+        Ok(Binding::ModuleAndDestructure { alias, items })
+      } else {
+        Ok(Binding::Identifier(alias))
+      }
+    }
+  }
+
+  fn parse_destructured_items(
     &mut self,
-  ) -> Result<BumpVec<'ast, DestructuredIdentifier<'ast>>, ErrorKind> {
+  ) -> Result<BumpVec<'ast, Destructure<'ast>>, ErrorKind> {
     let mut items = BumpVec::new_in(self.arena);
     if self.current_token.kind == TokenKind::RBrace {
       return Ok(items);
@@ -98,7 +99,7 @@ where
         None
       };
 
-      items.push(DestructuredIdentifier {
+      items.push(Destructure {
         name,
         alias: alias.map(|s| s as &str),
       });

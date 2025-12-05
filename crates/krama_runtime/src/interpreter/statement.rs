@@ -4,7 +4,7 @@ use bumpalo::collections::Vec as BumpVec;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
   ast::statement::{
-    Binding, BlockStatement, DestructuredIdentifier, Statement, StatementKind,
+    Binding, BlockStatement, Destructure, Statement, StatementKind,
   },
   error::{Error, ErrorKind},
   object::{Function, Object, UserFunction},
@@ -59,16 +59,11 @@ impl<'ast> Interpreter<'ast> {
             Binding::Destructure(items) => {
               self.destructure_scope(span, &value, items, *public)?;
             }
-            Binding::ModuleAndDestructure {
-              module_alias,
-              items,
-            } => {
+            Binding::ModuleAndDestructure { alias, items } => {
               if let Object::Scope(_) = &value {
-                self.env_mut(span.clone())?.set(
-                  module_alias,
-                  value.clone(),
-                  *public,
-                );
+                self
+                  .env_mut(span.clone())?
+                  .set(alias, value.clone(), *public);
                 self.destructure_scope(span, &value, items, *public)?;
               } else {
                 return Err(Error::new(
@@ -171,7 +166,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     span: Span<'ast>,
     value: &Object<'ast>,
-    items: &BumpVec<'ast, DestructuredIdentifier<'ast>>,
+    items: &BumpVec<'ast, Destructure<'ast>>,
     public: bool,
   ) -> Result<(), Error<'ast>> {
     if let Object::Scope(scope) = value {

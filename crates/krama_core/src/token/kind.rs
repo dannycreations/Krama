@@ -1,6 +1,7 @@
 use std::fmt;
 
 use phf::{phf_map, Map};
+use strum_macros::AsRefStr;
 
 pub static KEYWORDS: Map<&'static str, TokenKind> = phf_map! {
     "const" => TokenKind::Const,
@@ -57,7 +58,8 @@ macro_rules! define_token_enum {
             }
         }
     ) => {
-        #[derive(Debug, Clone, Copy, PartialEq)]
+        #[derive(Debug, Clone, Copy, PartialEq, AsRefStr)]
+        #[strum(serialize_all = "lowercase")]
         pub enum $name<'a> {
             $( $kw_variant, )*
             $(
@@ -154,41 +156,10 @@ define_token_enum! {
 
 impl<'a> fmt::Display for TokenKind<'a> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    if self.is_keyword() {
+      return f.write_str(self.as_ref());
+    }
     let s: &dyn fmt::Display = match self {
-      TokenKind::Const => &"const",
-      TokenKind::Fn => &"fn",
-      TokenKind::Pub => &"pub",
-      TokenKind::Let => &"let",
-      TokenKind::If => &"if",
-      TokenKind::Elif => &"elif",
-      TokenKind::Else => &"else",
-      TokenKind::Match => &"match",
-      TokenKind::Return => &"return",
-      TokenKind::While => &"while",
-      TokenKind::Break => &"break",
-      TokenKind::Continue => &"continue",
-      TokenKind::Test => &"test",
-      TokenKind::True => &"true",
-      TokenKind::False => &"false",
-      TokenKind::Import => &"import",
-      TokenKind::As => &"as",
-      TokenKind::Null => &"null",
-      TokenKind::I8 => &"i8",
-      TokenKind::I16 => &"i16",
-      TokenKind::I32 => &"i32",
-      TokenKind::I64 => &"i64",
-      TokenKind::I128 => &"i128",
-      TokenKind::Isize => &"isize",
-      TokenKind::U8 => &"u8",
-      TokenKind::U16 => &"u16",
-      TokenKind::U32 => &"u32",
-      TokenKind::U64 => &"u64",
-      TokenKind::U128 => &"u128",
-      TokenKind::Usize => &"usize",
-      TokenKind::F32 => &"f32",
-      TokenKind::F64 => &"f64",
-      TokenKind::Bool => &"bool",
-      TokenKind::Str => &"str",
       TokenKind::Plus => &"+",
       TokenKind::PlusPlus => &"++",
       TokenKind::Minus => &"-",
@@ -242,6 +213,7 @@ impl<'a> fmt::Display for TokenKind<'a> {
       TokenKind::Float(s) => s,
       TokenKind::String(s) => s,
       TokenKind::Identifier(s) => s,
+      _ => unreachable!(),
     };
     write!(f, "{}", s)
   }

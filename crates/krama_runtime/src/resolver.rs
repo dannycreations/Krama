@@ -64,12 +64,9 @@ impl<'a> Resolver<'a> {
               self.define(item.name);
             }
           }
-          Binding::ModuleAndDestructure {
-            module_alias,
-            items,
-          } => {
-            self.declare(module_alias);
-            self.define(module_alias);
+          Binding::ModuleAndDestructure { alias, items } => {
+            self.declare(alias);
+            self.define(alias);
             for item in items {
               self.declare(item.name);
               self.define(item.name);
