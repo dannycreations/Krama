@@ -45,9 +45,7 @@ pub fn report_error(error: Error<'_>) {
   let msg = error.kind.to_string();
   let kind_name = error.kind.as_ref();
   let span = error.span;
-
   let file = span.file.unwrap_or("<unknown>");
-  let content = span.source.unwrap_or("");
 
   Report::build(
     ReportKind::Custom(kind_name, Color::Magenta),
@@ -60,6 +58,6 @@ pub fn report_error(error: Error<'_>) {
       .with_color(Color::Red),
   )
   .finish()
-  .print((file, Source::from(content)))
+  .print((file, Source::from(span.source.unwrap_or_default())))
   .unwrap();
 }

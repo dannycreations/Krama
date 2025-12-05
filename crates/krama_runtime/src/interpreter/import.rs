@@ -139,11 +139,7 @@ impl<'ast> Interpreter<'ast> {
     let source_str = self.arena.alloc_str(&source);
 
     let new_interpreter = Interpreter::new(self.arena, Some(resolved_path_key));
-    if let Err(mut err) = new_interpreter.eval(source_str).await {
-      err.span.file = Some(resolved_path_key);
-      err.span.source = Some(source_str);
-      return Err(err);
-    }
+    new_interpreter.eval(source_str).await?;
 
     let bindings: AHashMap<_, _> = new_interpreter
       .environment

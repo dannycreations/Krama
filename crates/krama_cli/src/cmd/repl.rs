@@ -64,31 +64,23 @@ impl Repl {
     history.push_str(line);
     let source = arena.alloc_str(history.as_str());
 
-    match interpreter.check(source) {
-      Ok(_) => {
-        match interpreter.eval(source).await {
-          Ok(object) => {
-            if !matches!(object, Object::Void) {
-              println!("{}", object);
-            }
-          }
-          Err(error) => {
-            report_error(error);
-          }
+    if let Err(error) = interpreter.check(source) {
+      if let ErrorKind::SyntaxError(msg) = &error.kind {
+        if msg.contains("Unexpected end of file")
+          || msg.ends_with("but got Eof")
+        {
+          return Ok(());
         }
-        history.clear();
       }
-      Err(error) => {
-        if let ErrorKind::SyntaxError(msg) = &error.kind {
-          if msg.contains("Unexpected end of file")
-            || msg.ends_with("but got Eof")
-          {
-            return Ok(());
-          }
-        }
-        report_error(error);
-        history.clear();
-      }
+      report_error(error);
+      history.clear();
+    } else {
+      match interpreter.eval(source).await {
+        Ok(object) if !matches!(object, Object::Void) => println!("{}", object),
+        Err(error) => report_error(error),
+        _ => {}
+      };
+      history.clear();
     }
     Ok(())
   }

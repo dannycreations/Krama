@@ -26,8 +26,7 @@ impl Run {
       interpreter.check(content_in_arena).map(|_| ())
     };
 
-    if let Err(mut error) = result {
-      error.span.source = Some(content_in_arena);
+    if let Err(error) = result {
       report_error(error);
     }
     Ok(())
