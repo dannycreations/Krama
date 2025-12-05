@@ -7,14 +7,14 @@ use krama_core::{
   object::Object,
   span::Span,
 };
-use krama_macro::register_native;
+use krama_macro::register_module;
 use tokio::fs;
 
 fn io_err_to_krama_err(e: Error) -> ErrorKind {
   ErrorKind::ReferenceError(e.to_string())
 }
 
-#[register_native(name = "readFile", module = "fs")]
+#[register_module(name = "readFile", module = "fs")]
 async fn read_file<'ast>(
   arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
@@ -27,7 +27,7 @@ async fn read_file<'ast>(
   Ok(Object::String(arena.alloc_str(contents_str)))
 }
 
-#[register_native(name = "writeFile", module = "fs")]
+#[register_module(name = "writeFile", module = "fs")]
 async fn write_file<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
@@ -41,7 +41,7 @@ async fn write_file<'ast>(
   Ok(Object::Void)
 }
 
-#[register_native(name = "exists", module = "fs")]
+#[register_module(name = "exists", module = "fs")]
 async fn exists<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
@@ -53,7 +53,7 @@ async fn exists<'ast>(
   Ok(Object::Boolean(metadata.is_ok()))
 }
 
-#[register_native(name = "rm", module = "fs")]
+#[register_module(name = "rm", module = "fs")]
 async fn rm<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
@@ -65,7 +65,7 @@ async fn rm<'ast>(
   Ok(Object::Void)
 }
 
-#[register_native(name = "readDir", module = "fs")]
+#[register_module(name = "readDir", module = "fs")]
 async fn read_dir<'ast>(
   arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
@@ -93,7 +93,7 @@ async fn read_dir<'ast>(
   })
 }
 
-#[register_native(name = "mkdir", module = "fs")]
+#[register_module(name = "mkdir", module = "fs")]
 async fn mkdir<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
@@ -105,7 +105,7 @@ async fn mkdir<'ast>(
   Ok(Object::Void)
 }
 
-#[register_native(name = "rmdir", module = "fs")]
+#[register_module(name = "rmdir", module = "fs")]
 async fn rmdir<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
@@ -117,7 +117,7 @@ async fn rmdir<'ast>(
   Ok(Object::Void)
 }
 
-#[register_native(name = "isFile", module = "fs")]
+#[register_module(name = "isFile", module = "fs")]
 async fn is_file<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],
@@ -130,7 +130,7 @@ async fn is_file<'ast>(
   ))
 }
 
-#[register_native(name = "isDirectory", module = "fs")]
+#[register_module(name = "isDirectory", module = "fs")]
 async fn is_directory<'ast>(
   _arena: &'ast Bump,
   objects: &'ast [Object<'ast>],

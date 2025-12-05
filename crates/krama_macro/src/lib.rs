@@ -7,12 +7,23 @@ use syn::{
   Ident, ItemFn, Lit, LitStr, Token,
 };
 
-struct NativeArgs {
+struct GlobalArgs {
+  name: LitStr,
+}
+
+impl Parse for GlobalArgs {
+  fn parse(input: ParseStream) -> syn::Result<Self> {
+    let name = input.parse::<LitStr>()?;
+    Ok(GlobalArgs { name })
+  }
+}
+
+struct ModuleArgs {
   name: LitStr,
   module: LitStr,
 }
 
-impl Parse for NativeArgs {
+impl Parse for ModuleArgs {
   fn parse(input: ParseStream) -> syn::Result<Self> {
     let mut name = None;
     let mut module = None;
@@ -33,7 +44,7 @@ impl Parse for NativeArgs {
       }
     }
 
-    Ok(NativeArgs {
+    Ok(ModuleArgs {
       name: name.ok_or_else(|| input.error("missing `name` attribute"))?,
       module: module
         .ok_or_else(|| input.error("missing `module` attribute"))?,
@@ -148,20 +159,44 @@ fn implement_register_macro<T: Parse>(
 }
 
 #[proc_macro_attribute]
-pub fn register_native(
+pub fn register_global(
   attr: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-  implement_register_macro::<NativeArgs>(
+  implement_register_macro::<GlobalArgs>(
     attr.into(),
     item.into(),
-    "native",
+    "global",
+    |args, fn_name| {
+      let name = &args.name;
+      quote! {
+          inventory::submit! {
+              krama_core::object::StandardGlobal {
+                  name: #name,
+                  callback: #fn_name,
+              }
+          }
+      }
+    },
+  )
+  .into()
+}
+
+#[proc_macro_attribute]
+pub fn register_module(
+  attr: proc_macro::TokenStream,
+  item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+  implement_register_macro::<ModuleArgs>(
+    attr.into(),
+    item.into(),
+    "module",
     |args, fn_name| {
       let name = &args.name;
       let module = &args.module;
       quote! {
           inventory::submit! {
-              krama_core::object::StandardNative {
+              krama_core::object::StandardModule {
                   name: #name,
                   callback: #fn_name,
                   module: #module,

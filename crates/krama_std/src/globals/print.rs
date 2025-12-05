@@ -1,9 +1,9 @@
 use bumpalo::Bump;
 use krama_core::{error::ErrorKind, object::Object};
-use krama_macro::register_native;
+use krama_macro::register_global;
 use tokio::{io, io::AsyncWriteExt};
 
-#[register_native(name = "print", module = "globals")]
+#[register_global("print")]
 pub async fn print<'ast>(
   _: &'ast Bump,
   objects: &'ast [Object<'ast>],

@@ -1,8 +1,8 @@
 use bumpalo::Bump;
 use krama_core::{error::ErrorKind, object::Object};
-use krama_macro::register_native;
+use krama_macro::register_module;
 
-#[register_native(name = "assert", module = "assert")]
+#[register_module(name = "assert", module = "assert")]
 async fn assert<'ast>(
   _: &'ast Bump,
   objects: &'ast [Object<'ast>],
@@ -17,7 +17,7 @@ async fn assert<'ast>(
   Ok(Object::Void)
 }
 
-#[register_native(name = "assertEqual", module = "assert")]
+#[register_module(name = "assertEqual", module = "assert")]
 async fn assert_eq<'ast>(
   _: &'ast Bump,
   objects: &'ast [Object<'ast>],

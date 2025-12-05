@@ -249,13 +249,20 @@ impl<'ast> PartialEq for Object<'ast> {
   }
 }
 
-pub struct StandardNative {
+pub struct StandardGlobal {
+  pub name: &'static str,
+  pub callback: NativeFnCb,
+}
+
+inventory::collect!(StandardGlobal);
+
+pub struct StandardModule {
   pub name: &'static str,
   pub callback: NativeFnCb,
   pub module: &'static str,
 }
 
-inventory::collect!(StandardNative);
+inventory::collect!(StandardModule);
 
 pub struct StandardProperty {
   pub name: &'static str,

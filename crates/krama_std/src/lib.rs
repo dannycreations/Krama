@@ -4,15 +4,15 @@ pub mod props;
 
 use ahash::AHashMap;
 use krama_core::object::{
-  NativeFunction, PropertyFnCb, StandardNative, StandardProperty,
+  NativeFunction, PropertyFnCb, StandardGlobal, StandardModule,
+  StandardProperty,
 };
 use once_cell::sync::Lazy;
 
 static GLOBALS: Lazy<AHashMap<&'static str, NativeFunction>> =
   Lazy::new(|| {
-    inventory::iter::<StandardNative>
+    inventory::iter::<StandardGlobal>
       .into_iter()
-      .filter(|n| n.module == "globals")
       .map(|native| {
         (
           native.name,
@@ -29,20 +29,18 @@ static MODULES: Lazy<AHashMap<String, AHashMap<&'static str, NativeFunction>>> =
   Lazy::new(|| {
     let mut modules = AHashMap::default();
 
-    for native in inventory::iter::<StandardNative> {
-      if native.module != "globals" {
-        let module = modules
-          .entry(native.module.to_string())
-          .or_insert_with(AHashMap::default);
+    for native in inventory::iter::<StandardModule> {
+      let module = modules
+        .entry(native.module.to_string())
+        .or_insert_with(AHashMap::default);
 
-        module.insert(
-          native.name,
-          NativeFunction {
-            name: native.name,
-            callback: native.callback,
-          },
-        );
-      }
+      module.insert(
+        native.name,
+        NativeFunction {
+          name: native.name,
+          callback: native.callback,
+        },
+      );
     }
 
     modules
