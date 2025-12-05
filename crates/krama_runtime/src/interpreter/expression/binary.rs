@@ -8,12 +8,6 @@ use krama_core::{
 
 use crate::interpreter::Interpreter;
 
-macro_rules! numeric_op {
-  ($operator:expr, $left:expr, $right:expr, $span:expr, $op:tt, $return_type:ident) => {
-      Ok(Object::$return_type($left $op $right))
-  };
-}
-
 impl<'ast> Interpreter<'ast> {
   pub(crate) fn eval_binary_expression(
     &self,
@@ -23,17 +17,42 @@ impl<'ast> Interpreter<'ast> {
     span: Span<'ast>,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match (left, right) {
-      (Object::Integer(l), Object::Integer(r)) => {
-        self.eval_integer_binary_expression(operator, l, r, span)
-      }
+      (Object::Integer(l), Object::Integer(r)) => match operator {
+        BinaryOperator::Add => Ok(Object::Integer(l + r)),
+        BinaryOperator::Subtract => Ok(Object::Integer(l - r)),
+        BinaryOperator::Multiply => Ok(Object::Integer(l * r)),
+        BinaryOperator::Divide => Ok(Object::Integer(l / r)),
+        BinaryOperator::Modulo => Ok(Object::Integer(l % r)),
+        BinaryOperator::Exponent => Ok(Object::Integer(l.pow(r as u32))),
+        BinaryOperator::BitwiseAnd => Ok(Object::Integer(l & r)),
+        BinaryOperator::BitwiseOr => Ok(Object::Integer(l | r)),
+        BinaryOperator::BitwiseXor => Ok(Object::Integer(l ^ r)),
+        BinaryOperator::LeftShift => Ok(Object::Integer(l << r)),
+        BinaryOperator::RightShift => Ok(Object::Integer(l >> r)),
+        BinaryOperator::Equal => Ok(Object::Boolean(l == r)),
+        BinaryOperator::NotEqual => Ok(Object::Boolean(l != r)),
+        BinaryOperator::GreaterThan => Ok(Object::Boolean(l > r)),
+        BinaryOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r)),
+        BinaryOperator::LessThan => Ok(Object::Boolean(l < r)),
+        BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r)),
+        BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => {
+          Err(Error::new(
+            ErrorKind::TypeError(format!(
+              "Unsupported operator for integers: {:?}",
+              operator
+            )),
+            span,
+          ))
+        }
+      },
       (Object::Float(l), Object::Float(r)) => {
-        self.eval_float_binary_expression(operator, l, r, span)
+        self.eval_float_op(operator, l, r, span)
       }
       (Object::Integer(l), Object::Float(r)) => {
-        self.eval_float_binary_expression(operator, l as f64, r, span)
+        self.eval_float_op(operator, l as f64, r, span)
       }
       (Object::Float(l), Object::Integer(r)) => {
-        self.eval_float_binary_expression(operator, l, r as f64, span)
+        self.eval_float_op(operator, l, r as f64, span)
       }
       (Object::String(l), Object::String(r)) => {
         self.eval_string_binary_expression(operator, l, r, span)
@@ -55,76 +74,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  fn eval_integer_binary_expression(
-    &self,
-    operator: BinaryOperator,
-    left: i64,
-    right: i64,
-    span: Span<'ast>,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    match operator {
-      BinaryOperator::Add => {
-        numeric_op!(operator, left, right, span, +, Integer)
-      }
-      BinaryOperator::Subtract => {
-        numeric_op!(operator, left, right, span, -, Integer)
-      }
-      BinaryOperator::Multiply => {
-        numeric_op!(operator, left, right, span, *, Integer)
-      }
-      BinaryOperator::Divide => {
-        numeric_op!(operator, left, right, span, /, Integer)
-      }
-      BinaryOperator::Modulo => {
-        numeric_op!(operator, left, right, span, %, Integer)
-      }
-      BinaryOperator::Exponent => Ok(Object::Integer(left.pow(right as u32))),
-      BinaryOperator::BitwiseAnd => {
-        numeric_op!(operator, left, right, span, &, Integer)
-      }
-      BinaryOperator::BitwiseOr => {
-        numeric_op!(operator, left, right, span, |, Integer)
-      }
-      BinaryOperator::BitwiseXor => {
-        numeric_op!(operator, left, right, span, ^, Integer)
-      }
-      BinaryOperator::LeftShift => {
-        numeric_op!(operator, left, right, span, <<, Integer)
-      }
-      BinaryOperator::RightShift => {
-        numeric_op!(operator, left, right, span, >>, Integer)
-      }
-      BinaryOperator::Equal => {
-        numeric_op!(operator, left, right, span, ==, Boolean)
-      }
-      BinaryOperator::NotEqual => {
-        numeric_op!(operator, left, right, span, !=, Boolean)
-      }
-      BinaryOperator::GreaterThan => {
-        numeric_op!(operator, left, right, span, >, Boolean)
-      }
-      BinaryOperator::GreaterThanOrEqual => {
-        numeric_op!(operator, left, right, span, >=, Boolean)
-      }
-      BinaryOperator::LessThan => {
-        numeric_op!(operator, left, right, span, <, Boolean)
-      }
-      BinaryOperator::LessThanOrEqual => {
-        numeric_op!(operator, left, right, span, <=, Boolean)
-      }
-      BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => {
-        Err(Error::new(
-          ErrorKind::TypeError(format!(
-            "Unsupported operator for integers: {:?}",
-            operator
-          )),
-          span,
-        ))
-      }
-    }
-  }
-
-  fn eval_float_binary_expression(
+  fn eval_float_op(
     &self,
     operator: BinaryOperator,
     left: f64,
@@ -132,38 +82,18 @@ impl<'ast> Interpreter<'ast> {
     span: Span<'ast>,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
-      BinaryOperator::Add => numeric_op!(operator, left, right, span, +, Float),
-      BinaryOperator::Subtract => {
-        numeric_op!(operator, left, right, span, -, Float)
-      }
-      BinaryOperator::Multiply => {
-        numeric_op!(operator, left, right, span, *, Float)
-      }
-      BinaryOperator::Divide => {
-        numeric_op!(operator, left, right, span, /, Float)
-      }
-      BinaryOperator::Modulo => {
-        numeric_op!(operator, left, right, span, %, Float)
-      }
+      BinaryOperator::Add => Ok(Object::Float(left + right)),
+      BinaryOperator::Subtract => Ok(Object::Float(left - right)),
+      BinaryOperator::Multiply => Ok(Object::Float(left * right)),
+      BinaryOperator::Divide => Ok(Object::Float(left / right)),
+      BinaryOperator::Modulo => Ok(Object::Float(left % right)),
       BinaryOperator::Exponent => Ok(Object::Float(left.powf(right))),
-      BinaryOperator::Equal => {
-        numeric_op!(operator, left, right, span, ==, Boolean)
-      }
-      BinaryOperator::NotEqual => {
-        numeric_op!(operator, left, right, span, !=, Boolean)
-      }
-      BinaryOperator::GreaterThan => {
-        numeric_op!(operator, left, right, span, >, Boolean)
-      }
-      BinaryOperator::GreaterThanOrEqual => {
-        numeric_op!(operator, left, right, span, >=, Boolean)
-      }
-      BinaryOperator::LessThan => {
-        numeric_op!(operator, left, right, span, <, Boolean)
-      }
-      BinaryOperator::LessThanOrEqual => {
-        numeric_op!(operator, left, right, span, <=, Boolean)
-      }
+      BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
+      BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
+      BinaryOperator::GreaterThan => Ok(Object::Boolean(left > right)),
+      BinaryOperator::GreaterThanOrEqual => Ok(Object::Boolean(left >= right)),
+      BinaryOperator::LessThan => Ok(Object::Boolean(left < right)),
+      BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(left <= right)),
       _ => Err(Error::new(
         ErrorKind::TypeError(format!(
           "Unsupported operator for floats: {:?}",

@@ -1,8 +1,8 @@
 use ahash::AHashMap;
 use bumpalo::collections::Vec as BumpVec;
 use futures::{
-  future::{join_all, FutureExt, LocalBoxFuture},
-  join, try_join,
+  future::{try_join_all, FutureExt, LocalBoxFuture},
+  try_join,
 };
 use krama_core::{
   ast::{
@@ -93,15 +93,11 @@ impl<'ast> Interpreter<'ast> {
           let args_futures =
             arguments.iter().map(|arg| self.eval_expression(arg, None));
 
-          let (function_obj_res, evaluated_args_res) =
-            join!(func_future, join_all(args_futures));
-
-          let function_obj = function_obj_res?;
+          let (function_obj, evaluated_args_vec) =
+            try_join!(func_future, try_join_all(args_futures))?;
 
           let mut evaluated_args = BumpVec::new_in(self.arena);
-          for arg_res in evaluated_args_res {
-            evaluated_args.push(arg_res?);
-          }
+          evaluated_args.extend(evaluated_args_vec);
 
           let args_slice = evaluated_args.into_bump_slice();
 
@@ -166,12 +162,10 @@ impl<'ast> Interpreter<'ast> {
           let element_futures = elements
             .iter()
             .map(|e| self.eval_expression(e, element_kind));
-          let results = join_all(element_futures).await;
+          let results = try_join_all(element_futures).await?;
 
           let mut evaluated_elements = BumpVec::new_in(self.arena);
-          for result in results {
-            evaluated_elements.push(result?);
-          }
+          evaluated_elements.extend(results);
           let elements_slice = evaluated_elements.into_bump_slice();
 
           if let Some(hint) = kind {

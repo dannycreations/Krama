@@ -1,14 +1,10 @@
 use std::rc::Rc;
 
-use bumpalo::collections::Vec as BumpVec;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  ast::statement::{
-    Binding, BlockStatement, Destructure, Statement, StatementKind,
-  },
+  ast::statement::{Binding, BlockStatement, Statement, StatementKind},
   error::{Error, ErrorKind},
   object::{Function, Object, UserFunction},
-  span::Span,
 };
 
 use super::{types::check_type, Interpreter};
@@ -57,14 +53,59 @@ impl<'ast> Interpreter<'ast> {
               self.env_mut(span)?.set(name, value, *public);
             }
             Binding::Destructure(items) => {
-              self.destructure_scope(span, &value, items, *public)?;
+              if let Object::Scope(scope) = &value {
+                for item in items.iter() {
+                  if let Some(export) = scope.bindings.get(item.name) {
+                    let name = item.alias.unwrap_or(item.name);
+                    self.env_mut(span.clone())?.set(
+                      name,
+                      export.clone(),
+                      *public,
+                    );
+                  } else {
+                    return Err(Error::new(
+                      ErrorKind::ReferenceError(format!(
+                        "'{}' is not exported from module '{}'",
+                        item.name,
+                        scope.name.unwrap_or("<anonymous>")
+                      )),
+                      span,
+                    ));
+                  }
+                }
+              } else {
+                return Err(Error::new(
+                  ErrorKind::TypeError(
+                    "Destructuring can only be done on modules".to_string(),
+                  ),
+                  span,
+                ));
+              }
             }
             Binding::ModuleAndDestructure { alias, items } => {
-              if let Object::Scope(_) = &value {
+              if let Object::Scope(scope) = &value {
                 self
                   .env_mut(span.clone())?
                   .set(alias, value.clone(), *public);
-                self.destructure_scope(span, &value, items, *public)?;
+                for item in items.iter() {
+                  if let Some(export) = scope.bindings.get(item.name) {
+                    let name = item.alias.unwrap_or(item.name);
+                    self.env_mut(span.clone())?.set(
+                      name,
+                      export.clone(),
+                      *public,
+                    );
+                  } else {
+                    return Err(Error::new(
+                      ErrorKind::ReferenceError(format!(
+                        "'{}' is not exported from module '{}'",
+                        item.name,
+                        scope.name.unwrap_or("<anonymous>")
+                      )),
+                      span,
+                    ));
+                  }
+                }
               } else {
                 return Err(Error::new(
                   ErrorKind::TypeError(
@@ -160,41 +201,5 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Object<'ast>, Error<'ast>> {
     let new_interpreter = self.new_enclosed();
     new_interpreter.eval_statements(&block.statements).await
-  }
-
-  fn destructure_scope(
-    &self,
-    span: Span<'ast>,
-    value: &Object<'ast>,
-    items: &BumpVec<'ast, Destructure<'ast>>,
-    public: bool,
-  ) -> Result<(), Error<'ast>> {
-    if let Object::Scope(scope) = value {
-      for item in items.iter() {
-        if let Some(export) = scope.bindings.get(item.name) {
-          let name = item.alias.unwrap_or(item.name);
-          self
-            .env_mut(span.clone())?
-            .set(name, export.clone(), public);
-        } else {
-          return Err(Error::new(
-            ErrorKind::ReferenceError(format!(
-              "'{}' is not exported from module '{}'",
-              item.name,
-              scope.name.unwrap_or("<anonymous>")
-            )),
-            span,
-          ));
-        }
-      }
-    } else {
-      return Err(Error::new(
-        ErrorKind::TypeError(
-          "Destructuring can only be done on modules".to_string(),
-        ),
-        span,
-      ));
-    }
-    Ok(())
   }
 }

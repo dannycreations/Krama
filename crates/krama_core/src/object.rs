@@ -127,20 +127,6 @@ impl<'ast> Object<'ast> {
       _ => self.get_str("name").unwrap_or("unknown"),
     }
   }
-
-  fn format_elements(
-    f: &mut Formatter,
-    elements: &[Object<'ast>],
-  ) -> FmtResult {
-    write!(f, "[")?;
-    for (i, element) in elements.iter().enumerate() {
-      if i > 0 {
-        write!(f, ", ")?;
-      }
-      write!(f, "{}", element)?;
-    }
-    write!(f, "]")
-  }
 }
 
 impl<'ast> From<&Object<'ast>> for bool {
@@ -167,7 +153,14 @@ impl<'ast> Display for Object<'ast> {
       Object::Boolean(b) => write!(f, "{}", b),
       Object::String(s) => write!(f, "{}", s),
       Object::Array { elements, .. } | Object::Tuple { elements } => {
-        Object::format_elements(f, elements)
+        write!(f, "[")?;
+        for (i, element) in elements.iter().enumerate() {
+          if i > 0 {
+            write!(f, ", ")?;
+          }
+          write!(f, "{}", element)?;
+        }
+        write!(f, "]")
       }
       Object::Object(object) => {
         write!(f, "{{")?;

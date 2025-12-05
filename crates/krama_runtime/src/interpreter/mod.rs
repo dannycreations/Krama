@@ -45,7 +45,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  fn new_enclosed(&self) -> Self {
+  pub(super) fn new_enclosed(&self) -> Self {
     Self {
       environment: self
         .arena
