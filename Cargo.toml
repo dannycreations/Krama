@@ -24,15 +24,12 @@ bumpalo = { version = "3.19.0", features = ["collections", "boxed"] }
 clap = { version = "4.5.53", features = ["derive"] }
 futures = "0.3.31"
 inventory = "0.3.21"
-
-krama_cli = { path = "crates/krama_cli" }
 krama_core = { path = "crates/krama_core" }
 krama_lexer = { path = "crates/krama_lexer" }
 krama_macro = { path = "crates/krama_macro" }
 krama_parser = { path = "crates/krama_parser" }
 krama_runtime = { path = "crates/krama_runtime" }
 krama_std = { path = "crates/krama_std" }
-
 once_cell = "1.21.3"
 path-clean = "=1.0.1"
 phf = { version = "0.13.1", features = ["macros"] }

@@ -1,8 +1,8 @@
 format:
-	cargo fmt
+	cargo +nightly fmt
 
 check: format
-	cargo clippy --fix --allow-dirty -- -D warnings
+	cargo +nightly clippy --fix --allow-dirty -- -D warnings
 
 test: check
 	cargo nextest run --config-file nextest.toml --no-capture --no-fail-fast
