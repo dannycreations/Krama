@@ -13,11 +13,9 @@ doctest = false
 ahash.workspace = true
 bumpalo.workspace = true
 futures.workspace = true
-krama_core = { path = "../krama_core" }
-krama_lexer = { path = "../krama_lexer" }
-krama_parser = { path = "../krama_parser" }
-krama_std = { path = "../krama_std" }
+krama_core.workspace = true
+krama_lexer.workspace = true
+krama_parser.workspace = true
+krama_std.workspace = true
 path-clean.workspace = true
 tokio.workspace = true
-
-[dev-dependencies]

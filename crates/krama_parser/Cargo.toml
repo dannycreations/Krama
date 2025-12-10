@@ -11,8 +11,8 @@ doctest = false
 
 [dependencies]
 bumpalo.workspace = true
-krama_core = { path = "../krama_core" }
-krama_lexer = { path = "../krama_lexer" }
+krama_core.workspace = true
+krama_lexer.workspace = true
 
 [dev-dependencies]
-krama_runtime = { path = "../krama_runtime" }
+krama_runtime.workspace = true

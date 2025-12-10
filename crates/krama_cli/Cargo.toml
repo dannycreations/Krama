@@ -15,7 +15,7 @@ ariadne.workspace = true
 bumpalo.workspace = true
 clap.workspace = true
 futures.workspace = true
-krama_core = { path = "../krama_core" }
-krama_runtime = { path = "../krama_runtime" }
+krama_core.workspace = true
+krama_runtime.workspace = true
 tokio.workspace = true
 walkdir.workspace = true

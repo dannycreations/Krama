@@ -10,8 +10,8 @@ repository.workspace = true
 doctest = false
 
 [dependencies]
-krama_core = { path = "../krama_core" }
+krama_core.workspace = true
 phf.workspace = true
 
 [dev-dependencies]
-krama_runtime = { path = "../krama_runtime" }
+krama_runtime.workspace = true

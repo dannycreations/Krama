@@ -5,16 +5,10 @@ check: format
 	cargo clippy --fix --allow-dirty -- -D warnings
 
 test: check
-	cargo test -- --no-capture
+	cargo nextest run --config-file nextest.toml --no-capture --no-fail-fast
 
-krama_run:
-	cargo run run
+machete:
+	cargo machete --with-metadata
 
-krama_test:
-	cargo run test
-
-cargo_machete:
-	cargo machete
-
-cargo_tarpaulin:
+tarpaulin:
 	cargo tarpaulin --all-targets -- --test-threads 1 --no-capture
