@@ -105,6 +105,20 @@ impl<'a> Resolver<'a> {
           self.resolve_statement(statement)?;
         }
       }
+      StatementKind::For {
+        name,
+        iterable,
+        body,
+      } => {
+        self.resolve_expression(iterable)?;
+        self.begin_scope();
+        self.declare(name);
+        self.define(name);
+        for statement in &body.statements {
+          self.resolve_statement(statement)?;
+        }
+        self.end_scope();
+      }
       StatementKind::Test { body, .. } => {
         self.begin_scope();
         for statement in &body.statements {

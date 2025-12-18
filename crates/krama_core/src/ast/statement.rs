@@ -68,6 +68,11 @@ pub enum StatementKind<'ast> {
     condition: &'ast Expression<'ast>,
     body: &'ast BlockStatement<'ast>,
   },
+  For {
+    name: &'ast str,
+    iterable: &'ast Expression<'ast>,
+    body: &'ast BlockStatement<'ast>,
+  },
   Break,
   Continue,
 }

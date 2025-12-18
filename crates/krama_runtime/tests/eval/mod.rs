@@ -1,6 +1,7 @@
 mod bitwise_test;
 mod collection_test;
 mod expression_test;
+mod for_in_test;
 mod function_test;
 mod index_test;
 mod literal_test;

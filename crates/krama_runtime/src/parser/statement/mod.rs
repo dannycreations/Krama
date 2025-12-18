@@ -27,6 +27,7 @@ where
       TokenKind::Continue => self.parse_continue_statement(),
       TokenKind::Test => self.parse_test_statement(),
       TokenKind::While => self.parse_while_statement(),
+      TokenKind::For => self.parse_for_statement(),
       _ => {
         let expression = self.parse_expression(Precedence::Lowest)?;
         let span = expression.span.clone();

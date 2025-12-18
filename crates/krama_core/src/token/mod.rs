@@ -28,6 +28,8 @@ pub static KEYWORDS: Map<&'static str, TokenKind> = phf_map! {
     "match" => TokenKind::Match,
     "return" => TokenKind::Return,
     "while" => TokenKind::While,
+    "for" => TokenKind::For,
+    "in" => TokenKind::In,
     "break" => TokenKind::Break,
     "continue" => TokenKind::Continue,
     "test" => TokenKind::Test,
@@ -101,7 +103,7 @@ macro_rules! define_token_enum {
 define_token_enum! {
     enum TokenKind<'a> {
         keywords: {
-            Const, Fn, Pub, Let, If, Elif, Else, Match, While, Return, Break, Continue, Test, True, False, Import, As, Null,
+            Const, Fn, Pub, Let, If, Elif, Else, Match, While, For, In, Return, Break, Continue, Test, True, False, Import, As, Null,
             I8, I16, I32, I64, I128, Isize, U8, U16, U32, U64, U128, Usize, F32, F64, Bool, Str,
         },
         units: {

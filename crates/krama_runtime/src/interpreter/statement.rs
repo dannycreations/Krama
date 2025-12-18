@@ -162,6 +162,48 @@ impl<'ast> Interpreter<'ast> {
           }
           Ok(Object::Void)
         }
+        StatementKind::For {
+          name,
+          iterable,
+          body,
+        } => {
+          let iterable_value = self.eval_expression(iterable, None).await?;
+          let elements: &[Object<'ast>] = match &iterable_value {
+            Object::Array { elements, .. } => elements,
+            Object::Tuple { elements } => elements,
+            _ => {
+              return Err(Error::new(
+                ErrorKind::TypeError(format!(
+                  "Expected array or tuple for for..in loop, found {}",
+                  iterable_value.type_name()
+                )),
+                span,
+              ));
+            }
+          };
+
+          for element in elements {
+            let new_interpreter = self.new_enclosed();
+            new_interpreter.environment.borrow_mut().set(
+              name,
+              element.clone(),
+              false,
+            );
+
+            let result = new_interpreter.eval_block_statement(body).await?;
+
+            if matches!(result, Object::Return(_)) {
+              return Ok(result);
+            }
+            if matches!(result, Object::Break) {
+              break;
+            }
+            if matches!(result, Object::Continue) {
+              continue;
+            }
+          }
+          Ok(Object::Void)
+        }
       }
     }
     .boxed_local()
