@@ -1,11 +1,14 @@
 format:
-	cargo +nightly fmt
+	cargo +nightly fmt --all
 
 check: format
-	cargo +nightly clippy --fix --allow-dirty -- -D warnings
+	cargo +nightly clippy --all-features --all-targets --fix --allow-dirty -- -D warnings
 
 test: check
-	cargo nextest run --config-file nextest.toml --no-capture --no-fail-fast
+	cargo nextest run --config-file nextest.toml
+
+bench: check
+	cargo bench
 
 machete:
 	cargo machete --with-metadata

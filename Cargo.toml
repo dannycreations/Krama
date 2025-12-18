@@ -20,7 +20,7 @@ repository = "https://github.com/dannycreations/Krama"
 ahash = "0.8.12"
 anyhow = "1.0.100"
 ariadne = { version = "0.6.0", features = ["auto-color"] }
-bumpalo = { version = "3.19.0", features = ["collections", "boxed"] }
+bumpalo = { version = "3.19.1", features = ["collections", "boxed"] }
 clap = { version = "4.5.53", features = ["derive"] }
 futures = "0.3.31"
 inventory = "0.3.21"
@@ -40,3 +40,17 @@ strum_macros = "0.27.2"
 syn = "2.0.111"
 tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros", "fs", "io-util", "io-std", "signal"] }
 walkdir = "=2.5.0"
+
+[profile.dev]
+codegen-units = 16
+debug = 1
+incremental = true
+
+[profile.release]
+codegen-units = 1
+debug = "line-tables-only"
+incremental = false
+lto = true
+opt-level = "z"
+panic = "abort"
+split-debuginfo = "packed"
