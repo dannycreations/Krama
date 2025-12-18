@@ -34,6 +34,7 @@ pub enum BinaryOperator {
   BitwiseXor,
   LeftShift,
   RightShift,
+  Range,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]

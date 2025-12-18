@@ -4,6 +4,7 @@ use crate::{Token, TokenKind};
 pub enum Precedence {
   Lowest = 0,
   Assignment,  // =
+  Range,       // ..
   LogicalOr,   // ||
   LogicalAnd,  // &&
   Equals,      // ==
@@ -37,6 +38,7 @@ impl Precedence {
       | TokenKind::CaretEqual
       | TokenKind::LessLessEqual
       | TokenKind::GreaterGreaterEqual => Precedence::Assignment,
+      TokenKind::DotDot => Precedence::Range,
       TokenKind::PipePipe => Precedence::LogicalOr,
       TokenKind::AmpersandAmpersand => Precedence::LogicalAnd,
       TokenKind::EqualEqual | TokenKind::BangEqual => Precedence::Equals,

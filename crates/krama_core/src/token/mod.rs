@@ -18,157 +18,151 @@ impl<'a> Token<'a> {
 }
 
 pub static KEYWORDS: Map<&'static str, TokenKind> = phf_map! {
-    "const" => TokenKind::Const,
-    "fn" => TokenKind::Fn,
-    "pub" => TokenKind::Pub,
-    "let" => TokenKind::Let,
-    "if" => TokenKind::If,
-    "elif" => TokenKind::Elif,
-    "else" => TokenKind::Else,
-    "match" => TokenKind::Match,
-    "return" => TokenKind::Return,
-    "while" => TokenKind::While,
-    "for" => TokenKind::For,
-    "in" => TokenKind::In,
-    "break" => TokenKind::Break,
-    "continue" => TokenKind::Continue,
-    "test" => TokenKind::Test,
-    "true" => TokenKind::True,
-    "false" => TokenKind::False,
-    "import" => TokenKind::Import,
-    "as" => TokenKind::As,
-    "null" => TokenKind::Null,
-    "i8" => TokenKind::I8,
-    "i16" => TokenKind::I16,
-    "i32" => TokenKind::I32,
-    "i64" => TokenKind::I64,
-    "i128" => TokenKind::I128,
-    "isize" => TokenKind::Isize,
-    "u8" => TokenKind::U8,
-    "u16" => TokenKind::U16,
-    "u32" => TokenKind::U32,
-    "u64" => TokenKind::U64,
-    "u128" => TokenKind::U128,
-    "usize" => TokenKind::Usize,
-    "f32" => TokenKind::F32,
-    "f64" => TokenKind::F64,
-    "bool" => TokenKind::Bool,
-    "str" => TokenKind::Str,
+  "const" => TokenKind::Const,
+  "fn" => TokenKind::Fn,
+  "pub" => TokenKind::Pub,
+  "let" => TokenKind::Let,
+  "if" => TokenKind::If,
+  "elif" => TokenKind::Elif,
+  "else" => TokenKind::Else,
+  "match" => TokenKind::Match,
+  "return" => TokenKind::Return,
+  "while" => TokenKind::While,
+  "for" => TokenKind::For,
+  "in" => TokenKind::In,
+  "break" => TokenKind::Break,
+  "continue" => TokenKind::Continue,
+  "test" => TokenKind::Test,
+  "true" => TokenKind::True,
+  "false" => TokenKind::False,
+  "import" => TokenKind::Import,
+  "as" => TokenKind::As,
+  "null" => TokenKind::Null,
+  "i8" => TokenKind::I8,
+  "i16" => TokenKind::I16,
+  "i32" => TokenKind::I32,
+  "i64" => TokenKind::I64,
+  "i128" => TokenKind::I128,
+  "isize" => TokenKind::Isize,
+  "u8" => TokenKind::U8,
+  "u16" => TokenKind::U16,
+  "u32" => TokenKind::U32,
+  "u64" => TokenKind::U64,
+  "u128" => TokenKind::U128,
+  "usize" => TokenKind::Usize,
+  "f32" => TokenKind::F32,
+  "f64" => TokenKind::F64,
+  "bool" => TokenKind::Bool,
+  "str" => TokenKind::Str,
 };
 
 macro_rules! define_token_enum {
-    (
-        enum $name:ident <'a> {
-            keywords: {
-                $( $kw_variant:ident, )*
-            },
-            units: {
-                $(
-                    $unit_variant:ident,
-                )*
-            },
-            data: {
-                $(
-                    $data_variant:ident(&'a str),
-                )*
-            }
-        }
-    ) => {
-        #[derive(Debug, Clone, Copy, PartialEq, AsRefStr)]
-        #[strum(serialize_all = "lowercase")]
-        pub enum $name<'a> {
-            $( $kw_variant, )*
-            $(
-                $unit_variant,
-            )*
-            $( $data_variant(&'a str), )*
-        }
+  (
+    enum $name:ident <'a> {
+      keywords: {
+        $( $kw_variant:ident, )*
+      },
+      units: {
+        $( $unit_variant:ident, )*
+      },
+      data: {
+        $( $data_variant:ident(&'a str), )*
+      }
+    }
+  ) => {
+    #[derive(Debug, Clone, Copy, PartialEq, AsRefStr)]
+    #[strum(serialize_all = "lowercase")]
+    pub enum $name<'a> {
+      $( $kw_variant, )*
+      $( $unit_variant, )*
+      $( $data_variant(&'a str), )*
+    }
 
-        impl<'a> $name<'a> {
-            pub fn into_static(self) -> $name<'static> {
-                match self {
-                    $( $name::$data_variant(_) => $name::$data_variant("..."), )*
-                    $( $name::$kw_variant => $name::$kw_variant, )*
-                    $( $name::$unit_variant => $name::$unit_variant, )*
-                }
-            }
-
-            pub fn is_keyword(&self) -> bool {
-                matches!(self, $( $name::$kw_variant )|*)
-            }
+    impl<'a> $name<'a> {
+      pub fn into_static(self) -> $name<'static> {
+        match self {
+          $( $name::$data_variant(_) => $name::$data_variant("..."), )*
+          $( $name::$kw_variant => $name::$kw_variant, )*
+          $( $name::$unit_variant => $name::$unit_variant, )*
         }
-    };
+      }
+
+      pub fn is_keyword(&self) -> bool {
+        matches!(self, $( $name::$kw_variant )|*)
+      }
+    }
+  };
 }
 
 define_token_enum! {
-    enum TokenKind<'a> {
-        keywords: {
-            Const, Fn, Pub, Let, If, Elif, Else, Match, While, For, In, Return, Break, Continue, Test, True, False, Import, As, Null,
-            I8, I16, I32, I64, I128, Isize, U8, U16, U32, U64, U128, Usize, F32, F64, Bool, Str,
-        },
-        units: {
-            Plus,
-            PlusPlus,
-            Minus,
-            MinusMinus,
-            Star,
-            StarStar,
-            Slash,
-            Percent,
-            Equal,
-            EqualEqual,
-            Bang,
-            BangEqual,
-            GreaterThan,
-            GreaterThanEqual,
-            LessThan,
-            LessThanEqual,
-            PlusEqual,
-            MinusEqual,
-            StarEqual,
-            SlashEqual,
-            PercentEqual,
-            Ampersand,
-            AmpersandAmpersand,
-            Pipe,
-            PipePipe,
-            Caret,
-            Tilde,
-            LessLess,
-            GreaterGreater,
-            AmpersandEqual,
-            PipeEqual,
-            CaretEqual,
-            LessLessEqual,
-            GreaterGreaterEqual,
+  enum TokenKind<'a> {
+    keywords: {
+      Const, Fn, Pub, Let, If, Elif, Else, Match, While, For, In, Return, Break, Continue, Test, True, False, Import, As, Null,
+      I8, I16, I32, I64, I128, Isize, U8, U16, U32, U64, U128, Usize, F32, F64, Bool, Str,
+    },
+    units: {
+      Plus,
+      PlusPlus,
+      Minus,
+      MinusMinus,
+      Star,
+      StarStar,
+      Slash,
+      Percent,
+      Equal,
+      EqualEqual,
+      Bang,
+      BangEqual,
+      GreaterThan,
+      GreaterThanEqual,
+      LessThan,
+      LessThanEqual,
+      PlusEqual,
+      MinusEqual,
+      StarEqual,
+      SlashEqual,
+      PercentEqual,
+      Ampersand,
+      AmpersandAmpersand,
+      Pipe,
+      PipePipe,
+      Caret,
+      Tilde,
+      LessLess,
+      GreaterGreater,
+      AmpersandEqual,
+      PipeEqual,
+      CaretEqual,
+      LessLessEqual,
+      GreaterGreaterEqual,
 
-            // Delimiters
-            LParen,
-            RParen,
-            LBrace,
-            RBrace,
-            LBracket,
-            RBracket,
-            Comma,
-            Dot,
-            DotDot,
-            Arrow,
-            Colon,
-            Semicolon,
-            Question,
-            Newline,
+      // Delimiters
+      LParen,
+      RParen,
+      LBrace,
+      RBrace,
+      LBracket,
+      RBracket,
+      Comma,
+      Dot,
+      DotDot,
+      Arrow,
+      Colon,
+      Semicolon,
+      Question,
+      Newline,
 
-            // Other
-            Unknown,
-            Eof,
-        },
-        data: {
-            Integer(&'a str),
-            Float(&'a str),
-            String(&'a str),
-            Identifier(&'a str),
-        }
+      // Other
+      Unknown,
+      Eof,
+    },
+    data: {
+      Integer(&'a str),
+      Float(&'a str),
+      String(&'a str),
+      Identifier(&'a str),
     }
+  }
 }
 
 impl<'a> fmt::Display for TokenKind<'a> {

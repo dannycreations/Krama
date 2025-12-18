@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! test_eval {
+macro_rules! test_eval_ok {
   ($name:ident, $source:expr, $expected:expr) => {
     #[tokio::test]
     async fn $name() {
@@ -13,24 +13,7 @@ macro_rules! test_eval {
 }
 
 #[macro_export]
-macro_rules! test_eval_is_native_function {
-  ($name:ident, $source:expr) => {
-    #[tokio::test]
-    async fn $name() {
-      let arena = ::bumpalo::Bump::new();
-      let interpreter = $crate::Interpreter::new(&arena, None);
-      let source = arena.alloc_str($source);
-      let result = interpreter.eval(source).await.unwrap();
-      assert!(matches!(
-        result,
-        ::krama_core::Object::Function(::krama_core::Function::Native(_))
-      ));
-    }
-  };
-}
-
-#[macro_export]
-macro_rules! test_eval_error {
+macro_rules! test_eval_err {
   ($name:ident, $source:expr, $expected:pat) => {
     #[tokio::test]
     async fn $name() {
@@ -50,6 +33,23 @@ macro_rules! test_eval_error {
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await;
       assert!(result.is_err());
+    }
+  };
+}
+
+#[macro_export]
+macro_rules! test_eval_is_native_function {
+  ($name:ident, $source:expr) => {
+    #[tokio::test]
+    async fn $name() {
+      let arena = ::bumpalo::Bump::new();
+      let interpreter = $crate::Interpreter::new(&arena, None);
+      let source = arena.alloc_str($source);
+      let result = interpreter.eval(source).await.unwrap();
+      assert!(matches!(
+        result,
+        ::krama_core::Object::Function(::krama_core::Function::Native(_))
+      ));
     }
   };
 }
@@ -86,77 +86,6 @@ macro_rules! test_eval_with_file {
       ::tokio::fs::remove_file($filename).await.unwrap();
 
       assert_eq!(evaluated, $expected);
-    }
-  };
-}
-
-#[macro_export]
-macro_rules! test_lexer {
-  ($name:ident, $input:expr, $expected:expr) => {
-    #[test]
-    fn $name() {
-      let lexer = ::krama_runtime::Lexer::new($input, None);
-      let tokens: Vec<::krama_core::Token> = lexer.collect();
-      let kinds: Vec<::krama_core::TokenKind> =
-        tokens.into_iter().map(|t| t.kind).collect();
-      assert_eq!(kinds, $expected);
-    }
-  };
-}
-
-#[macro_export]
-macro_rules! test_lexer_single {
-  ($name:ident, $input:expr, $expected:expr) => {
-    #[test]
-    fn $name() {
-      let mut lexer = ::krama_runtime::Lexer::new($input, None);
-      let token = lexer.next().unwrap();
-      assert_eq!(token.kind, $expected);
-    }
-  };
-}
-
-#[macro_export]
-macro_rules! test_parser {
-  ($name:ident, $source:expr, $len:expr) => {
-    #[test]
-    fn $name() {
-      let arena = ::bumpalo::Bump::new();
-      let lexer = ::krama_runtime::Lexer::new($source, None);
-      let mut parser = ::krama_runtime::Parser::new(lexer, &arena);
-      let program = parser.parse();
-      assert!(program.is_ok());
-      assert_eq!(program.unwrap().statements.len(), $len);
-    }
-  };
-  ($name:ident, $source:expr, $len:expr, $assertion:expr) => {
-    #[test]
-    fn $name() {
-      let arena = ::bumpalo::Bump::new();
-      let lexer = ::krama_runtime::Lexer::new($source, None);
-      let mut parser = ::krama_runtime::Parser::new(lexer, &arena);
-      let program = parser.parse();
-      assert!(program.is_ok());
-      let program = program.unwrap();
-      assert_eq!(program.statements.len(), $len);
-      let statement = &program.statements[0];
-      $assertion(statement);
-    }
-  };
-}
-
-#[macro_export]
-macro_rules! test_parser_error {
-  ($name:ident, $source:expr, $assertion:expr) => {
-    #[test]
-    fn $name() {
-      let arena = ::bumpalo::Bump::new();
-      let lexer = ::krama_runtime::Lexer::new($source, None);
-      let mut parser = ::krama_runtime::Parser::new(lexer, &arena);
-      let program = parser.parse();
-      assert!(program.is_err());
-      let error = program.unwrap_err();
-      $assertion(error);
     }
   };
 }

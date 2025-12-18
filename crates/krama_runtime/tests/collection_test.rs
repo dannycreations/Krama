@@ -1,6 +1,6 @@
 use bumpalo::Bump;
 use krama_core::{ErrorKind, Object};
-use krama_runtime::{test_eval, test_eval_error, Interpreter};
+use krama_runtime::{test_eval_err, test_eval_ok, Interpreter};
 
 macro_rules! test_eval_to_string {
   ($name:ident, $source:expr, $expected:expr) => {
@@ -25,45 +25,45 @@ test_eval_to_string!(
   "[1, [true, hello]]"
 );
 
-test_eval!(eval_typed_array, "const a: i32[] = [1, 2, 3]", Object::Void);
+test_eval_ok!(eval_typed_array, "const a: i32[] = [1, 2, 3]", Object::Void);
 
-test_eval!(
+test_eval_ok!(
   eval_tuple_with_type_annotation,
   "const a: [i32, bool] = [1, true]",
   Object::Void
 );
 
-test_eval!(
+test_eval_ok!(
   eval_fixed_length_array,
   "const a: i32[3] = [1, 2, 3]",
   Object::Void
 );
 
-test_eval!(
+test_eval_ok!(
   eval_fixed_length_array_with_less_elements,
   "const a: i32[3] = [1, 2]",
   Object::Void
 );
 
-test_eval_error!(
+test_eval_err!(
   eval_fixed_length_array_with_more_elements,
   "const a: i32[3] = [1, 2, 3, 4]",
   ErrorKind::TypeError(_)
 );
 
-test_eval_error!(
+test_eval_err!(
   eval_typed_array_with_mixed_types,
   "const a: i32[] = [1, true, 3]",
   ErrorKind::TypeError(_)
 );
 
-test_eval_error!(
+test_eval_err!(
   eval_tuple_with_wrong_type,
   "const a: [i32, bool] = [1, 1]",
   ErrorKind::TypeError(_)
 );
 
-test_eval_error!(
+test_eval_err!(
   eval_tuple_with_wrong_length,
   "const a: [i32, bool] = [1]",
   ErrorKind::TypeError(_)

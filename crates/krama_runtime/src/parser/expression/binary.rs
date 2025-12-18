@@ -51,6 +51,7 @@ where
       TokenKind::GreaterGreater => {
         InfixOperator::Binary(BinaryOperator::RightShift)
       }
+      TokenKind::DotDot => InfixOperator::Binary(BinaryOperator::Range),
 
       // Assignments
       TokenKind::Equal => InfixOperator::Assignment(AssignmentOperator::Assign),

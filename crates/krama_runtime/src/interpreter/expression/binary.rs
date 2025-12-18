@@ -1,4 +1,4 @@
-use bumpalo::collections::String as BumpString;
+use bumpalo::collections::{String as BumpString, Vec as BumpVec};
 use krama_core::{BinaryOperator, Error, ErrorKind, Object, Span};
 
 use crate::interpreter::Interpreter;
@@ -30,6 +30,15 @@ impl<'ast> Interpreter<'ast> {
         BinaryOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r)),
         BinaryOperator::LessThan => Ok(Object::Boolean(l < r)),
         BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r)),
+        BinaryOperator::Range => {
+          let mut elements = BumpVec::new_in(self.arena);
+          for i in l..=r {
+            elements.push(Object::Integer(i));
+          }
+          Ok(Object::Tuple {
+            elements: elements.into_bump_slice(),
+          })
+        }
         BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => {
           Err(Error::new(
             ErrorKind::TypeError(format!(
