@@ -1,6 +1,16 @@
-pub mod ast;
-pub mod error;
-pub mod object;
-pub mod scope;
-pub mod span;
-pub mod token;
+use bumpalo::collections::Vec as BumpVec;
+
+mod ast;
+mod diagnostic;
+mod token;
+mod value;
+
+pub use ast::*;
+pub use diagnostic::*;
+pub use token::*;
+pub use value::*;
+
+#[derive(Debug, PartialEq)]
+pub struct Program<'ast> {
+  pub statements: BumpVec<'ast, Statement<'ast>>,
+}

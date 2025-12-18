@@ -1,14 +1,11 @@
 use krama_core::{
-  ast::expression::{ExpressionKind, MatchPattern},
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
+  Error, ErrorKind, ExpressionKind, MatchPattern, Object, Span,
 };
 
 use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) async fn eval_match_pattern<'s>(
+  pub async fn eval_match_pattern<'s>(
     &'s self,
     subject: &'s Object<'ast>,
     pattern: &'s MatchPattern<'ast>,

@@ -1,4 +1,4 @@
-use krama_core::{error::ErrorKind, object::Object};
+use krama_core::{ErrorKind, Object};
 use krama_runtime::{test_eval, test_eval_error};
 
 test_eval!(

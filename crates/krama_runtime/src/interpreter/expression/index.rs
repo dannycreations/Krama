@@ -1,13 +1,9 @@
-use krama_core::{
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
-};
+use krama_core::{Error, ErrorKind, Object, Span};
 
 use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) async fn eval_index_expression(
+  pub async fn eval_index_expression(
     &self,
     mut object: Object<'ast>,
     index: Object<'ast>,

@@ -6,8 +6,8 @@ use std::{
 use anyhow::{Context, Result};
 use bumpalo::Bump;
 use clap::Parser;
-use krama_core::error::report_error;
-use krama_runtime::{interpreter::Interpreter, testing::TestResult};
+use krama_core::report_error;
+use krama_runtime::{Interpreter, TestResult};
 use tokio::fs;
 use walkdir::WalkDir;
 

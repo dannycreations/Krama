@@ -1,15 +1,10 @@
 use bumpalo::collections::String as BumpString;
-use krama_core::{
-  ast::operator::BinaryOperator,
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
-};
+use krama_core::{BinaryOperator, Error, ErrorKind, Object, Span};
 
 use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) fn eval_binary_expression(
+  pub fn eval_binary_expression(
     &self,
     operator: BinaryOperator,
     left: Object<'ast>,

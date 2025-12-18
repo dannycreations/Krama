@@ -1,14 +1,9 @@
-use krama_core::{
-  ast::expression::{Expression, ExpressionKind},
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
-};
+use krama_core::{Error, ErrorKind, Expression, ExpressionKind, Object, Span};
 
 use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) async fn eval_member_expression(
+  pub async fn eval_member_expression(
     &self,
     object: Object<'ast>,
     property: &Expression<'ast>,

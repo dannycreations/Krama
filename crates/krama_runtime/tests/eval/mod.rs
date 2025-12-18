@@ -1,0 +1,13 @@
+mod bitwise_test;
+mod collection_test;
+mod expression_test;
+mod function_test;
+mod index_test;
+mod literal_test;
+mod logical_test;
+mod loop_test;
+mod match_test;
+mod module_test;
+mod object_test;
+mod operator_test;
+mod types_test;

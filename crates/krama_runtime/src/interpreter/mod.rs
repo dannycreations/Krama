@@ -1,33 +1,28 @@
-pub mod eval;
-pub mod expression;
-pub mod flow;
-pub mod function;
-pub mod identifier;
-pub mod import;
-pub mod literal;
-pub mod statement;
-pub mod types;
+mod eval;
+mod expression;
+mod flow;
+mod function;
+mod identifier;
+mod import;
+mod literal;
+mod statement;
+mod types;
 
 use std::cell::{RefCell, RefMut};
 
 use ahash::AHashMap;
 use bumpalo::Bump;
 use krama_core::{
-  ast::{expression::Expression, statement::Statement, Program},
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
+  Error, ErrorKind, Expression, Object, Program, Span, Statement,
 };
-use krama_lexer::lexer::Lexer;
-use krama_parser::parser::Parser;
 
-use crate::{environment::Environment, resolver::Resolver};
+use crate::{Environment, Lexer, Parser, Resolver};
 
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
   pub environment: &'ast RefCell<Environment<'ast>>,
-  pub(super) loaded_modules: &'ast RefCell<AHashMap<&'ast str, Object<'ast>>>,
-  pub(super) arena: &'ast Bump,
+  pub loaded_modules: &'ast RefCell<AHashMap<&'ast str, Object<'ast>>>,
+  pub arena: &'ast Bump,
   pub path: Option<&'ast str>,
   locals: RefCell<AHashMap<Span<'ast>, usize>>,
 }
@@ -45,7 +40,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  pub(super) fn new_enclosed(&self) -> Self {
+  pub fn new_enclosed(&self) -> Self {
     Self {
       environment: self
         .arena
@@ -57,11 +52,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  pub(super) fn get_at(
-    &self,
-    distance: usize,
-    name: &str,
-  ) -> Option<Object<'ast>> {
+  pub fn get_at(&self, distance: usize, name: &str) -> Option<Object<'ast>> {
     let mut env = self.environment.borrow();
     for _ in 0..distance {
       let outer = env.outer.unwrap();
@@ -70,7 +61,7 @@ impl<'ast> Interpreter<'ast> {
     env.get_local(name)
   }
 
-  pub(super) fn assign_at(
+  pub fn assign_at(
     &self,
     distance: usize,
     name: &'ast str,
@@ -125,7 +116,7 @@ impl<'ast> Interpreter<'ast> {
     Ok(result)
   }
 
-  pub(super) fn env_mut(
+  pub fn env_mut(
     &self,
     span: Span<'ast>,
   ) -> Result<RefMut<'_, Environment<'ast>>, Error<'ast>> {
@@ -135,7 +126,7 @@ impl<'ast> Interpreter<'ast> {
       .map_err(|e| Error::new(ErrorKind::RuntimeError(e.to_string()), span))
   }
 
-  pub(crate) fn get_resolved_distance(
+  pub fn get_resolved_distance(
     &self,
     expr: &Expression<'ast>,
   ) -> Option<usize> {

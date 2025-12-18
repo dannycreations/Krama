@@ -1,16 +1,13 @@
 use std::rc::Rc;
 
 use krama_core::{
-  ast::expression::FunctionBody,
-  error::{Error, ErrorKind},
-  object::{Function, Object, UserFunction},
-  span::Span,
+  Error, ErrorKind, Function, FunctionBody, Object, Span, UserFunction,
 };
 
-use crate::interpreter::{types::check_type, Interpreter};
+use super::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) async fn eval_call_expression(
+  pub async fn eval_call_expression(
     &self,
     function: Object<'ast>,
     arguments: &'ast [Object<'ast>],

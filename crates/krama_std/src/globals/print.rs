@@ -1,5 +1,5 @@
 use bumpalo::Bump;
-use krama_core::{error::ErrorKind, object::Object};
+use krama_core::{ErrorKind, Object};
 use krama_macro::register_global;
 use tokio::{io, io::AsyncWriteExt};
 

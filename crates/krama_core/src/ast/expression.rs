@@ -1,13 +1,8 @@
 use bumpalo::collections::Vec as BumpVec;
 
-use super::{
-  literal::Literal,
-  operator::{
-    AssignmentOperator, BinaryOperator, UnaryOperator, UpdateOperator,
-  },
-  statement::{BlockStatement, Parameter},
-  types::Type,
-  Node,
+use crate::{
+  AssignmentOperator, BinaryOperator, BlockStatement, Literal, Node, Parameter,
+  Type, UnaryOperator, UpdateOperator,
 };
 
 pub type Expression<'ast> = Node<'ast, ExpressionKind<'ast>>;

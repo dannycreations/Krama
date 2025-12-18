@@ -1,12 +1,7 @@
 use std::{io::Error, path::Path, str};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
-use krama_core::{
-  ast::types::{Type, TypeKind},
-  error::ErrorKind,
-  object::Object,
-  span::Span,
-};
+use krama_core::{ErrorKind, Object, Span, Type, TypeKind};
 use krama_macro::register_module;
 use tokio::fs;
 

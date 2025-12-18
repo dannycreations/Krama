@@ -11,7 +11,7 @@ macro_rules! parse_args {
     ($objects:expr, $fn_name:expr; $($arg:ident: $type:pat),*) => {
         const EXPECTED_ARGS: usize = count_args!($($arg),*);
         if $objects.len() != EXPECTED_ARGS {
-            return Err(krama_core::error::ErrorKind::ArgumentError(format!(
+            return Err(krama_core::ErrorKind::ArgumentError(format!(
                 "{} expected {} arguments, but got {}",
                 $fn_name,
                 EXPECTED_ARGS,
@@ -24,7 +24,7 @@ macro_rules! parse_args {
             let $arg = match arg_iter.next() {
                 Some($type) => $arg,
                 Some(other) => {
-                     return Err(krama_core::error::ErrorKind::ArgumentError(format!(
+                     return Err(krama_core::ErrorKind::ArgumentError(format!(
                         "Expected argument '{}' for function '{}' to be of type '{}', but got '{}'",
                         stringify!($arg),
                         $fn_name,
@@ -38,5 +38,5 @@ macro_rules! parse_args {
     };
 }
 
-pub mod assert;
-pub mod fs;
+mod assert;
+mod fs;

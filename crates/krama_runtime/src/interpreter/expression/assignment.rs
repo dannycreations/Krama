@@ -1,17 +1,12 @@
 use krama_core::{
-  ast::{
-    expression::{Expression, ExpressionKind},
-    operator::{AssignmentOperator, BinaryOperator, UpdateOperator},
-  },
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
+  AssignmentOperator, BinaryOperator, Error, ErrorKind, Expression,
+  ExpressionKind, Object, Span, UpdateOperator,
 };
 
 use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) async fn eval_assignment_expression(
+  pub async fn eval_assignment_expression(
     &self,
     left: &Expression<'ast>,
     operator: AssignmentOperator,
@@ -72,7 +67,7 @@ impl<'ast> Interpreter<'ast> {
     Ok(new_val)
   }
 
-  pub(crate) async fn eval_update_expression(
+  pub async fn eval_update_expression(
     &self,
     operator: UpdateOperator,
     argument: &Expression<'ast>,

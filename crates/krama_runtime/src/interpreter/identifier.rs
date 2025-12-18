@@ -1,14 +1,9 @@
-use krama_core::{
-  ast::expression::Expression,
-  error::{Error, ErrorKind},
-  object::Object,
-  span::Span,
-};
+use krama_core::{Error, ErrorKind, Expression, Object, Span};
 
 use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) async fn eval_identifier(
+  pub async fn eval_identifier(
     &self,
     expression: &Expression<'ast>,
     name: &'ast str,

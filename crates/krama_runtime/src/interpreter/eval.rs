@@ -5,19 +5,14 @@ use futures::{
   try_join,
 };
 use krama_core::{
-  ast::{
-    expression::{Expression, ExpressionKind},
-    operator::BinaryOperator,
-    types::{Type, TypeKind},
-  },
-  error::{Error, ErrorKind},
-  object::{Function, Object, UserFunction},
+  BinaryOperator, Error, ErrorKind, Expression, ExpressionKind, Function,
+  Object, Type, TypeKind, UserFunction,
 };
 
 use super::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) fn eval_expression<'s>(
+  pub fn eval_expression<'s>(
     &'s self,
     expression: &'s Expression<'ast>,
     kind: Option<&'s Type<'ast>>,

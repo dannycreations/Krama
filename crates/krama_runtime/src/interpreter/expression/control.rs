@@ -1,17 +1,11 @@
 use krama_core::{
-  ast::{
-    expression::{Expression, FunctionBody, MatchArm},
-    types::Type,
-  },
-  error::Error,
-  object::Object,
-  span::Span,
+  Error, Expression, FunctionBody, MatchArm, Object, Span, Type,
 };
 
 use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(crate) async fn eval_if_expression(
+  pub async fn eval_if_expression(
     &self,
     condition: &Expression<'ast>,
     then_branch: &Expression<'ast>,
@@ -29,7 +23,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  pub(crate) async fn eval_match_expression(
+  pub async fn eval_match_expression(
     &self,
     subject: &Expression<'ast>,
     arms: &[MatchArm<'ast>],

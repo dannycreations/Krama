@@ -1,34 +1,15 @@
-pub mod expression;
-pub mod literal;
-pub mod operator;
-pub mod precedence;
-pub mod statement;
-pub mod types;
+mod expression;
+mod literal;
+mod node;
+mod operator;
+mod precedence;
+mod statement;
+mod types;
 
-use std::marker::PhantomData;
-
-use bumpalo::collections::Vec as BumpVec;
-
-use crate::{ast::statement::Statement, span::Span};
-
-#[derive(Debug, PartialEq)]
-pub struct Program<'ast> {
-  pub statements: BumpVec<'ast, Statement<'ast>>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Node<'ast, T> {
-  pub kind: T,
-  pub span: Span<'ast>,
-  _phantom: PhantomData<&'ast ()>,
-}
-
-impl<'ast, T> Node<'ast, T> {
-  pub fn new(kind: T, span: Span<'ast>) -> Self {
-    Self {
-      kind,
-      span,
-      _phantom: PhantomData,
-    }
-  }
-}
+pub use expression::*;
+pub use literal::*;
+pub use node::*;
+pub use operator::*;
+pub use precedence::*;
+pub use statement::*;
+pub use types::*;

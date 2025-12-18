@@ -1,9 +1,9 @@
-use krama_core::{ast::literal::Literal, error::Error, object::Object};
+use krama_core::{Error, Literal, Object};
 
 use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) fn eval_literal<'s>(
+  pub fn eval_literal<'s>(
     &'s self,
     literal: Literal<'ast>,
   ) -> Result<Object<'ast>, Error<'ast>>

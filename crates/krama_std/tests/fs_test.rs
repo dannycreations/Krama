@@ -1,4 +1,4 @@
-use krama_core::object::Object;
+use krama_core::Object;
 use krama_runtime::test_eval;
 
 test_eval!(

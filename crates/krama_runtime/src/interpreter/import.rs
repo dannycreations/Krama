@@ -5,19 +5,14 @@ use std::{
 };
 
 use ahash::AHashMap;
-use krama_core::{
-  error::{Error, ErrorKind},
-  object::{Function, Object},
-  scope::Scope,
-  span::Span,
-};
+use krama_core::{Error, ErrorKind, Function, Object, Scope, Span};
 use path_clean::PathClean;
 use tokio::fs;
 
 use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  pub(super) async fn eval_import(
+  pub async fn eval_import(
     &self,
     path: &'ast str,
     span: Span<'ast>,

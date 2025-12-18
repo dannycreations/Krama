@@ -347,31 +347,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "krama_lexer"
-version = "0.1.0"
-dependencies = [
- "krama_core",
- "krama_runtime",
- "phf",
-]
-
-[[package]]
 name = "krama_macro"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "krama_parser"
-version = "0.1.0"
-dependencies = [
- "bumpalo",
- "krama_core",
- "krama_lexer",
- "krama_runtime",
 ]
 
 [[package]]
@@ -382,10 +363,9 @@ dependencies = [
  "bumpalo",
  "futures",
  "krama_core",
- "krama_lexer",
- "krama_parser",
  "krama_std",
  "path-clean",
+ "phf",
  "tokio",
 ]
 

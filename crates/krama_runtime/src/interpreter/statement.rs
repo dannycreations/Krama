@@ -2,9 +2,8 @@ use std::rc::Rc;
 
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  ast::statement::{Binding, BlockStatement, Statement, StatementKind},
-  error::{Error, ErrorKind},
-  object::{Function, Object, UserFunction},
+  Binding, BlockStatement, Error, ErrorKind, Function, Object, Statement,
+  StatementKind, UserFunction,
 };
 
 use super::{types::check_type, Interpreter};
@@ -188,14 +187,14 @@ impl<'ast> Interpreter<'ast> {
     Ok(result)
   }
 
-  pub(super) async fn eval_block_statement(
+  pub async fn eval_block_statement(
     &self,
     block: &BlockStatement<'ast>,
   ) -> Result<Object<'ast>, Error<'ast>> {
     self.eval_statements(&block.statements).await
   }
 
-  pub(super) async fn eval_block_statement_with_new_scope(
+  pub async fn eval_block_statement_with_new_scope(
     &self,
     block: &BlockStatement<'ast>,
   ) -> Result<Object<'ast>, Error<'ast>> {

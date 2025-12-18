@@ -3,11 +3,8 @@ use std::process;
 use anyhow::Result;
 use bumpalo::{collections::String as BumpString, Bump};
 use clap::Parser;
-use krama_core::{
-  error::{report_error, ErrorKind},
-  object::Object,
-};
-use krama_runtime::interpreter::Interpreter;
+use krama_core::{report_error, ErrorKind, Object};
+use krama_runtime::Interpreter;
 use tokio::{
   io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader},
   signal,

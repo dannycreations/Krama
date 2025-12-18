@@ -1,13 +1,13 @@
-pub mod globals;
-pub mod modules;
-pub mod props;
-
 use ahash::AHashMap;
-use krama_core::object::{
+use krama_core::{
   NativeFunction, PropertyFnCb, StandardGlobal, StandardModule,
   StandardProperty,
 };
 use once_cell::sync::Lazy;
+
+mod globals;
+mod modules;
+mod props;
 
 static GLOBALS: Lazy<AHashMap<&'static str, NativeFunction>> =
   Lazy::new(|| {

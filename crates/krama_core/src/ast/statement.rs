@@ -1,11 +1,6 @@
 use bumpalo::collections::Vec as BumpVec;
 
-use super::{
-  expression::{Expression, FunctionBody},
-  types::Type,
-  Node,
-};
-use crate::span::Span;
+use crate::{Expression, FunctionBody, Node, Span, Type};
 
 pub type Statement<'ast> = Node<'ast, StatementKind<'ast>>;
 

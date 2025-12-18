@@ -1,12 +1,6 @@
-pub mod macros;
+mod macros;
 
-use krama_core::{
-  ast::{
-    expression::ExpressionKind,
-    statement::{Statement, StatementKind},
-  },
-  error::Error,
-};
+use krama_core::{Error, ExpressionKind, Statement, StatementKind};
 
 use crate::interpreter::Interpreter;
 

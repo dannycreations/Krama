@@ -1,4 +1,4 @@
-use krama_core::object::Object;
+use krama_core::Object;
 use krama_macro::register_property;
 
 #[register_property(name = "length", types = ["string", "array", "tuple"])]

@@ -3,9 +3,7 @@ resolver = "2"
 members = [
     "crates/krama_cli",
     "crates/krama_core",
-    "crates/krama_lexer",
     "crates/krama_macro",
-    "crates/krama_parser",
     "crates/krama_runtime",
     "crates/krama_std",
 ]
@@ -25,9 +23,7 @@ clap = { version = "4.5.53", features = ["derive"] }
 futures = "0.3.31"
 inventory = "0.3.21"
 krama_core = { path = "crates/krama_core" }
-krama_lexer = { path = "crates/krama_lexer" }
 krama_macro = { path = "crates/krama_macro" }
-krama_parser = { path = "crates/krama_parser" }
 krama_runtime = { path = "crates/krama_runtime" }
 krama_std = { path = "crates/krama_std" }
 once_cell = "1.21.3"

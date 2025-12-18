@@ -1,6 +1,6 @@
 use bumpalo::collections::Vec as BumpVec;
 
-use super::{literal::Literal, Node};
+use crate::{Literal, Node};
 
 pub type Type<'ast> = Node<'ast, TypeKind<'ast>>;
 
