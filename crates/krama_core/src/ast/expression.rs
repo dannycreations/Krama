@@ -77,6 +77,7 @@ pub enum ExpressionKind<'ast> {
     expr: &'ast Expression<'ast>,
     kind: Type<'ast>,
   },
+  Try(&'ast Expression<'ast>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

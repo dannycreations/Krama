@@ -255,6 +255,9 @@ impl<'a> Resolver<'a> {
           self.resolve_expression(value)?;
         }
       }
+      ExpressionKind::Try(expr) => {
+        self.resolve_expression(expr)?;
+      }
     }
     Ok(())
   }

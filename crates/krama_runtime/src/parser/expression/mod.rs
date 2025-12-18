@@ -37,7 +37,7 @@ where
         TokenKind::Dot => self.parse_member_expression(left)?,
         TokenKind::LBracket => self.parse_index_expression(left)?,
         TokenKind::Colon => self.parse_typed_expression(left)?,
-        TokenKind::PlusPlus | TokenKind::MinusMinus => {
+        TokenKind::PlusPlus | TokenKind::MinusMinus | TokenKind::Question => {
           self.parse_postfix_expression(left)?
         }
         _ => self.parse_infix_expression(left)?,
@@ -103,5 +103,45 @@ where
       },
       span,
     ))
+  }
+
+  fn parse_postfix_expression(
+    &mut self,
+    left: Expression<'ast>,
+  ) -> ParseResult<'a, 'ast> {
+    let token = self.current_token.clone();
+    self.advance();
+    match token.kind {
+      TokenKind::PlusPlus => {
+        let span = left.span.merge(&token.span);
+        Ok(Expression::new(
+          ExpressionKind::Update {
+            operator: krama_core::UpdateOperator::Increment,
+            argument: self.arena.alloc(left),
+            prefix: false,
+          },
+          span,
+        ))
+      }
+      TokenKind::MinusMinus => {
+        let span = left.span.merge(&token.span);
+        Ok(Expression::new(
+          ExpressionKind::Update {
+            operator: krama_core::UpdateOperator::Decrement,
+            argument: self.arena.alloc(left),
+            prefix: false,
+          },
+          span,
+        ))
+      }
+      TokenKind::Question => {
+        let span = left.span.merge(&token.span);
+        Ok(Expression::new(
+          ExpressionKind::Try(self.arena.alloc(left)),
+          span,
+        ))
+      }
+      _ => unreachable!(),
+    }
   }
 }

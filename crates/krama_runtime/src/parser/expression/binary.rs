@@ -1,6 +1,6 @@
 use krama_core::{
   AssignmentOperator, BinaryOperator, ErrorKind, Expression, ExpressionKind,
-  TokenKind, UpdateOperator,
+  TokenKind,
 };
 
 use super::{ParseResult, Parser};
@@ -14,32 +14,6 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
-  pub fn parse_postfix_expression(
-    &mut self,
-    argument: Expression<'ast>,
-  ) -> ParseResult<'a, 'ast> {
-    let token = self.current_token.clone();
-    let operator = match token.kind {
-      TokenKind::PlusPlus => UpdateOperator::Increment,
-      TokenKind::MinusMinus => UpdateOperator::Decrement,
-      _ => {
-        return Err(ErrorKind::SyntaxError(
-          "Invalid postfix operator".to_string(),
-        ))
-      }
-    };
-    self.advance();
-
-    Ok(Expression::new(
-      ExpressionKind::Update {
-        operator,
-        argument: self.arena.alloc(argument),
-        prefix: false,
-      },
-      token.span,
-    ))
-  }
-
   pub fn parse_infix_expression(
     &mut self,
     left: Expression<'ast>,

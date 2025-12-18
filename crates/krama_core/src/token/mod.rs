@@ -153,6 +153,7 @@ define_token_enum! {
             Arrow,
             Colon,
             Semicolon,
+            Question,
             Newline,
 
             // Other
@@ -220,6 +221,7 @@ impl<'a> fmt::Display for TokenKind<'a> {
       TokenKind::Arrow => &"=>",
       TokenKind::Colon => &":",
       TokenKind::Semicolon => &";",
+      TokenKind::Question => &"?",
       TokenKind::Newline => &"\n",
       TokenKind::Unknown => &"Unknown",
       TokenKind::Eof => &"Eof",

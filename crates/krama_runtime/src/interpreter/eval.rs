@@ -206,6 +206,23 @@ impl<'ast> Interpreter<'ast> {
           check_type(kind, &value)?;
           Ok(value)
         }
+        ExpressionKind::Try(expr) => {
+          let value = self.eval_expression(expr, None).await?;
+          match value {
+            Object::Ok(v) => Ok((*v).clone()),
+            Object::Err(e) => Err(Error::new(
+              ErrorKind::RuntimeError(format!("{}", e)),
+              span.clone(),
+            )),
+            _ => Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "Expected Result type for ? operator, found {}",
+                value.type_name()
+              )),
+              span.clone(),
+            )),
+          }
+        }
       }
     }
     .boxed_local()

@@ -13,6 +13,7 @@ static PUNCTUATORS: Map<&'static [u8], TokenKind> = phf_map! {
     b"," => TokenKind::Comma,
     b":" => TokenKind::Colon,
     b";" => TokenKind::Semicolon,
+    b"?" => TokenKind::Question,
     b"~" => TokenKind::Tilde,
     b"%" => TokenKind::Percent,
     b"%=" => TokenKind::PercentEqual,

@@ -53,7 +53,9 @@ impl Precedence {
         Precedence::Product
       }
       TokenKind::StarStar => Precedence::Exponent,
-      TokenKind::PlusPlus | TokenKind::MinusMinus => Precedence::Postfix,
+      TokenKind::PlusPlus | TokenKind::MinusMinus | TokenKind::Question => {
+        Precedence::Postfix
+      }
       TokenKind::LParen => Precedence::Call,
       TokenKind::Dot => Precedence::Member,
       TokenKind::LBracket => Precedence::Index,

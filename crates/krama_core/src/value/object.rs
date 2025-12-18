@@ -108,6 +108,10 @@ pub enum Object<'ast> {
   Break,
   #[strum(props(name = "continue"))]
   Continue,
+  #[strum(props(name = "ok"))]
+  Ok(Rc<Object<'ast>>),
+  #[strum(props(name = "err"))]
+  Err(Rc<Object<'ast>>),
 }
 
 impl<'ast> Object<'ast> {
@@ -136,6 +140,8 @@ impl<'ast> From<&Object<'ast>> for bool {
       Object::Tuple { elements } => !elements.is_empty(),
       Object::Object(object) => !object.is_empty(),
       Object::Null | Object::Void => false,
+      Object::Ok(_) => true,
+      Object::Err(_) => false,
       _ => true,
     }
   }
@@ -184,6 +190,8 @@ impl<'ast> Display for Object<'ast> {
       Object::Return(value) => write!(f, "{}", value),
       Object::Break => write!(f, "break"),
       Object::Continue => write!(f, "continue"),
+      Object::Ok(value) => write!(f, "Ok({})", value),
+      Object::Err(error) => write!(f, "Err({})", error),
     }
   }
 }
@@ -209,6 +217,8 @@ impl<'ast> Debug for Object<'ast> {
       Object::Return(value) => f.debug_tuple("Return").field(value).finish(),
       Object::Break => write!(f, "Break"),
       Object::Continue => write!(f, "Continue"),
+      Object::Ok(value) => f.debug_tuple("Ok").field(value).finish(),
+      Object::Err(error) => f.debug_tuple("Err").field(error).finish(),
     }
   }
 }

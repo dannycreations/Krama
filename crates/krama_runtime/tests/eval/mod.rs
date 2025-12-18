@@ -10,4 +10,5 @@ mod match_test;
 mod module_test;
 mod object_test;
 mod operator_test;
+mod result_test;
 mod types_test;
