@@ -63,6 +63,26 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
       }
+      Object::Object(map) => {
+        let key = match index {
+          Object::String(s) => s,
+          _ => {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "object keys must be strings, not {}",
+                index.type_name()
+              )),
+              span,
+            ))
+          }
+        };
+
+        if let Some(value) = map.borrow().get(key) {
+          Ok(value.clone())
+        } else {
+          Ok(Object::Void)
+        }
+      }
       _ => Err(Error::new(
         ErrorKind::TypeError(format!(
           "{} does not support indexing",

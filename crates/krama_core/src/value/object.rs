@@ -1,4 +1,5 @@
 use std::{
+  cell::RefCell,
   fmt::{Debug, Display, Formatter, Result as FmtResult},
   rc::Rc,
 };
@@ -94,7 +95,7 @@ pub enum Object<'ast> {
     elements: &'ast [Object<'ast>],
   },
   #[strum(props(name = "object"))]
-  Object(AHashMap<&'ast str, Object<'ast>>),
+  Object(Rc<RefCell<AHashMap<&'ast str, Object<'ast>>>>),
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]
@@ -138,7 +139,7 @@ impl<'ast> From<&Object<'ast>> for bool {
       Object::String(s) => !s.is_empty(),
       Object::Array { elements, .. } => !elements.is_empty(),
       Object::Tuple { elements } => !elements.is_empty(),
-      Object::Object(object) => !object.is_empty(),
+      Object::Object(object) => !object.borrow().is_empty(),
       Object::Null | Object::Void => false,
       Object::Ok(_) => true,
       Object::Err(_) => false,
@@ -166,7 +167,7 @@ impl<'ast> Display for Object<'ast> {
       }
       Object::Object(object) => {
         write!(f, "{{")?;
-        for (i, (key, value)) in object.iter().enumerate() {
+        for (i, (key, value)) in object.borrow().iter().enumerate() {
           if i > 0 {
             write!(f, ", ")?;
           }
@@ -209,7 +210,9 @@ impl<'ast> Debug for Object<'ast> {
       Object::Tuple { elements } => {
         f.debug_tuple("Tuple").field(elements).finish()
       }
-      Object::Object(object) => f.debug_map().entries(object.iter()).finish(),
+      Object::Object(object) => {
+        f.debug_map().entries(object.borrow().iter()).finish()
+      }
       Object::Null => write!(f, "Null"),
       Object::Void => write!(f, "Void"),
       Object::Scope(scope) => f.debug_tuple("Scope").field(scope).finish(),

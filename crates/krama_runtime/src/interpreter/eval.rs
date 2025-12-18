@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use ahash::AHashMap;
 use bumpalo::collections::Vec as BumpVec;
 use futures::{
@@ -199,7 +201,7 @@ impl<'ast> Interpreter<'ast> {
             let value = self.eval_expression(value, None).await?;
             object.insert(key, value);
           }
-          Ok(Object::Object(object))
+          Ok(Object::Object(Rc::new(RefCell::new(object))))
         }
         ExpressionKind::Typed { expr, kind } => {
           let value = self.eval_expression(expr, Some(kind)).await?;
