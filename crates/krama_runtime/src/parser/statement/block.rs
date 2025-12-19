@@ -10,7 +10,7 @@ where
   pub(in crate::parser) fn parse_block_statement(
     &mut self,
   ) -> Result<BlockStatement<'ast>, ErrorKind> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
     let mut statements = BumpVec::new_in(self.arena);
 
@@ -33,7 +33,7 @@ where
       )));
     }
 
-    let end_span = self.current_token.span.clone();
+    let end_span = self.current_token.span;
     self.advance();
     Ok(BlockStatement {
       statements,

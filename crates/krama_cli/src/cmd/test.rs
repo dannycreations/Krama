@@ -68,7 +68,7 @@ impl Test {
     let path_in_arena = arena.alloc_str(path_str);
     let interpreter = Interpreter::new(&arena, Some(path_in_arena));
 
-    let program = match interpreter.parse_and_resolve(content_in_arena) {
+    let program = match interpreter.parse_and_check(content_in_arena) {
       Ok(program) => program,
       Err(error) => {
         report_error(error);

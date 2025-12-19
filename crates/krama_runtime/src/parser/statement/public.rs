@@ -7,7 +7,7 @@ where
   'ast: 'a,
 {
   pub fn parse_pub_statement(&mut self) -> Result<Statement<'ast>, ErrorKind> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
     match self.current_token.kind {
       TokenKind::Const => self.parse_const_statement(true, start_span),

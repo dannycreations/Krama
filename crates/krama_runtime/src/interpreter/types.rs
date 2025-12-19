@@ -40,7 +40,7 @@ pub fn check_type<'ast>(
               size,
               elements.len()
             )),
-            expected_type.span.clone(),
+            expected_type.span,
           ));
         }
       }
@@ -57,7 +57,7 @@ pub fn check_type<'ast>(
             types.len(),
             elements.len()
           )),
-          expected_type.span.clone(),
+          expected_type.span,
         ));
       }
 
@@ -75,7 +75,7 @@ pub fn check_type<'ast>(
         "Expected type {:?}, but got {:?}",
         expected_type.kind, object
       )),
-      expected_type.span.clone(),
+      expected_type.span,
     ));
   }
 

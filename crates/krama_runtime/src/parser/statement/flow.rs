@@ -9,7 +9,7 @@ where
   pub fn parse_return_statement(
     &mut self,
   ) -> Result<Statement<'ast>, ErrorKind> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
 
     let value = if !matches!(
@@ -35,7 +35,7 @@ where
   pub fn parse_break_statement(
     &mut self,
   ) -> Result<Statement<'ast>, ErrorKind> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
     Ok(Statement::new(StatementKind::Break, start_span))
   }
@@ -43,7 +43,7 @@ where
   pub fn parse_continue_statement(
     &mut self,
   ) -> Result<Statement<'ast>, ErrorKind> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
     Ok(Statement::new(StatementKind::Continue, start_span))
   }

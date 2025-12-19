@@ -70,7 +70,7 @@ where
     while self.current_token.kind != TokenKind::Eof {
       let statement = self
         .parse_statement()
-        .map_err(|kind| Error::new(kind, self.current_token.span.clone()))?;
+        .map_err(|kind| Error::new(kind, self.current_token.span))?;
       statements.push(statement);
     }
     Ok(Program { statements })

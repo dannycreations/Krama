@@ -28,11 +28,11 @@ impl<'ast> Interpreter<'ast> {
       match &expression.kind {
         ExpressionKind::Literal(literal) => self.eval_literal(*literal),
         ExpressionKind::Identifier(name) => {
-          self.eval_identifier(expression, name, span.clone()).await
+          self.eval_identifier(expression, name, *span).await
         }
         ExpressionKind::Unary { operator, right } => {
           let right = self.eval_expression(right, None).await?;
-          self.eval_unary_expression(*operator, right, span.clone())
+          self.eval_unary_expression(*operator, right, *span)
         }
         ExpressionKind::Binary {
           left,
@@ -60,7 +60,7 @@ impl<'ast> Interpreter<'ast> {
             self.eval_expression(right, None)
           )?;
 
-          self.eval_binary_expression(*operator, left, right, span.clone())
+          self.eval_binary_expression(*operator, left, right, *span)
         }
         ExpressionKind::Assignment {
           left,
@@ -68,7 +68,7 @@ impl<'ast> Interpreter<'ast> {
           right,
         } => {
           self
-            .eval_assignment_expression(left, *operator, right, span.clone())
+            .eval_assignment_expression(left, *operator, right, *span)
             .await
         }
         ExpressionKind::Update {
@@ -77,11 +77,11 @@ impl<'ast> Interpreter<'ast> {
           prefix,
         } => {
           self
-            .eval_update_expression(*operator, argument, *prefix, span.clone())
+            .eval_update_expression(*operator, argument, *prefix, *span)
             .await
         }
         ExpressionKind::Import { path, .. } => {
-          self.eval_import(path, span.clone()).await
+          self.eval_import(path, *span).await
         }
         ExpressionKind::Call {
           function,
@@ -100,7 +100,7 @@ impl<'ast> Interpreter<'ast> {
           let args_slice = evaluated_args.into_bump_slice();
 
           self
-            .eval_call_expression(function_obj, args_slice, span.clone())
+            .eval_call_expression(function_obj, args_slice, *span)
             .await
         }
         ExpressionKind::If {
@@ -113,9 +113,7 @@ impl<'ast> Interpreter<'ast> {
             .await
         }
         ExpressionKind::Match { subject, arms } => {
-          self
-            .eval_match_expression(subject, arms, span.clone())
-            .await
+          self.eval_match_expression(subject, arms, *span).await
         }
         ExpressionKind::Block(block) => {
           self.eval_block_statement_with_new_scope(block).await
@@ -134,9 +132,7 @@ impl<'ast> Interpreter<'ast> {
         }
         ExpressionKind::Member { object, property } => {
           let object = self.eval_expression(object, None).await?;
-          self
-            .eval_member_expression(object, property, span.clone())
-            .await
+          self.eval_member_expression(object, property, *span).await
         }
         ExpressionKind::Index { object, index } => {
           let (object, index) = try_join!(
@@ -144,9 +140,7 @@ impl<'ast> Interpreter<'ast> {
             self.eval_expression(index, None)
           )?;
 
-          self
-            .eval_index_expression(object, index, span.clone())
-            .await
+          self.eval_index_expression(object, index, *span).await
         }
         ExpressionKind::Collection { elements } => {
           let mut element_kind = None;
@@ -194,7 +188,7 @@ impl<'ast> Interpreter<'ast> {
               _ => {
                 return Err(Error::new(
                   ErrorKind::TypeError("Expected string key".to_string()),
-                  key.span.clone(),
+                  key.span,
                 ))
               }
             };
@@ -213,16 +207,15 @@ impl<'ast> Interpreter<'ast> {
           let value = self.eval_expression(expr, None).await?;
           match value {
             Object::Ok(v) => Ok((*v).clone()),
-            Object::Err(e) => Err(Error::new(
-              ErrorKind::RuntimeError(format!("{}", e)),
-              span.clone(),
-            )),
+            Object::Err(e) => {
+              Err(Error::new(ErrorKind::RuntimeError(format!("{}", e)), *span))
+            }
             _ => Err(Error::new(
               ErrorKind::TypeError(format!(
                 "Expected Result type for ? operator, found {}",
                 value.type_name()
               )),
-              span.clone(),
+              *span,
             )),
           }
         }

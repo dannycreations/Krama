@@ -15,7 +15,7 @@ where
     let mut properties = BumpVec::new_in(self.arena);
 
     if self.current_token.kind == TokenKind::RBrace {
-      let end_span = self.current_token.span.clone();
+      let end_span = self.current_token.span;
       self.advance();
       return Ok(Expression::new(
         ExpressionKind::Object { properties },
@@ -26,7 +26,7 @@ where
     loop {
       let key = match self.current_token.kind {
         TokenKind::Identifier(_) => {
-          let key_span = self.current_token.span.clone();
+          let key_span = self.current_token.span;
           let key_ident = self.parse_identifier()?;
           Expression::new(
             ExpressionKind::Literal(Literal::String(key_ident)),

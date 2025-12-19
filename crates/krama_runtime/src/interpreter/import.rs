@@ -41,7 +41,7 @@ impl<'ast> Interpreter<'ast> {
       Err(e) if e.kind() != io::ErrorKind::NotFound => {
         return Err(Error::new(
           ErrorKind::ReferenceError(e.to_string()),
-          span.clone(),
+          *span,
         ));
       }
       _ => {}
@@ -53,7 +53,7 @@ impl<'ast> Interpreter<'ast> {
       Err(e) if e.kind() != io::ErrorKind::NotFound => {
         return Err(Error::new(
           ErrorKind::ReferenceError(e.to_string()),
-          span.clone(),
+          *span,
         ));
       }
       _ => {}
@@ -64,7 +64,7 @@ impl<'ast> Interpreter<'ast> {
         "Failed to find module file: {}",
         path
       )),
-      span.clone(),
+      *span,
     ))
   }
 
@@ -75,7 +75,7 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Object<'ast>, Error<'ast>> {
     let module_name = self.arena.alloc_str(path.strip_prefix("std:").unwrap());
 
-    if let Some(module) = self.loaded_modules.borrow().get(module_name) {
+    if let Some(module) = self.modules.borrow().get(module_name) {
       return Ok(module.clone());
     }
 
@@ -95,7 +95,7 @@ impl<'ast> Interpreter<'ast> {
         };
         let object = Object::Scope(self.arena.alloc(module));
         self
-          .loaded_modules
+          .modules
           .borrow_mut()
           .insert(module_name, object.clone());
         object
@@ -120,12 +120,12 @@ impl<'ast> Interpreter<'ast> {
     let resolved_path_str = resolved_path.to_str().ok_or_else(|| {
       Error::new(
         ErrorKind::RuntimeError("Invalid path encoding".to_string()),
-        span.clone(),
+        span,
       )
     })?;
     let resolved_path_key = self.alloc_str(resolved_path_str);
 
-    if let Some(module) = self.loaded_modules.borrow().get(resolved_path_key) {
+    if let Some(module) = self.modules.borrow().get(resolved_path_key) {
       return Ok(module.clone());
     }
 
@@ -147,7 +147,7 @@ impl<'ast> Interpreter<'ast> {
     }));
 
     self
-      .loaded_modules
+      .modules
       .borrow_mut()
       .insert(resolved_path_key, module.clone());
 

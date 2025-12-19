@@ -33,7 +33,7 @@ where
   }
 
   fn parse_tuple_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.consume(TokenKind::LBracket)?;
 
     let mut types = BumpVec::new_in(self.arena);
@@ -64,7 +64,7 @@ where
     &mut self,
     element_type: Type<'ast>,
   ) -> Result<Type<'ast>, ErrorKind> {
-    let span = element_type.span.clone();
+    let span = element_type.span;
     self.consume(TokenKind::LBracket)?;
 
     let size = if self.current_token.kind == TokenKind::RBracket {
@@ -96,7 +96,7 @@ where
 
   fn parse_base_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
     let token = self.current_token.clone();
-    let span = token.span.clone();
+    let span = token.span;
     let kind = match token.kind {
       TokenKind::I8 => TypeKind::I8,
       TokenKind::I16 => TypeKind::I16,

@@ -11,7 +11,7 @@ where
   'ast: 'a,
 {
   pub fn parse_fn_expression(&mut self) -> ParseResult<'a, 'ast> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.consume(TokenKind::Fn)?;
     self.consume(TokenKind::LParen)?;
 
@@ -39,7 +39,7 @@ where
     }
 
     loop {
-      let param_span_start = self.current_token.span.clone();
+      let param_span_start = self.current_token.span;
       let name = if let TokenKind::Identifier(name) = self.current_token.kind {
         self.arena.alloc_str(name)
       } else {

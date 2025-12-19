@@ -11,7 +11,7 @@ where
   'ast: 'a,
 {
   pub fn parse_if_expression(&mut self) -> ParseResult<'a, 'ast> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
 
     self.consume(TokenKind::LParen)?;
@@ -21,12 +21,12 @@ where
     self.consume(TokenKind::RParen)?;
 
     let then_branch = self.arena.alloc(self.parse_block_statement()?);
-    let then_span = then_branch.span.clone();
+    let then_span = then_branch.span;
 
     let else_branch = if self.current_token.kind == TokenKind::Else {
       self.advance();
       let else_block = self.arena.alloc(self.parse_block_statement()?);
-      let else_span = else_block.span.clone();
+      let else_span = else_block.span;
       Some(&*self.arena.alloc(Expression::new(
         ExpressionKind::Block(else_block),
         else_span,
@@ -51,7 +51,7 @@ where
   }
 
   pub fn parse_match_expression(&mut self) -> ParseResult<'a, 'ast> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
 
     self.consume(TokenKind::LParen)?;

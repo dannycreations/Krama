@@ -7,7 +7,7 @@ where
   'ast: 'a,
 {
   pub fn parse_test_statement(&mut self) -> Result<Statement<'ast>, ErrorKind> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
     let name = self.parse_expression(Precedence::Lowest)?;
     let body = self.parse_block_statement()?;

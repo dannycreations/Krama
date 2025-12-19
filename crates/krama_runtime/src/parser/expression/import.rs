@@ -7,7 +7,7 @@ where
   'ast: 'a,
 {
   pub fn parse_import_expression(&mut self) -> ParseResult<'a, 'ast> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
 
     if self.current_token.kind != TokenKind::LParen {

@@ -22,15 +22,9 @@ impl<'ast> Interpreter<'ast> {
         let final_val = if operator == AssignmentOperator::Assign {
           right_val
         } else {
-          let left_val =
-            self.eval_identifier(left, ident, span.clone()).await?;
+          let left_val = self.eval_identifier(left, ident, span).await?;
           let binary_op = self.assignment_to_binary_op(operator);
-          self.eval_binary_expression(
-            binary_op,
-            left_val,
-            right_val,
-            span.clone(),
-          )?
+          self.eval_binary_expression(binary_op, left_val, right_val, span)?
         };
 
         if let Some(distance) = distance {
@@ -64,12 +58,8 @@ impl<'ast> Interpreter<'ast> {
                 .cloned()
                 .unwrap_or(Object::Void);
               let binary_op = self.assignment_to_binary_op(operator);
-              self.eval_binary_expression(
-                binary_op,
-                left_val,
-                right_val,
-                span.clone(),
-              )?
+              self
+                .eval_binary_expression(binary_op, left_val, right_val, span)?
             };
 
             map.write().await.insert(property_name, final_val.clone());
@@ -110,12 +100,8 @@ impl<'ast> Interpreter<'ast> {
               let left_val =
                 map.read().await.get(key).cloned().unwrap_or(Object::Void);
               let binary_op = self.assignment_to_binary_op(operator);
-              self.eval_binary_expression(
-                binary_op,
-                left_val,
-                right_val,
-                span.clone(),
-              )?
+              self
+                .eval_binary_expression(binary_op, left_val, right_val, span)?
             };
 
             map.write().await.insert(key, final_val.clone());
@@ -167,10 +153,9 @@ impl<'ast> Interpreter<'ast> {
       ExpressionKind::Identifier(ident) => {
         let distance = self.get_resolved_distance(argument);
         let original_value =
-          self.eval_identifier(argument, ident, span.clone()).await?;
+          self.eval_identifier(argument, ident, span).await?;
 
-        let new_value =
-          self.apply_update(operator, &original_value, span.clone())?;
+        let new_value = self.apply_update(operator, &original_value, span)?;
 
         if let Some(distance) = distance {
           self.assign_at(distance, ident, new_value.clone());
@@ -201,7 +186,7 @@ impl<'ast> Interpreter<'ast> {
               .cloned()
               .unwrap_or(Object::Void);
             let new_value =
-              self.apply_update(operator, &original_value, span.clone())?;
+              self.apply_update(operator, &original_value, span)?;
             map.write().await.insert(property_name, new_value.clone());
             Ok(if prefix { new_value } else { original_value })
           }
@@ -236,7 +221,7 @@ impl<'ast> Interpreter<'ast> {
             let original_value =
               map.read().await.get(key).cloned().unwrap_or(Object::Void);
             let new_value =
-              self.apply_update(operator, &original_value, span.clone())?;
+              self.apply_update(operator, &original_value, span)?;
             map.write().await.insert(key, new_value.clone());
             Ok(if prefix { new_value } else { original_value })
           }

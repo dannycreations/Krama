@@ -1,3 +1,3 @@
-mod resolver;
+mod checker;
 
-pub use resolver::*;
+pub use checker::*;

@@ -30,7 +30,7 @@ where
       TokenKind::For => self.parse_for_statement(),
       _ => {
         let expression = self.parse_expression(Precedence::Lowest)?;
-        let span = expression.span.clone();
+        let span = expression.span;
         let statement_kind = StatementKind::Expression {
           expression: self.arena.alloc(expression),
         };

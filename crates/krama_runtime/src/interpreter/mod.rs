@@ -16,12 +16,12 @@ use krama_core::{
   Error, ErrorKind, Expression, Object, Program, Span, Statement,
 };
 
-use crate::{Environment, Lexer, Parser, Resolver};
+use crate::{Checker, Environment, Lexer, Parser};
 
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
   pub environment: &'ast RefCell<Environment<'ast>>,
-  pub loaded_modules: &'ast RefCell<AHashMap<&'ast str, Object<'ast>>>,
+  pub modules: &'ast RefCell<AHashMap<&'ast str, Object<'ast>>>,
   pub arena: &'ast Bump,
   pub path: Option<&'ast str>,
   locals: RefCell<AHashMap<Span<'ast>, usize>>,
@@ -33,7 +33,7 @@ impl<'ast> Interpreter<'ast> {
 
     Self {
       environment: arena.alloc(RefCell::new(env)),
-      loaded_modules: arena.alloc(RefCell::new(AHashMap::default())),
+      modules: arena.alloc(RefCell::new(AHashMap::default())),
       arena,
       path,
       locals: RefCell::new(AHashMap::default()),
@@ -45,7 +45,7 @@ impl<'ast> Interpreter<'ast> {
       environment: self
         .arena
         .alloc(RefCell::new(Environment::new_enclosed(self.environment))),
-      loaded_modules: self.loaded_modules,
+      modules: self.modules,
       arena: self.arena,
       path: self.path,
       locals: self.locals.clone(),
@@ -80,7 +80,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   pub fn check(&self, source: &'ast str) -> Result<(), Error<'ast>> {
-    self.parse_and_resolve(source)?;
+    self.parse_and_check(source)?;
     Ok(())
   }
 
@@ -88,19 +88,19 @@ impl<'ast> Interpreter<'ast> {
     &self,
     source: &'ast str,
   ) -> Result<Object<'ast>, Error<'ast>> {
-    let program = self.parse_and_resolve(source)?;
+    let program = self.parse_and_check(source)?;
     self.eval_program_statements(&program.statements).await
   }
 
-  pub fn parse_and_resolve(
+  pub fn parse_and_check(
     &self,
     source: &'ast str,
   ) -> Result<Program<'ast>, Error<'ast>> {
     let lexer = Lexer::new(source, self.path);
     let mut parser = Parser::new(lexer, self.arena);
     let program = parser.parse()?;
-    let mut resolver = Resolver::new();
-    let locals = resolver.resolve(&program)?;
+    let mut checker = Checker::new();
+    let locals = checker.check(&program)?;
     *self.locals.borrow_mut() = locals;
     Ok(program)
   }

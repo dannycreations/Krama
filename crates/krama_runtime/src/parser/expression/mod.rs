@@ -75,7 +75,7 @@ where
         }
 
         let block = self.arena.alloc(self.parse_block_statement()?);
-        let span = block.span.clone();
+        let span = block.span;
         Ok(Expression::new(ExpressionKind::Block(block), span))
       }
       TokenKind::Import => self.parse_import_expression(),

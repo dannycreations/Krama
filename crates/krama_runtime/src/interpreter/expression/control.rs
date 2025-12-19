@@ -33,9 +33,7 @@ impl<'ast> Interpreter<'ast> {
 
     for arm in arms {
       for pattern in &arm.patterns {
-        let matched = self
-          .eval_match_pattern(&subject, pattern, span.clone())
-          .await?;
+        let matched = self.eval_match_pattern(&subject, pattern, span).await?;
         if matched {
           return match &arm.body {
             FunctionBody::Block(block) => {

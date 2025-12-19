@@ -10,7 +10,7 @@ where
   'ast: 'a,
 {
   pub fn parse_paren_expression(&mut self) -> ParseResult<'a, 'ast> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.consume(TokenKind::LParen)?;
 
     if self.current_token.kind == TokenKind::RParen {

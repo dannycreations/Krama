@@ -9,7 +9,7 @@ where
   pub fn parse_while_statement(
     &mut self,
   ) -> Result<Statement<'ast>, ErrorKind> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
 
     self.consume(TokenKind::LParen)?;
@@ -29,7 +29,7 @@ where
   }
 
   pub fn parse_for_statement(&mut self) -> Result<Statement<'ast>, ErrorKind> {
-    let start_span = self.current_token.span.clone();
+    let start_span = self.current_token.span;
     self.advance();
 
     self.consume(TokenKind::LParen)?;

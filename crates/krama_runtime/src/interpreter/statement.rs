@@ -17,7 +17,7 @@ impl<'ast> Interpreter<'ast> {
     'ast: 's,
   {
     async move {
-      let span = statement.span.clone();
+      let span = statement.span;
       match &statement.kind {
         StatementKind::Expression { expression } => {
           self.eval_expression(expression, None).await
@@ -56,11 +56,7 @@ impl<'ast> Interpreter<'ast> {
                 for item in items.iter() {
                   if let Some(export) = scope.get_binding(item.name) {
                     let name = item.alias.unwrap_or(item.name);
-                    self.env_mut(span.clone())?.set(
-                      name,
-                      export.clone(),
-                      *public,
-                    );
+                    self.env_mut(span)?.set(name, export.clone(), *public);
                   } else {
                     return Err(Error::new(
                       ErrorKind::ReferenceError(format!(
@@ -83,17 +79,11 @@ impl<'ast> Interpreter<'ast> {
             }
             Binding::ModuleAndDestructure { alias, items } => {
               if let Object::Scope(scope) = &value {
-                self
-                  .env_mut(span.clone())?
-                  .set(alias, value.clone(), *public);
+                self.env_mut(span)?.set(alias, value.clone(), *public);
                 for item in items.iter() {
                   if let Some(export) = scope.get_binding(item.name) {
                     let name = item.alias.unwrap_or(item.name);
-                    self.env_mut(span.clone())?.set(
-                      name,
-                      export.clone(),
-                      *public,
-                    );
+                    self.env_mut(span)?.set(name, export.clone(), *public);
                   } else {
                     return Err(Error::new(
                       ErrorKind::ReferenceError(format!(
