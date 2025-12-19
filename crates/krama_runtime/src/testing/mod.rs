@@ -2,7 +2,7 @@ mod macros;
 
 use krama_core::{Error, ExpressionKind, Statement, StatementKind};
 
-use crate::interpreter::Interpreter;
+use crate::Interpreter;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TestResult<'ast> {

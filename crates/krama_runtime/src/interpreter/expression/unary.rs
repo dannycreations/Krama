@@ -1,6 +1,6 @@
 use krama_core::{Error, ErrorKind, Object, Span, UnaryOperator};
 
-use crate::interpreter::Interpreter;
+use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub fn eval_unary_expression(

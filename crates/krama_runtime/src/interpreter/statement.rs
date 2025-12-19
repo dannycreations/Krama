@@ -54,7 +54,7 @@ impl<'ast> Interpreter<'ast> {
             Binding::Destructure(items) => {
               if let Object::Scope(scope) = &value {
                 for item in items.iter() {
-                  if let Some(export) = scope.bindings.get(item.name) {
+                  if let Some(export) = scope.get_binding(item.name) {
                     let name = item.alias.unwrap_or(item.name);
                     self.env_mut(span.clone())?.set(
                       name,
@@ -87,7 +87,7 @@ impl<'ast> Interpreter<'ast> {
                   .env_mut(span.clone())?
                   .set(alias, value.clone(), *public);
                 for item in items.iter() {
-                  if let Some(export) = scope.bindings.get(item.name) {
+                  if let Some(export) = scope.get_binding(item.name) {
                     let name = item.alias.unwrap_or(item.name);
                     self.env_mut(span.clone())?.set(
                       name,

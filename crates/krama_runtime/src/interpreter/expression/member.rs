@@ -1,6 +1,6 @@
 use krama_core::{Error, ErrorKind, Expression, ExpressionKind, Object, Span};
 
-use crate::interpreter::Interpreter;
+use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub async fn eval_member_expression(
@@ -27,19 +27,21 @@ impl<'ast> Interpreter<'ast> {
       }
     }
 
-    if let Object::Object(map) = &object {
-      let map = map.read().await;
-      if let Some(value) = map.get(property_name) {
-        return Ok(value.clone());
-      }
-    }
-
-    if let Object::Scope(scope) = object {
-      if scope.name.is_some() {
-        if let Some(export) = scope.bindings.get(property_name) {
-          return Ok(export.clone());
+    match object {
+      Object::Object(map) => {
+        let map = map.read().await;
+        if let Some(value) = map.get(property_name) {
+          return Ok(value.clone());
         }
       }
+      Object::Scope(scope) => {
+        if scope.name.is_some() {
+          if let Some(export) = scope.get_binding(property_name) {
+            return Ok(export.clone());
+          }
+        }
+      }
+      _ => {}
     }
 
     Err(Error::new(

@@ -1,7 +1,7 @@
 use bumpalo::collections::{String as BumpString, Vec as BumpVec};
 use krama_core::{BinaryOperator, Error, ErrorKind, Object, Span};
 
-use crate::interpreter::Interpreter;
+use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub fn eval_binary_expression(
@@ -39,15 +39,13 @@ impl<'ast> Interpreter<'ast> {
             elements: elements.into_bump_slice(),
           })
         }
-        BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => {
-          Err(Error::new(
-            ErrorKind::TypeError(format!(
-              "Unsupported operator for integers: {:?}",
-              operator
-            )),
-            span,
-          ))
-        }
+        _ => Err(Error::new(
+          ErrorKind::TypeError(format!(
+            "Unsupported operator for integers: {:?}",
+            operator
+          )),
+          span,
+        )),
       },
       (Object::Float(l), Object::Float(r)) => {
         self.eval_float_op(operator, l, r, span)

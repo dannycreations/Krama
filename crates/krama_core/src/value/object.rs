@@ -139,11 +139,11 @@ impl<'ast> PartialEq for Object<'ast> {
       (Self::Void, Self::Void) => true,
       (Self::Scope(l), Self::Scope(r)) => std::ptr::eq(*l, *r),
       (Self::Function(l), Self::Function(r)) => l == r,
-      (Self::Return(l), Self::Return(r)) => l == r,
+      (Self::Return(l), Self::Return(r)) => Arc::ptr_eq(l, r),
       (Self::Break, Self::Break) => true,
       (Self::Continue, Self::Continue) => true,
-      (Self::Ok(l), Self::Ok(r)) => l == r,
-      (Self::Err(l), Self::Err(r)) => l == r,
+      (Self::Ok(l), Self::Ok(r)) => Arc::ptr_eq(l, r),
+      (Self::Err(l), Self::Err(r)) => Arc::ptr_eq(l, r),
       _ => false,
     }
   }

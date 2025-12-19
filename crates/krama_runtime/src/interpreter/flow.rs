@@ -2,7 +2,7 @@ use krama_core::{
   Error, ErrorKind, ExpressionKind, MatchPattern, Object, Span,
 };
 
-use crate::interpreter::Interpreter;
+use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub async fn eval_match_pattern<'s>(
@@ -17,17 +17,19 @@ impl<'ast> Interpreter<'ast> {
     match (pattern, subject) {
       (MatchPattern::Expression(expression), _) => {
         if let ExpressionKind::Literal(literal) = expression.kind {
-          let pattern = self.eval_literal(literal)?;
-          Ok(pattern == *subject)
+          let pattern_val = self.eval_literal(literal)?;
+          Ok(pattern_val == *subject)
         } else {
-          let pattern = self.eval_expression(expression, None).await?;
-          Ok(pattern == *subject)
+          let pattern_val = self.eval_expression(expression, None).await?;
+          Ok(pattern_val == *subject)
         }
       }
       (MatchPattern::Range(start, end), Object::Integer(i)) => {
-        let start = self.eval_expression(start, None).await?;
-        let end = self.eval_expression(end, None).await?;
-        if let (Object::Integer(start), Object::Integer(end)) = (start, end) {
+        let start_val = self.eval_expression(start, None).await?;
+        let end_val = self.eval_expression(end, None).await?;
+        if let (Object::Integer(start), Object::Integer(end)) =
+          (start_val, end_val)
+        {
           Ok(*i >= start && *i <= end)
         } else {
           Err(Error::new(

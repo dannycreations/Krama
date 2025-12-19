@@ -2,7 +2,7 @@ use krama_core::{
   Error, Expression, FunctionBody, MatchArm, Object, Span, Type,
 };
 
-use crate::interpreter::Interpreter;
+use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub async fn eval_if_expression(

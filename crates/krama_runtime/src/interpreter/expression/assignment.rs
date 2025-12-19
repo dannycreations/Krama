@@ -3,7 +3,7 @@ use krama_core::{
   ExpressionKind, Object, Span, UpdateOperator,
 };
 
-use crate::interpreter::Interpreter;
+use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub async fn eval_assignment_expression(
