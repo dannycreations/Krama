@@ -36,7 +36,6 @@ impl<'ast> Interpreter<'ast> {
 
     let path_buf = base_path.join(path).clean();
 
-    // Try reading path_buf directly
     match fs::read_to_string(&path_buf).await {
       Ok(content) => return Ok((path_buf, content)),
       Err(e) if e.kind() != io::ErrorKind::NotFound => {
@@ -48,7 +47,6 @@ impl<'ast> Interpreter<'ast> {
       _ => {}
     }
 
-    // Try reading path_buf with .km extension
     let path_with_ext = path_buf.with_extension("km");
     match fs::read_to_string(&path_with_ext).await {
       Ok(content) => return Ok((path_with_ext, content)),

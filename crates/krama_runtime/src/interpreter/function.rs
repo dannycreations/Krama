@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use krama_core::{
   Error, ErrorKind, Function, FunctionBody, Object, Span, UserFunction,
@@ -89,7 +89,7 @@ impl<'ast> Interpreter<'ast> {
     }?;
 
     if let Object::Return(value) = result {
-      let object = Rc::unwrap_or_clone(value);
+      let object = Arc::unwrap_or_clone(value);
       Ok(object)
     } else {
       Ok(result)

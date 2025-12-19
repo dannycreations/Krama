@@ -21,21 +21,27 @@ impl<'a> Lexer<'a> {
     }
   }
 
+  #[inline(always)]
   pub fn source_len(&self) -> usize {
     self.source.len()
   }
 
+  #[inline(always)]
   pub fn peek_byte(&self) -> Option<u8> {
     self.source.get(self.position).copied()
   }
 
+  #[inline(always)]
   pub fn peek_byte_nth(&self, n: usize) -> Option<u8> {
     self.source.get(self.position + n).copied()
   }
 
+  #[inline(always)]
   pub fn advance_byte(&mut self) -> Option<u8> {
     let byte = self.source.get(self.position).copied();
-    self.position += 1;
+    if byte.is_some() {
+      self.position += 1;
+    }
     byte
   }
 
@@ -48,38 +54,39 @@ impl<'a> Lexer<'a> {
     )
   }
 
+  #[inline(always)]
   pub fn slice(&self, start: usize, end: usize) -> &'a str {
-    std::str::from_utf8(&self.source[start..end]).unwrap()
+    // SAFETY: Input source is guaranteed to be valid UTF-8 str
+    unsafe { std::str::from_utf8_unchecked(&self.source[start..end]) }
   }
 
   fn skip_trivia(&mut self) {
-    loop {
-      match (self.peek_byte(), self.peek_byte_nth(1)) {
-        (Some(c), _) if c.is_ascii_whitespace() => {
-          self.advance_byte();
+    while let Some(c) = self.peek_byte() {
+      match c {
+        b' ' | b'\r' | b'\t' | b'\n' => {
+          self.position += 1;
         }
-        (Some(b'/'), Some(b'/')) => {
-          // Single-line comment
-          self.advance_byte();
-          self.advance_byte();
-          while let Some(byte) = self.peek_byte() {
-            if byte == b'\n' {
-              break;
-            }
-            self.advance_byte();
-          }
-        }
-        (Some(b'/'), Some(b'*')) => {
-          // Multi-line comment
-          self.advance_byte();
-          self.advance_byte();
-          while let Some(byte) = self.advance_byte() {
-            if byte == b'*' && self.peek_byte() == Some(b'/') {
-              self.advance_byte();
-              break;
+        b'/' => match self.peek_byte_nth(1) {
+          Some(b'/') => {
+            self.position += 2;
+            while let Some(byte) = self.peek_byte() {
+              if byte == b'\n' {
+                break;
+              }
+              self.position += 1;
             }
           }
-        }
+          Some(b'*') => {
+            self.position += 2;
+            while let Some(byte) = self.advance_byte() {
+              if byte == b'*' && self.peek_byte() == Some(b'/') {
+                self.position += 1;
+                break;
+              }
+            }
+          }
+          _ => break,
+        },
         _ => break,
       }
     }
@@ -93,21 +100,19 @@ impl<'a> Iterator for Lexer<'a> {
     self.skip_trivia();
 
     let start = self.position;
-    if self.position >= self.source.len() {
-      return None;
-    }
+    let byte = self.peek_byte()?;
 
-    let token = match self.peek_byte().unwrap() {
+    let token = match byte {
       b'"' => {
-        self.advance_byte();
+        self.position += 1;
         self.string(start)
       }
-      c if c.is_ascii_digit() => {
-        self.advance_byte();
+      b'0'..=b'9' => {
+        self.position += 1;
         self.number(start)
       }
-      c if c.is_ascii_alphabetic() || c == b'_' => {
-        self.advance_byte();
+      b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
+        self.position += 1;
         self.identifier(start)
       }
       _ => self.punctuator(start),

@@ -77,7 +77,8 @@ impl<'ast> Interpreter<'ast> {
           }
         };
 
-        if let Some(value) = map.borrow().get(key) {
+        let map = map.read().await;
+        if let Some(value) = map.get(key) {
           Ok(value.clone())
         } else {
           Ok(Object::Void)

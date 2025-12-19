@@ -58,7 +58,8 @@ impl<'ast> Interpreter<'ast> {
               right_val
             } else {
               let left_val = map
-                .borrow()
+                .read()
+                .await
                 .get(property_name)
                 .cloned()
                 .unwrap_or(Object::Void);
@@ -71,7 +72,7 @@ impl<'ast> Interpreter<'ast> {
               )?
             };
 
-            map.borrow_mut().insert(property_name, final_val.clone());
+            map.write().await.insert(property_name, final_val.clone());
             Ok(final_val)
           }
           _ => Err(Error::new(
@@ -107,7 +108,7 @@ impl<'ast> Interpreter<'ast> {
               right_val
             } else {
               let left_val =
-                map.borrow().get(key).cloned().unwrap_or(Object::Void);
+                map.read().await.get(key).cloned().unwrap_or(Object::Void);
               let binary_op = self.assignment_to_binary_op(operator);
               self.eval_binary_expression(
                 binary_op,
@@ -117,7 +118,7 @@ impl<'ast> Interpreter<'ast> {
               )?
             };
 
-            map.borrow_mut().insert(key, final_val.clone());
+            map.write().await.insert(key, final_val.clone());
             Ok(final_val)
           }
           _ => Err(Error::new(
@@ -194,13 +195,14 @@ impl<'ast> Interpreter<'ast> {
         match obj_val {
           Object::Object(map) => {
             let original_value = map
-              .borrow()
+              .read()
+              .await
               .get(property_name)
               .cloned()
               .unwrap_or(Object::Void);
             let new_value =
               self.apply_update(operator, &original_value, span.clone())?;
-            map.borrow_mut().insert(property_name, new_value.clone());
+            map.write().await.insert(property_name, new_value.clone());
             Ok(if prefix { new_value } else { original_value })
           }
           _ => Err(Error::new(
@@ -232,10 +234,10 @@ impl<'ast> Interpreter<'ast> {
             };
 
             let original_value =
-              map.borrow().get(key).cloned().unwrap_or(Object::Void);
+              map.read().await.get(key).cloned().unwrap_or(Object::Void);
             let new_value =
               self.apply_update(operator, &original_value, span.clone())?;
-            map.borrow_mut().insert(key, new_value.clone());
+            map.write().await.insert(key, new_value.clone());
             Ok(if prefix { new_value } else { original_value })
           }
           _ => Err(Error::new(

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
@@ -138,7 +138,8 @@ impl<'ast> Interpreter<'ast> {
             Some(expression) => self.eval_expression(expression, None).await?,
             None => Object::Void,
           };
-          Ok(Object::Return(Rc::new(value)))
+          #[allow(clippy::arc_with_non_send_sync)]
+          Ok(Object::Return(Arc::new(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::sync::Arc;
 
 use ahash::AHashMap;
 use bumpalo::collections::Vec as BumpVec;
@@ -10,6 +10,7 @@ use krama_core::{
   BinaryOperator, Error, ErrorKind, Expression, ExpressionKind, Function,
   Object, Type, TypeKind, UserFunction,
 };
+use tokio::sync::RwLock;
 
 use super::{types::check_type, Interpreter};
 
@@ -190,7 +191,6 @@ impl<'ast> Interpreter<'ast> {
           for (key, value) in properties {
             let key = match self.eval_expression(key, None).await? {
               Object::String(s) => s,
-              // For now, we only support string keys
               _ => {
                 return Err(Error::new(
                   ErrorKind::TypeError("Expected string key".to_string()),
@@ -201,7 +201,8 @@ impl<'ast> Interpreter<'ast> {
             let value = self.eval_expression(value, None).await?;
             object.insert(key, value);
           }
-          Ok(Object::Object(Rc::new(RefCell::new(object))))
+          #[allow(clippy::arc_with_non_send_sync)]
+          Ok(Object::Object(Arc::new(RwLock::new(object))))
         }
         ExpressionKind::Typed { expr, kind } => {
           let value = self.eval_expression(expr, Some(kind)).await?;

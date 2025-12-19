@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use bumpalo::Bump;
 use krama_core::{ErrorKind, Object};
@@ -14,7 +14,8 @@ pub async fn ok_constructor<'ast>(
       "Expected 1 argument for Ok".to_string(),
     ));
   }
-  Ok(Object::Ok(Rc::new(objects[0].clone())))
+  #[allow(clippy::arc_with_non_send_sync)]
+  Ok(Object::Ok(Arc::new(objects[0].clone())))
 }
 
 #[register_global("Err")]
@@ -27,5 +28,6 @@ pub async fn err_constructor<'ast>(
       "Expected 1 argument for Err".to_string(),
     ));
   }
-  Ok(Object::Err(Rc::new(objects[0].clone())))
+  #[allow(clippy::arc_with_non_send_sync)]
+  Ok(Object::Err(Arc::new(objects[0].clone())))
 }

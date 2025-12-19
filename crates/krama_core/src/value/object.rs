@@ -1,7 +1,6 @@
 use std::{
-  cell::RefCell,
   fmt::{Debug, Display, Formatter, Result as FmtResult},
-  rc::Rc,
+  sync::Arc,
 };
 
 use ahash::AHashMap;
@@ -9,6 +8,7 @@ use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
 use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
+use tokio::sync::RwLock;
 
 use crate::{ErrorKind, FunctionBody, Parameter, Scope, Type};
 
@@ -75,7 +75,7 @@ impl<'ast> Debug for Function<'ast> {
   }
 }
 
-#[derive(Clone, EnumPropertyMacro, PartialEq)]
+#[derive(Clone, EnumPropertyMacro)]
 pub enum Object<'ast> {
   #[strum(props(name = "integer"))]
   Integer(i64),
@@ -95,7 +95,7 @@ pub enum Object<'ast> {
     elements: &'ast [Object<'ast>],
   },
   #[strum(props(name = "object"))]
-  Object(Rc<RefCell<AHashMap<&'ast str, Object<'ast>>>>),
+  Object(Arc<RwLock<AHashMap<&'ast str, Object<'ast>>>>),
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]
@@ -104,15 +104,49 @@ pub enum Object<'ast> {
   #[strum(props(name = "function"))]
   Function(Function<'ast>),
   #[strum(props(name = "return"))]
-  Return(Rc<Object<'ast>>),
+  Return(Arc<Object<'ast>>),
   #[strum(props(name = "break"))]
   Break,
   #[strum(props(name = "continue"))]
   Continue,
   #[strum(props(name = "ok"))]
-  Ok(Rc<Object<'ast>>),
+  Ok(Arc<Object<'ast>>),
   #[strum(props(name = "err"))]
-  Err(Rc<Object<'ast>>),
+  Err(Arc<Object<'ast>>),
+}
+
+#[allow(clippy::arc_with_non_send_sync)]
+impl<'ast> PartialEq for Object<'ast> {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Self::Integer(l), Self::Integer(r)) => l == r,
+      (Self::Float(l), Self::Float(r)) => l == r,
+      (Self::Boolean(l), Self::Boolean(r)) => l == r,
+      (Self::String(l), Self::String(r)) => l == r,
+      (
+        Self::Array {
+          elements: l,
+          kind: lk,
+        },
+        Self::Array {
+          elements: r,
+          kind: rk,
+        },
+      ) => l == r && lk == rk,
+      (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => l == r,
+      (Self::Object(l), Self::Object(r)) => Arc::ptr_eq(l, r),
+      (Self::Null, Self::Null) => true,
+      (Self::Void, Self::Void) => true,
+      (Self::Scope(l), Self::Scope(r)) => std::ptr::eq(*l, *r),
+      (Self::Function(l), Self::Function(r)) => l == r,
+      (Self::Return(l), Self::Return(r)) => l == r,
+      (Self::Break, Self::Break) => true,
+      (Self::Continue, Self::Continue) => true,
+      (Self::Ok(l), Self::Ok(r)) => l == r,
+      (Self::Err(l), Self::Err(r)) => l == r,
+      _ => false,
+    }
+  }
 }
 
 impl<'ast> Object<'ast> {
@@ -139,7 +173,7 @@ impl<'ast> From<&Object<'ast>> for bool {
       Object::String(s) => !s.is_empty(),
       Object::Array { elements, .. } => !elements.is_empty(),
       Object::Tuple { elements } => !elements.is_empty(),
-      Object::Object(object) => !object.borrow().is_empty(),
+      Object::Object(_) => true,
       Object::Null | Object::Void => false,
       Object::Ok(_) => true,
       Object::Err(_) => false,
@@ -165,15 +199,8 @@ impl<'ast> Display for Object<'ast> {
         }
         write!(f, "]")
       }
-      Object::Object(object) => {
-        write!(f, "{{")?;
-        for (i, (key, value)) in object.borrow().iter().enumerate() {
-          if i > 0 {
-            write!(f, ", ")?;
-          }
-          write!(f, "\"{}\": {}", key, value)?;
-        }
-        write!(f, "}}")
+      Object::Object(_) => {
+        write!(f, "[object]")
       }
       Object::Null => write!(f, "null"),
       Object::Void => write!(f, "void"),
@@ -210,8 +237,8 @@ impl<'ast> Debug for Object<'ast> {
       Object::Tuple { elements } => {
         f.debug_tuple("Tuple").field(elements).finish()
       }
-      Object::Object(object) => {
-        f.debug_map().entries(object.borrow().iter()).finish()
+      Object::Object(_) => {
+        write!(f, "Object(...)")
       }
       Object::Null => write!(f, "Null"),
       Object::Void => write!(f, "Void"),

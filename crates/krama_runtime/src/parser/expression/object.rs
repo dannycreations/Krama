@@ -23,7 +23,6 @@ where
       ));
     }
 
-    // Parse properties
     loop {
       let key = match self.current_token.kind {
         TokenKind::Identifier(_) => {
@@ -50,7 +49,6 @@ where
       }
       self.consume(TokenKind::Comma)?;
       if self.current_token.kind == TokenKind::RBrace {
-        // Allow trailing comma
         break;
       }
     }

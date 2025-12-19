@@ -103,11 +103,9 @@ fn transform_fn(
     .to_compile_error();
   }
 
-  // Clone signature and modify it.
   let mut new_sig = sig.clone();
   new_sig.asyncness = None;
 
-  // Check for 'ast lifetime.
   let has_ast_lifetime = new_sig
     .generics
     .lifetimes()

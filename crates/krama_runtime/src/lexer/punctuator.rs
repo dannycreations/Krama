@@ -64,7 +64,6 @@ impl<'a> Lexer<'a> {
       }
     }
 
-    // If no match, it's an unknown token.
     self.position = start + 1;
     Token::new(TokenKind::Unknown, self.span(start))
   }

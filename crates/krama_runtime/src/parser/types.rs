@@ -47,7 +47,6 @@ where
         }
         self.consume(TokenKind::Comma)?;
         if self.current_token.kind == TokenKind::RBracket {
-          // Allow trailing comma
           break;
         }
       }

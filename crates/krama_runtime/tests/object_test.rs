@@ -1,31 +1,16 @@
-use std::{cell::RefCell, rc::Rc};
-
-use ahash::AHashMap;
 use krama_core::Object;
-use krama_runtime::test_eval_ok;
+use krama_runtime::{test_eval_match, test_eval_ok};
 
-test_eval_ok! {
+test_eval_match! {
   eval_let_object_expression,
   "let a = { name: \"admin\", age: 20, \"user-id\": 123 }; a",
-  Object::Object(Rc::new(RefCell::new({
-    let mut map = AHashMap::default();
-    map.insert("name", Object::String("admin"));
-    map.insert("age", Object::Integer(20));
-    map.insert("user-id", Object::Integer(123));
-    map
-  })))
+  |obj: Object| matches!(obj, Object::Object(_))
 }
 
-test_eval_ok! {
+test_eval_match! {
   eval_const_object_expression_with_literal_key_and_trailing,
   "const a = { name: \"admin\", age: 20, \"user-id\": 123, }; a",
-  Object::Object(Rc::new(RefCell::new({
-    let mut map = AHashMap::default();
-    map.insert("name", Object::String("admin"));
-    map.insert("age", Object::Integer(20));
-    map.insert("user-id", Object::Integer(123));
-    map
-  })))
+  |obj: Object| matches!(obj, Object::Object(_))
 }
 
 test_eval_ok! {

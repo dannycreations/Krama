@@ -11,7 +11,6 @@ pub async fn sleep<'ast>(
 ) -> Result<Object<'ast>, ErrorKind> {
   parse_args!(objects, "sleep"; ms: Object::Integer(ms));
 
-  // Implicitly async via tokio
   tokio::time::sleep(Duration::from_millis(*ms as u64)).await;
 
   Ok(Object::Void)

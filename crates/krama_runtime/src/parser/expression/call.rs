@@ -49,7 +49,6 @@ where
       self.consume(TokenKind::Comma)?;
 
       if self.current_token.kind == end_token {
-        // Trailing comma
         break;
       }
     }
