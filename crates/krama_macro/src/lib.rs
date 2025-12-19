@@ -124,16 +124,16 @@ fn transform_fn(
   }
 
   new_sig.output = syn::parse_quote! {
-      -> futures::future::LocalBoxFuture<'ast, Result<krama_core::Object<'ast>, krama_core::ErrorKind>>
+    -> futures::future::LocalBoxFuture<'ast, Result<krama_core::Object<'ast>, krama_core::ErrorKind>>
   };
 
   quote! {
-      #vis #new_sig {
-          use futures::future::FutureExt;
-          async move #body.boxed_local()
-      }
+    #vis #new_sig {
+      use futures::future::FutureExt;
+      async move #body.boxed_local()
+    }
 
-      #inventory_submission
+    #inventory_submission
   }
 }
 
@@ -170,12 +170,12 @@ pub fn register_global(
     |args, fn_name| {
       let name = &args.name;
       quote! {
-          inventory::submit! {
-              krama_core::StandardGlobal {
-                  name: #name,
-                  callback: #fn_name,
-              }
+        inventory::submit! {
+          krama_core::StandardGlobal {
+            name: #name,
+            callback: #fn_name,
           }
+        }
       }
     },
   )
@@ -195,13 +195,13 @@ pub fn register_module(
       let name = &args.name;
       let module = &args.module;
       quote! {
-          inventory::submit! {
-              krama_core::StandardModule {
-                  name: #name,
-                  callback: #fn_name,
-                  module: #module,
-              }
+        inventory::submit! {
+          krama_core::StandardModule {
+            name: #name,
+            callback: #fn_name,
+            module: #module,
           }
+        }
       }
     },
   )
@@ -221,13 +221,13 @@ pub fn register_property(
       let name = &args.name;
       let types = &args.types;
       quote! {
-          inventory::submit! {
-              krama_core::StandardProperty {
-                  name: #name,
-                  callback: #fn_name,
-                  types: &[#types],
-              }
+        inventory::submit! {
+          krama_core::StandardProperty {
+            name: #name,
+            callback: #fn_name,
+            types: &[#types],
           }
+        }
       }
     },
   )
