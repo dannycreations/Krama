@@ -13,9 +13,12 @@ doctest = false
 ahash.workspace = true
 ariadne.workspace = true
 bumpalo.workspace = true
+derive_more.workspace = true
 futures.workspace = true
 inventory.workspace = true
+logos.workspace = true
 phf.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
+thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }

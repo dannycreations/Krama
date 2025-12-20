@@ -75,6 +75,15 @@ impl<'ast> Debug for Function<'ast> {
   }
 }
 
+impl<'ast> Display for Function<'ast> {
+  fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+    match self {
+      Function::Native(_) => write!(f, "[native function]"),
+      Function::User(_) => write!(f, "[function]"),
+    }
+  }
+}
+
 #[derive(Clone, EnumPropertyMacro)]
 pub enum Object<'ast> {
   #[strum(props(name = "integer"))]
@@ -211,10 +220,7 @@ impl<'ast> Display for Object<'ast> {
           write!(f, "global")
         }
       }
-      Object::Function(func) => match func {
-        Function::Native(_) => write!(f, "[native function]"),
-        Function::User(_) => write!(f, "[function]"),
-      },
+      Object::Function(func) => write!(f, "{}", func),
       Object::Return(value) => write!(f, "{}", value),
       Object::Break => write!(f, "break"),
       Object::Continue => write!(f, "continue"),
@@ -243,7 +249,7 @@ impl<'ast> Debug for Object<'ast> {
       Object::Null => write!(f, "Null"),
       Object::Void => write!(f, "Void"),
       Object::Scope(scope) => f.debug_tuple("Scope").field(scope).finish(),
-      Object::Function(func) => func.fmt(f),
+      Object::Function(func) => Debug::fmt(func, f),
       Object::Return(value) => f.debug_tuple("Return").field(value).finish(),
       Object::Break => write!(f, "Break"),
       Object::Continue => write!(f, "Continue"),

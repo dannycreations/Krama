@@ -15,6 +15,7 @@ bumpalo.workspace = true
 futures.workspace = true
 krama_core.workspace = true
 krama_std.workspace = true
+logos.workspace = true
 path-clean.workspace = true
 phf.workspace = true
 tokio = { workspace = true, features = ["sync", "fs", "macros", "rt"] }

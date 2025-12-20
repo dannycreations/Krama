@@ -1,6 +1,6 @@
 use std::fmt;
 
-use phf::{phf_map, Map};
+use logos::Logos;
 use strum_macros::AsRefStr;
 
 use super::Span;
@@ -17,151 +17,236 @@ impl<'a> Token<'a> {
   }
 }
 
-pub static KEYWORDS: Map<&'static str, TokenKind> = phf_map! {
-  "const" => TokenKind::Const,
-  "fn" => TokenKind::Fn,
-  "pub" => TokenKind::Pub,
-  "let" => TokenKind::Let,
-  "if" => TokenKind::If,
-  "elif" => TokenKind::Elif,
-  "else" => TokenKind::Else,
-  "match" => TokenKind::Match,
-  "return" => TokenKind::Return,
-  "while" => TokenKind::While,
-  "for" => TokenKind::For,
-  "in" => TokenKind::In,
-  "break" => TokenKind::Break,
-  "continue" => TokenKind::Continue,
-  "test" => TokenKind::Test,
-  "true" => TokenKind::True,
-  "false" => TokenKind::False,
-  "import" => TokenKind::Import,
-  "as" => TokenKind::As,
-  "null" => TokenKind::Null,
-  "i8" => TokenKind::I8,
-  "i16" => TokenKind::I16,
-  "i32" => TokenKind::I32,
-  "i64" => TokenKind::I64,
-  "i128" => TokenKind::I128,
-  "isize" => TokenKind::Isize,
-  "u8" => TokenKind::U8,
-  "u16" => TokenKind::U16,
-  "u32" => TokenKind::U32,
-  "u64" => TokenKind::U64,
-  "u128" => TokenKind::U128,
-  "usize" => TokenKind::Usize,
-  "f32" => TokenKind::F32,
-  "f64" => TokenKind::F64,
-  "bool" => TokenKind::Bool,
-  "str" => TokenKind::Str,
-};
+#[derive(Debug, Clone, Copy, PartialEq, AsRefStr, Logos)]
+#[strum(serialize_all = "lowercase")]
+#[logos(skip r"[ \t\f]+")]
+#[logos(skip r"//[^\n]*")]
+#[logos(skip r"/\*([^*]|\*+[^*/])*\*+/")]
+#[logos(skip r"\n")]
+pub enum TokenKind<'a> {
+  #[token("const")]
+  Const,
+  #[token("fn")]
+  Fn,
+  #[token("pub")]
+  Pub,
+  #[token("let")]
+  Let,
+  #[token("if")]
+  If,
+  #[token("elif")]
+  Elif,
+  #[token("else")]
+  Else,
+  #[token("match")]
+  Match,
+  #[token("while")]
+  While,
+  #[token("for")]
+  For,
+  #[token("in")]
+  In,
+  #[token("return")]
+  Return,
+  #[token("break")]
+  Break,
+  #[token("continue")]
+  Continue,
+  #[token("test")]
+  Test,
+  #[token("true")]
+  True,
+  #[token("false")]
+  False,
+  #[token("import")]
+  Import,
+  #[token("as")]
+  As,
+  #[token("null")]
+  Null,
+  #[token("i8")]
+  I8,
+  #[token("i16")]
+  I16,
+  #[token("i32")]
+  I32,
+  #[token("i64")]
+  I64,
+  #[token("i128")]
+  I128,
+  #[token("isize")]
+  Isize,
+  #[token("u8")]
+  U8,
+  #[token("u16")]
+  U16,
+  #[token("u32")]
+  U32,
+  #[token("u64")]
+  U64,
+  #[token("u128")]
+  U128,
+  #[token("usize")]
+  Usize,
+  #[token("f32")]
+  F32,
+  #[token("f64")]
+  F64,
+  #[token("bool")]
+  Bool,
+  #[token("str")]
+  Str,
 
-macro_rules! define_token_enum {
-  (
-    enum $name:ident <'a> {
-      keywords: {
-        $( $kw_variant:ident, )*
-      },
-      units: {
-        $( $unit_variant:ident, )*
-      },
-      data: {
-        $( $data_variant:ident(&'a str), )*
-      }
-    }
-  ) => {
-    #[derive(Debug, Clone, Copy, PartialEq, AsRefStr)]
-    #[strum(serialize_all = "lowercase")]
-    pub enum $name<'a> {
-      $( $kw_variant, )*
-      $( $unit_variant, )*
-      $( $data_variant(&'a str), )*
-    }
+  #[token("+")]
+  Plus,
+  #[token("++")]
+  PlusPlus,
+  #[token("-")]
+  Minus,
+  #[token("--")]
+  MinusMinus,
+  #[token("*")]
+  Star,
+  #[token("**")]
+  StarStar,
+  #[token("/")]
+  Slash,
+  #[token("%")]
+  Percent,
+  #[token("=")]
+  Equal,
+  #[token("==")]
+  EqualEqual,
+  #[token("!")]
+  Bang,
+  #[token("!=")]
+  BangEqual,
+  #[token(">")]
+  GreaterThan,
+  #[token(">=")]
+  GreaterThanEqual,
+  #[token("<")]
+  LessThan,
+  #[token("<=")]
+  LessThanEqual,
+  #[token("+=")]
+  PlusEqual,
+  #[token("-=")]
+  MinusEqual,
+  #[token("*=")]
+  StarEqual,
+  #[token("/=")]
+  SlashEqual,
+  #[token("%=")]
+  PercentEqual,
+  #[token("&")]
+  Ampersand,
+  #[token("&&")]
+  AmpersandAmpersand,
+  #[token("|")]
+  Pipe,
+  #[token("||")]
+  PipePipe,
+  #[token("^")]
+  Caret,
+  #[token("~")]
+  Tilde,
+  #[token("<<")]
+  LessLess,
+  #[token(">>")]
+  GreaterGreater,
+  #[token("&=")]
+  AmpersandEqual,
+  #[token("|=")]
+  PipeEqual,
+  #[token("^=")]
+  CaretEqual,
+  #[token("<<=")]
+  LessLessEqual,
+  #[token(">>=")]
+  GreaterGreaterEqual,
 
-    impl<'a> $name<'a> {
-      pub fn into_static(self) -> $name<'static> {
-        match self {
-          $( $name::$data_variant(_) => $name::$data_variant("..."), )*
-          $( $name::$kw_variant => $name::$kw_variant, )*
-          $( $name::$unit_variant => $name::$unit_variant, )*
-        }
-      }
+  #[token("(")]
+  LParen,
+  #[token(")")]
+  RParen,
+  #[token("{")]
+  LBrace,
+  #[token("}")]
+  RBrace,
+  #[token("[")]
+  LBracket,
+  #[token("]")]
+  RBracket,
+  #[token(",")]
+  Comma,
+  #[token(".")]
+  Dot,
+  #[token("..")]
+  DotDot,
+  #[token("=>")]
+  Arrow,
+  #[token(":")]
+  Colon,
+  #[token(";")]
+  Semicolon,
+  #[token("?")]
+  Question,
 
-      pub fn is_keyword(&self) -> bool {
-        matches!(self, $( $name::$kw_variant )|*)
-      }
-    }
-  };
+  #[regex(r"[0-9][0-9_]*", |lex| lex.slice(), priority = 2)]
+  Integer(&'a str),
+  #[regex(r"[0-9][0-9_]*(\.[0-9][0-9_]*)?([eE][+-]?[0-9][0-9_]*)?", |lex| lex.slice(), priority = 1)]
+  Float(&'a str),
+  #[regex(r#""([^"\\]|\\.)*""#, |lex| &lex.slice()[1..lex.slice().len()-1])]
+  String(&'a str),
+  #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice())]
+  Identifier(&'a str),
+
+  Unknown,
+  Eof,
 }
 
-define_token_enum! {
-  enum TokenKind<'a> {
-    keywords: {
-      Const, Fn, Pub, Let, If, Elif, Else, Match, While, For, In, Return, Break, Continue, Test, True, False, Import, As, Null,
-      I8, I16, I32, I64, I128, Isize, U8, U16, U32, U64, U128, Usize, F32, F64, Bool, Str,
-    },
-    units: {
-      Plus,
-      PlusPlus,
-      Minus,
-      MinusMinus,
-      Star,
-      StarStar,
-      Slash,
-      Percent,
-      Equal,
-      EqualEqual,
-      Bang,
-      BangEqual,
-      GreaterThan,
-      GreaterThanEqual,
-      LessThan,
-      LessThanEqual,
-      PlusEqual,
-      MinusEqual,
-      StarEqual,
-      SlashEqual,
-      PercentEqual,
-      Ampersand,
-      AmpersandAmpersand,
-      Pipe,
-      PipePipe,
-      Caret,
-      Tilde,
-      LessLess,
-      GreaterGreater,
-      AmpersandEqual,
-      PipeEqual,
-      CaretEqual,
-      LessLessEqual,
-      GreaterGreaterEqual,
-
-      // Delimiters
-      LParen,
-      RParen,
-      LBrace,
-      RBrace,
-      LBracket,
-      RBracket,
-      Comma,
-      Dot,
-      DotDot,
-      Arrow,
-      Colon,
-      Semicolon,
-      Question,
-      Newline,
-
-      // Other
-      Unknown,
-      Eof,
-    },
-    data: {
-      Integer(&'a str),
-      Float(&'a str),
-      String(&'a str),
-      Identifier(&'a str),
-    }
+impl<'a> TokenKind<'a> {
+  pub fn is_keyword(&self) -> bool {
+    matches!(
+      self,
+      TokenKind::Const
+        | TokenKind::Fn
+        | TokenKind::Pub
+        | TokenKind::Let
+        | TokenKind::If
+        | TokenKind::Elif
+        | TokenKind::Else
+        | TokenKind::Match
+        | TokenKind::While
+        | TokenKind::For
+        | TokenKind::In
+        | TokenKind::Return
+        | TokenKind::Break
+        | TokenKind::Continue
+        | TokenKind::Test
+        | TokenKind::True
+        | TokenKind::False
+        | TokenKind::Import
+        | TokenKind::As
+        | TokenKind::Null
+        | TokenKind::I8
+        | TokenKind::I16
+        | TokenKind::I32
+        | TokenKind::I64
+        | TokenKind::I128
+        | TokenKind::Isize
+        | TokenKind::U8
+        | TokenKind::U16
+        | TokenKind::U32
+        | TokenKind::U64
+        | TokenKind::U128
+        | TokenKind::Usize
+        | TokenKind::F32
+        | TokenKind::F64
+        | TokenKind::Bool
+        | TokenKind::Str
+    )
   }
 }
 
@@ -218,7 +303,6 @@ impl<'a> fmt::Display for TokenKind<'a> {
       TokenKind::Colon => &":",
       TokenKind::Semicolon => &";",
       TokenKind::Question => &"?",
-      TokenKind::Newline => &"\n",
       TokenKind::Unknown => &"Unknown",
       TokenKind::Eof => &"Eof",
       TokenKind::Integer(s) => s,

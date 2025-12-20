@@ -63,10 +63,6 @@ where
 
     let mut arms = BumpVec::new_in(self.arena);
     while self.current_token.kind != TokenKind::RBrace {
-      while self.current_token.kind == TokenKind::Newline {
-        self.advance();
-      }
-
       if self.current_token.kind != TokenKind::RBrace {
         arms.push(self.parse_match_arm()?);
       }
@@ -103,10 +99,6 @@ where
         break;
       }
 
-      while self.current_token.kind == TokenKind::Newline {
-        self.advance();
-      }
-
       patterns.push(self.parse_match_pattern()?);
     }
 
@@ -126,9 +118,6 @@ where
     };
 
     if self.current_token.kind == TokenKind::Comma {
-      self.advance();
-    }
-    while self.current_token.kind == TokenKind::Newline {
       self.advance();
     }
 

@@ -28,10 +28,6 @@ where
     let mut left = self.parse_pratt()?;
 
     while precedence < self.current_precedence() {
-      if self.current_token.kind == TokenKind::Newline {
-        break;
-      }
-
       left = match self.current_token.kind {
         TokenKind::LParen => self.parse_call_expression(left)?,
         TokenKind::Dot => self.parse_member_expression(left)?,

@@ -1,7 +1,5 @@
-use std::fmt::{Display, Formatter};
-
 use ariadne::{Color, Label, Report, ReportKind, Source};
-use strum_macros::AsRefStr;
+use thiserror::Error;
 
 use super::Span;
 
@@ -17,38 +15,40 @@ impl<'a> Error<'a> {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, AsRefStr)]
-#[strum(serialize_all = "PascalCase")]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum ErrorKind {
+  #[error("RuntimeError: {0}")]
   RuntimeError(String),
+  #[error("SyntaxError: {0}")]
   SyntaxError(String),
+  #[error("TypeError: {0}")]
   TypeError(String),
+  #[error("ReferenceError: {0}")]
   ReferenceError(String),
+  #[error("ArgumentError: {0}")]
   ArgumentError(String),
 }
 
-impl Display for ErrorKind {
-  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+impl ErrorKind {
+  pub fn name(&self) -> &'static str {
     match self {
-      ErrorKind::RuntimeError(msg)
-      | ErrorKind::SyntaxError(msg)
-      | ErrorKind::TypeError(msg)
-      | ErrorKind::ReferenceError(msg)
-      | ErrorKind::ArgumentError(msg) => {
-        write!(f, "{}: {}", self.as_ref(), msg)
-      }
+      ErrorKind::RuntimeError(_) => "RuntimeError",
+      ErrorKind::SyntaxError(_) => "SyntaxError",
+      ErrorKind::TypeError(_) => "TypeError",
+      ErrorKind::ReferenceError(_) => "ReferenceError",
+      ErrorKind::ArgumentError(_) => "ArgumentError",
     }
   }
 }
 
 pub fn report_error(error: Error<'_>) {
   let msg = error.kind.to_string();
-  let kind_name = error.kind.as_ref();
+  let kind = error.kind.name();
   let span = error.span;
   let file = span.file.unwrap_or("<unknown>");
 
   Report::build(
-    ReportKind::Custom(kind_name, Color::Magenta),
+    ReportKind::Custom(kind, Color::Magenta),
     (file, span.start..span.end),
   )
   .with_message(&msg)

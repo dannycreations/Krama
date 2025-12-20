@@ -14,10 +14,7 @@ where
 
     let value = if !matches!(
       self.current_token.kind,
-      TokenKind::Semicolon
-        | TokenKind::Newline
-        | TokenKind::RBrace
-        | TokenKind::Eof
+      TokenKind::Semicolon | TokenKind::RBrace | TokenKind::Eof
     ) {
       Some(self.parse_expression(Precedence::Lowest)?)
     } else {
