@@ -21,7 +21,7 @@ impl<'ast> Interpreter<'ast> {
 
     let object_type = object.type_name();
 
-    if let Some(props) = krama_std::get_props().get(object_type) {
+    if let Some(props) = krama_std::PROPS.get(object_type) {
       if let Some(prop) = props.get(property_name) {
         return prop(object).await.map_err(|kind| Error::new(kind, span));
       }

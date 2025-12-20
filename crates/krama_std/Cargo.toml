@@ -16,9 +16,8 @@ futures.workspace = true
 inventory.workspace = true
 krama_core.workspace = true
 krama_macro.workspace = true
-once_cell.workspace = true
 phf.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["io-util", "time", "fs"] }
 
 [dev-dependencies]
 krama_runtime.workspace = true

@@ -79,7 +79,7 @@ impl<'ast> Interpreter<'ast> {
       return Ok(module.clone());
     }
 
-    krama_std::get_modules()
+    krama_std::MODULES
       .get(module_name)
       .map(|bindings| {
         let scope_bindings = bindings

@@ -17,5 +17,5 @@ clap.workspace = true
 futures.workspace = true
 krama_core.workspace = true
 krama_runtime.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "fs", "io-std"] }
 walkdir.workspace = true

@@ -16,7 +16,7 @@ impl<'ast> Environment<'ast> {
 
   pub fn with_globals() -> Self {
     let mut env = Environment::new();
-    for (name, native_fn) in krama_std::get_globals().iter() {
+    for (name, native_fn) in krama_std::GLOBALS.iter() {
       let function = Object::Function(Function::Native(*native_fn));
       env.set(name, function, true);
     }
