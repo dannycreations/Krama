@@ -2,8 +2,8 @@ use std::sync::LazyLock;
 
 use ahash::AHashMap;
 use krama_core::{
-  NativeFunction, PropertyFnCb, StandardGlobal, StandardModule,
-  StandardProperty,
+  NativeFunction, PropertyFnCb, STANDARD_GLOBALS, STANDARD_MODULES,
+  STANDARD_PROPERTIES,
 };
 
 mod globals;
@@ -12,8 +12,8 @@ mod props;
 
 pub static GLOBALS: LazyLock<AHashMap<&'static str, NativeFunction>> =
   LazyLock::new(|| {
-    inventory::iter::<StandardGlobal>
-      .into_iter()
+    STANDARD_GLOBALS
+      .iter()
       .map(|native| {
         (
           native.name,
@@ -31,7 +31,7 @@ pub static MODULES: LazyLock<
 > = LazyLock::new(|| {
   let mut modules = AHashMap::default();
 
-  for native in inventory::iter::<StandardModule> {
+  for native in STANDARD_MODULES {
     let module = modules
       .entry(native.module.to_string())
       .or_insert_with(AHashMap::default);
@@ -53,7 +53,7 @@ pub static PROPS: LazyLock<
 > = LazyLock::new(|| {
   let mut props = AHashMap::default();
 
-  for prop in inventory::iter::<StandardProperty>() {
+  for prop in STANDARD_PROPERTIES {
     for type_name in prop.types {
       let type_props =
         props.entry(*type_name).or_insert_with(AHashMap::default);

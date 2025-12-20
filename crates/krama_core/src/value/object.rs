@@ -264,7 +264,8 @@ pub struct StandardGlobal {
   pub callback: NativeFnCb,
 }
 
-inventory::collect!(StandardGlobal);
+#[linkme::distributed_slice]
+pub static STANDARD_GLOBALS: [StandardGlobal];
 
 pub struct StandardModule {
   pub name: &'static str,
@@ -272,7 +273,8 @@ pub struct StandardModule {
   pub module: &'static str,
 }
 
-inventory::collect!(StandardModule);
+#[linkme::distributed_slice]
+pub static STANDARD_MODULES: [StandardModule];
 
 pub struct StandardProperty {
   pub name: &'static str,
@@ -280,4 +282,5 @@ pub struct StandardProperty {
   pub types: &'static [&'static str],
 }
 
-inventory::collect!(StandardProperty);
+#[linkme::distributed_slice]
+pub static STANDARD_PROPERTIES: [StandardProperty];

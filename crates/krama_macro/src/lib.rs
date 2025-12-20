@@ -89,7 +89,7 @@ impl Parse for PropertyArgs {
 fn transform_fn(
   item_fn: &ItemFn,
   error_msg_prefix: &str,
-  inventory_submission: TokenStream,
+  linkme_submission: TokenStream,
 ) -> TokenStream {
   let vis = &item_fn.vis;
   let body = &item_fn.block;
@@ -131,7 +131,7 @@ fn transform_fn(
       async move #body.boxed_local()
     }
 
-    #inventory_submission
+    #linkme_submission
   }
 }
 
@@ -151,9 +151,9 @@ fn implement_register_macro<T: Parse>(
   };
 
   let fn_name = &item_fn.sig.ident;
-  let inventory_submission = submission_generator(&args, fn_name);
+  let linkme_submission = submission_generator(&args, fn_name);
 
-  transform_fn(&item_fn, macro_type, inventory_submission)
+  transform_fn(&item_fn, macro_type, linkme_submission)
 }
 
 #[proc_macro_attribute]
@@ -167,13 +167,17 @@ pub fn register_global(
     "global",
     |args, fn_name| {
       let name = &args.name;
+      let static_name = quote::format_ident!(
+        "__KRAMA_GLOBAL_{}",
+        fn_name.to_string().to_uppercase()
+      );
       quote! {
-        inventory::submit! {
-          krama_core::StandardGlobal {
-            name: #name,
-            callback: #fn_name,
-          }
-        }
+        #[linkme::distributed_slice(krama_core::STANDARD_GLOBALS)]
+        #[allow(non_upper_case_globals)]
+        static #static_name: krama_core::StandardGlobal = krama_core::StandardGlobal {
+          name: #name,
+          callback: #fn_name,
+        };
       }
     },
   )
@@ -192,14 +196,18 @@ pub fn register_module(
     |args, fn_name| {
       let name = &args.name;
       let module = &args.module;
+      let static_name = quote::format_ident!(
+        "__KRAMA_MODULE_{}",
+        fn_name.to_string().to_uppercase()
+      );
       quote! {
-        inventory::submit! {
-          krama_core::StandardModule {
-            name: #name,
-            callback: #fn_name,
-            module: #module,
-          }
-        }
+        #[linkme::distributed_slice(krama_core::STANDARD_MODULES)]
+        #[allow(non_upper_case_globals)]
+        static #static_name: krama_core::StandardModule = krama_core::StandardModule {
+          name: #name,
+          callback: #fn_name,
+          module: #module,
+        };
       }
     },
   )
@@ -218,14 +226,18 @@ pub fn register_property(
     |args, fn_name| {
       let name = &args.name;
       let types = &args.types;
+      let static_name = quote::format_ident!(
+        "__KRAMA_PROPERTY_{}",
+        fn_name.to_string().to_uppercase()
+      );
       quote! {
-        inventory::submit! {
-          krama_core::StandardProperty {
-            name: #name,
-            callback: #fn_name,
-            types: &[#types],
-          }
-        }
+        #[linkme::distributed_slice(krama_core::STANDARD_PROPERTIES)]
+        #[allow(non_upper_case_globals)]
+        static #static_name: krama_core::StandardProperty = krama_core::StandardProperty {
+          name: #name,
+          callback: #fn_name,
+          types: &[#types],
+        };
       }
     },
   )
