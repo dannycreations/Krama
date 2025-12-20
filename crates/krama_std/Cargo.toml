@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[package.metadata.cargo-machete]
+ignored = ["futures", "linkme"]
+
 [lib]
 doctest = false
 
@@ -16,7 +19,6 @@ futures.workspace = true
 krama_core.workspace = true
 krama_macro.workspace = true
 linkme.workspace = true
-phf.workspace = true
 tokio = { workspace = true, features = ["io-util", "time", "fs"] }
 
 [dev-dependencies]

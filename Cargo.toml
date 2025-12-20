@@ -29,7 +29,6 @@ krama_std = { path = "crates/krama_std" }
 linkme = "0.3.35"
 logos = "0.16.0"
 path-clean = "=1.0.1"
-phf = { version = "0.13.1", features = ["macros"] }
 proc-macro2 = "1.0.103"
 quote = "1.0.42"
 strum = "0.27.2"
