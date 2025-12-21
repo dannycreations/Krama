@@ -66,13 +66,20 @@ impl<'ast> Interpreter<'ast> {
     distance: usize,
     name: &'ast str,
     value: Object<'ast>,
-  ) {
-    let mut env = self.environment.borrow_mut();
+  ) -> Result<(), Error<'ast>> {
+    let mut env_cell = self.environment;
     for _ in 0..distance {
-      let outer = env.outer.unwrap();
-      env = outer.borrow_mut();
+      env_cell = env_cell.borrow().outer.unwrap();
     }
-    env.set(name, value, false);
+    let mut env = env_cell.borrow_mut();
+    if env.is_constant(name) {
+      return Err(Error::new(
+        ErrorKind::TypeError(format!("Cannot assign to constant '{}'", name)),
+        Span::empty(), // TODO: pass span
+      ));
+    }
+    env.set(name, value, false, false);
+    Ok(())
   }
 
   pub fn alloc_str(&self, s: &str) -> &'ast str {

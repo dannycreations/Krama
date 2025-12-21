@@ -19,6 +19,7 @@ futures.workspace = true
 krama_core.workspace = true
 krama_macro.workspace = true
 linkme.workspace = true
+parking_lot.workspace = true
 tokio = { workspace = true, features = ["io-util", "time", "fs"] }
 
 [dev-dependencies]

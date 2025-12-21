@@ -1,6 +1,6 @@
 use krama_core::{
   AssignmentOperator, BinaryOperator, Error, ErrorKind, Expression,
-  ExpressionKind, Object, Span, UpdateOperator,
+  ExpressionKind, Literal, Object, Span, TypeKind, UpdateOperator,
 };
 
 use crate::Interpreter;
@@ -28,9 +28,19 @@ impl<'ast> Interpreter<'ast> {
         };
 
         if let Some(distance) = distance {
-          self.assign_at(distance, ident, final_val.clone());
+          self.assign_at(distance, ident, final_val.clone())?;
         } else {
-          self.env_mut(span)?.set(ident, final_val.clone(), false);
+          let mut env = self.env_mut(span)?;
+          if env.is_constant(ident) {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "Cannot assign to constant '{}'",
+                ident
+              )),
+              span,
+            ));
+          }
+          env.set(ident, final_val.clone(), false, false);
         }
         Ok(final_val)
       }
@@ -53,7 +63,6 @@ impl<'ast> Interpreter<'ast> {
             } else {
               let left_val = map
                 .read()
-                .await
                 .get(property_name)
                 .cloned()
                 .unwrap_or(Object::Void);
@@ -62,7 +71,7 @@ impl<'ast> Interpreter<'ast> {
                 .eval_binary_expression(binary_op, left_val, right_val, span)?
             };
 
-            map.write().await.insert(property_name, final_val.clone());
+            map.write().insert(property_name, final_val.clone());
             Ok(final_val)
           }
           _ => Err(Error::new(
@@ -98,13 +107,95 @@ impl<'ast> Interpreter<'ast> {
               right_val
             } else {
               let left_val =
-                map.read().await.get(key).cloned().unwrap_or(Object::Void);
+                map.read().get(key).cloned().unwrap_or(Object::Void);
               let binary_op = self.assignment_to_binary_op(operator);
               self
                 .eval_binary_expression(binary_op, left_val, right_val, span)?
             };
 
-            map.write().await.insert(key, final_val.clone());
+            map.write().insert(key, final_val.clone());
+            Ok(final_val)
+          }
+          Object::Array {
+            elements,
+            constant,
+            kind,
+            ..
+          } => {
+            if constant {
+              return Err(Error::new(
+                ErrorKind::TypeError(
+                  "Cannot assign to index of constant array".to_string(),
+                ),
+                span,
+              ));
+            }
+
+            let idx = match index_val {
+              Object::Integer(i) => i,
+              _ => {
+                return Err(Error::new(
+                  ErrorKind::TypeError(
+                    "Array index must be an integer".to_string(),
+                  ),
+                  span,
+                ))
+              }
+            };
+
+            let mut elements_lock = elements.write();
+
+            // Enforce fixed size if specified in TypeKind
+            if let TypeKind::Array {
+              size: Some(Literal::Integer(size)),
+              ..
+            } = &kind.kind
+            {
+              let real_idx = if idx < 0 {
+                (elements_lock.len() as i64 + idx) as usize
+              } else {
+                idx as usize
+              };
+              if real_idx >= *size as usize {
+                return Err(Error::new(
+                  ErrorKind::TypeError(format!(
+                    "Index {} out of bounds for fixed array of size {}",
+                    idx, size
+                  )),
+                  span,
+                ));
+              }
+            }
+
+            let final_val = if operator == AssignmentOperator::Assign {
+              right_val
+            } else {
+              let left_val = if idx < 0 {
+                elements_lock.get((elements_lock.len() as i64 + idx) as usize)
+              } else {
+                elements_lock.get(idx as usize)
+              }
+              .cloned()
+              .unwrap_or(Object::Void);
+
+              let binary_op = self.assignment_to_binary_op(operator);
+              self
+                .eval_binary_expression(binary_op, left_val, right_val, span)?
+            };
+
+            if idx < 0 {
+              let real_idx = (elements_lock.len() as i64 + idx) as usize;
+              if real_idx < elements_lock.len() {
+                elements_lock[real_idx] = final_val.clone();
+              }
+            } else {
+              let idx = idx as usize;
+              if idx >= elements_lock.len() {
+                elements_lock.resize(idx + 1, Object::Void);
+              }
+              elements_lock[idx] = final_val.clone();
+            }
+
             Ok(final_val)
           }
           _ => Err(Error::new(
@@ -158,9 +249,19 @@ impl<'ast> Interpreter<'ast> {
         let new_value = self.apply_update(operator, &original_value, span)?;
 
         if let Some(distance) = distance {
-          self.assign_at(distance, ident, new_value.clone());
+          self.assign_at(distance, ident, new_value.clone())?;
         } else {
-          self.env_mut(span)?.set(ident, new_value.clone(), false);
+          let mut env = self.env_mut(span)?;
+          if env.is_constant(ident) {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "Cannot update constant '{}'",
+                ident
+              )),
+              span,
+            ));
+          }
+          env.set(ident, new_value.clone(), false, false);
         }
 
         Ok(if prefix { new_value } else { original_value })
@@ -181,13 +282,12 @@ impl<'ast> Interpreter<'ast> {
           Object::Object(map) => {
             let original_value = map
               .read()
-              .await
               .get(property_name)
               .cloned()
               .unwrap_or(Object::Void);
             let new_value =
               self.apply_update(operator, &original_value, span)?;
-            map.write().await.insert(property_name, new_value.clone());
+            map.write().insert(property_name, new_value.clone());
             Ok(if prefix { new_value } else { original_value })
           }
           _ => Err(Error::new(
@@ -219,10 +319,87 @@ impl<'ast> Interpreter<'ast> {
             };
 
             let original_value =
-              map.read().await.get(key).cloned().unwrap_or(Object::Void);
+              map.read().get(key).cloned().unwrap_or(Object::Void);
             let new_value =
               self.apply_update(operator, &original_value, span)?;
-            map.write().await.insert(key, new_value.clone());
+            map.write().insert(key, new_value.clone());
+            Ok(if prefix { new_value } else { original_value })
+          }
+          Object::Array {
+            elements,
+            constant,
+            kind,
+            ..
+          } => {
+            if constant {
+              return Err(Error::new(
+                ErrorKind::TypeError(
+                  "Cannot update index of constant array".to_string(),
+                ),
+                span,
+              ));
+            }
+
+            let idx = match index_val {
+              Object::Integer(i) => i,
+              _ => {
+                return Err(Error::new(
+                  ErrorKind::TypeError(
+                    "Array index must be an integer".to_string(),
+                  ),
+                  span,
+                ))
+              }
+            };
+
+            let mut elements_lock = elements.write();
+
+            // Enforce fixed size if specified in TypeKind
+            if let TypeKind::Array {
+              size: Some(Literal::Integer(size)),
+              ..
+            } = &kind.kind
+            {
+              let real_idx = if idx < 0 {
+                (elements_lock.len() as i64 + idx) as usize
+              } else {
+                idx as usize
+              };
+              if real_idx >= *size as usize {
+                return Err(Error::new(
+                  ErrorKind::TypeError(format!(
+                    "Index {} out of bounds for fixed array of size {}",
+                    idx, size
+                  )),
+                  span,
+                ));
+              }
+            }
+
+            let original_value = if idx < 0 {
+              elements_lock.get((elements_lock.len() as i64 + idx) as usize)
+            } else {
+              elements_lock.get(idx as usize)
+            }
+            .cloned()
+            .unwrap_or(Object::Void);
+
+            let new_value =
+              self.apply_update(operator, &original_value, span)?;
+
+            if idx < 0 {
+              let real_idx = (elements_lock.len() as i64 + idx) as usize;
+              if real_idx < elements_lock.len() {
+                elements_lock[real_idx] = new_value.clone();
+              }
+            } else {
+              let idx = idx as usize;
+              if idx >= elements_lock.len() {
+                elements_lock.resize(idx + 1, Object::Void);
+              }
+              elements_lock[idx] = new_value.clone();
+            }
+
             Ok(if prefix { new_value } else { original_value })
           }
           _ => Err(Error::new(

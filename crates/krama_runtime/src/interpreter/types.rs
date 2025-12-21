@@ -32,6 +32,7 @@ pub fn check_type<'ast>(
       },
       Object::Array { elements, .. },
     ) => {
+      let elements = elements.read();
       if let Some(Literal::Integer(size)) = size {
         if elements.len() > *size as usize {
           return Err(Error::new(

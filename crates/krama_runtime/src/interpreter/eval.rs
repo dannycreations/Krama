@@ -10,7 +10,7 @@ use krama_core::{
   BinaryOperator, Error, ErrorKind, Expression, ExpressionKind, Function,
   Object, Type, TypeKind, UserFunction,
 };
-use tokio::sync::RwLock;
+use parking_lot::RwLock;
 
 use super::{types::check_type, Interpreter};
 
@@ -158,19 +158,21 @@ impl<'ast> Interpreter<'ast> {
 
           let mut evaluated_elements = BumpVec::new_in(self.arena);
           evaluated_elements.extend(results);
-          let elements_slice = evaluated_elements.into_bump_slice();
 
           if let Some(hint) = kind {
             match hint.kind {
-              TypeKind::Array { .. } => {
+              TypeKind::Array { .. } =>
+              {
+                #[allow(clippy::arc_with_non_send_sync)]
                 return Ok(Object::Array {
-                  elements: elements_slice,
+                  elements: Arc::new(RwLock::new(evaluated_elements)),
                   kind: hint.clone(),
+                  constant: false,
                 })
               }
               TypeKind::Tuple(_) => {
                 return Ok(Object::Tuple {
-                  elements: elements_slice,
+                  elements: evaluated_elements.into_bump_slice(),
                 })
               }
               _ => {}
@@ -178,8 +180,9 @@ impl<'ast> Interpreter<'ast> {
           }
 
           if elements.is_empty() {
+            #[allow(clippy::arc_with_non_send_sync)]
             return Ok(Object::Array {
-              elements: elements_slice,
+              elements: Arc::new(RwLock::new(evaluated_elements)),
               kind: Type::new(
                 TypeKind::Array {
                   element: self.arena.alloc(Type::new(TypeKind::Void, *span)),
@@ -187,11 +190,12 @@ impl<'ast> Interpreter<'ast> {
                 },
                 *span,
               ),
+              constant: false,
             });
           }
 
           Ok(Object::Tuple {
-            elements: elements_slice,
+            elements: evaluated_elements.into_bump_slice(),
           })
         }
         ExpressionKind::Object { properties } => {

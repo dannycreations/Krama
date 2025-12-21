@@ -7,6 +7,7 @@ async fn length<'ast>(
 ) -> Result<Object<'ast>, krama_core::error::ErrorKind> {
   match object {
     Object::Array { elements, .. } => {
+      let elements = elements.read();
       Ok(Object::Integer(elements.len() as i64))
     }
     Object::Tuple { elements } => Ok(Object::Integer(elements.len() as i64)),

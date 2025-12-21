@@ -6,9 +6,9 @@ use std::{
 use ahash::AHashMap;
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
+use parking_lot::RwLock;
 use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
-use tokio::sync::RwLock;
 
 use crate::{ErrorKind, FunctionBody, Parameter, Scope, Type};
 
@@ -96,8 +96,9 @@ pub enum Object<'ast> {
   String(&'ast str),
   #[strum(props(name = "array"))]
   Array {
-    elements: &'ast [Object<'ast>],
+    elements: Arc<RwLock<BumpVec<'ast, Object<'ast>>>>,
     kind: Type<'ast>,
+    constant: bool,
   },
   #[strum(props(name = "tuple"))]
   Tuple {
@@ -124,6 +125,11 @@ pub enum Object<'ast> {
   Err(Arc<Object<'ast>>),
 }
 
+// We implement Send and Sync for Object because it's required by tokio/futures
+// when used in async blocks that are spawned or boxed.
+unsafe impl<'ast> Send for Object<'ast> {}
+unsafe impl<'ast> Sync for Object<'ast> {}
+
 #[allow(clippy::arc_with_non_send_sync)]
 impl<'ast> PartialEq for Object<'ast> {
   fn eq(&self, other: &Self) -> bool {
@@ -136,12 +142,14 @@ impl<'ast> PartialEq for Object<'ast> {
         Self::Array {
           elements: l,
           kind: lk,
+          constant: lc,
         },
         Self::Array {
           elements: r,
           kind: rk,
+          constant: rc,
         },
-      ) => l == r && lk == rk,
+      ) => Arc::ptr_eq(l, r) && lk == rk && lc == rc,
       (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => l == r,
       (Self::Object(l), Self::Object(r)) => Arc::ptr_eq(l, r),
       (Self::Null, Self::Null) => true,
@@ -180,7 +188,7 @@ impl<'ast> From<&Object<'ast>> for bool {
       Object::Integer(i) => *i != 0,
       Object::Float(f) => *f != 0.0,
       Object::String(s) => !s.is_empty(),
-      Object::Array { elements, .. } => !elements.is_empty(),
+      Object::Array { elements, .. } => !elements.read().is_empty(),
       Object::Tuple { elements } => !elements.is_empty(),
       Object::Object(_) => true,
       Object::Null | Object::Void => false,
@@ -198,7 +206,18 @@ impl<'ast> Display for Object<'ast> {
       Object::Float(fl) => write!(f, "{}", fl),
       Object::Boolean(b) => write!(f, "{}", b),
       Object::String(s) => write!(f, "{}", s),
-      Object::Array { elements, .. } | Object::Tuple { elements } => {
+      Object::Array { elements, .. } => {
+        let elements = elements.read();
+        write!(f, "[")?;
+        for (i, element) in elements.iter().enumerate() {
+          if i > 0 {
+            write!(f, ", ")?;
+          }
+          write!(f, "{}", element)?;
+        }
+        write!(f, "]")
+      }
+      Object::Tuple { elements } => {
         write!(f, "[")?;
         for (i, element) in elements.iter().enumerate() {
           if i > 0 {
@@ -238,7 +257,8 @@ impl<'ast> Debug for Object<'ast> {
       Object::Boolean(b) => write!(f, "Boolean({})", b),
       Object::String(s) => write!(f, "String(\"{}\")", s),
       Object::Array { elements, .. } => {
-        f.debug_tuple("Array").field(elements).finish()
+        let elements = elements.read();
+        f.debug_tuple("Array").field(&*elements).finish()
       }
       Object::Tuple { elements } => {
         f.debug_tuple("Tuple").field(elements).finish()

@@ -5,7 +5,7 @@ use krama_core::{Function, Object};
 
 #[derive(Debug, Default, Clone)]
 pub struct Environment<'ast> {
-  pub store: AHashMap<&'ast str, (Object<'ast>, bool)>,
+  pub store: AHashMap<&'ast str, (Object<'ast>, bool, bool)>, // value, public, constant
   pub outer: Option<&'ast RefCell<Environment<'ast>>>,
 }
 
@@ -18,7 +18,7 @@ impl<'ast> Environment<'ast> {
     let mut env = Environment::new();
     for (name, native_fn) in krama_std::GLOBALS.iter() {
       let function = Object::Function(Function::Native(*native_fn));
-      env.set(name, function, true);
+      env.set(name, function, true, true);
     }
     env
   }
@@ -31,7 +31,7 @@ impl<'ast> Environment<'ast> {
   }
 
   pub fn get_local(&self, name: &str) -> Option<Object<'ast>> {
-    self.store.get(name).map(|(obj, _)| obj.clone())
+    self.store.get(name).map(|(obj, _, _)| obj.clone())
   }
 
   pub fn get(&self, name: &str) -> Option<Object<'ast>> {
@@ -46,16 +46,26 @@ impl<'ast> Environment<'ast> {
     None
   }
 
-  pub fn set(&mut self, name: &'ast str, value: Object<'ast>, public: bool) {
-    self.store.insert(name, (value, public));
+  pub fn set(
+    &mut self,
+    name: &'ast str,
+    value: Object<'ast>,
+    public: bool,
+    constant: bool,
+  ) {
+    self.store.insert(name, (value, public, constant));
+  }
+
+  pub fn is_constant(&self, name: &str) -> bool {
+    self.store.get(name).map(|(_, _, c)| *c).unwrap_or(false)
   }
 
   pub fn get_public_bindings(&self) -> AHashMap<&'ast str, Object<'ast>> {
     self
       .store
       .iter()
-      .filter(|(_, (_, public))| *public)
-      .map(|(name, (obj, _))| (*name, obj.clone()))
+      .filter(|(_, (_, public, _))| *public)
+      .map(|(name, (obj, _, _))| (*name, obj.clone()))
       .collect()
   }
 }

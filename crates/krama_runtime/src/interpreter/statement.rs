@@ -29,7 +29,12 @@ impl<'ast> Interpreter<'ast> {
             check_type(kind, &value)?;
           }
 
-          self.env_mut(span)?.set(name, value, false);
+          let mut value = value;
+          if let Object::Array { constant, .. } = &mut value {
+            *constant = false;
+          }
+
+          self.env_mut(span)?.set(name, value, false, false);
           Ok(Object::Void)
         }
         StatementKind::Test { name: _, body } => {
@@ -47,16 +52,26 @@ impl<'ast> Interpreter<'ast> {
             check_type(kind, &value)?;
           }
 
+          let mut value = value;
+          if let Object::Array { constant, .. } = &mut value {
+            *constant = true;
+          }
+
           match binding {
             Binding::Identifier(name) => {
-              self.env_mut(span)?.set(name, value, *public);
+              self.env_mut(span)?.set(name, value, *public, true);
             }
             Binding::Destructure(items) => {
               if let Object::Scope(scope) = &value {
                 for item in items.iter() {
                   if let Some(export) = scope.get_binding(item.name) {
                     let name = item.alias.unwrap_or(item.name);
-                    self.env_mut(span)?.set(name, export.clone(), *public);
+                    self.env_mut(span)?.set(
+                      name,
+                      export.clone(),
+                      *public,
+                      true,
+                    );
                   } else {
                     return Err(Error::new(
                       ErrorKind::ReferenceError(format!(
@@ -79,11 +94,16 @@ impl<'ast> Interpreter<'ast> {
             }
             Binding::ModuleAndDestructure { alias, items } => {
               if let Object::Scope(scope) = &value {
-                self.env_mut(span)?.set(alias, value.clone(), *public);
+                self.env_mut(span)?.set(alias, value.clone(), *public, true);
                 for item in items.iter() {
                   if let Some(export) = scope.get_binding(item.name) {
                     let name = item.alias.unwrap_or(item.name);
-                    self.env_mut(span)?.set(name, export.clone(), *public);
+                    self.env_mut(span)?.set(
+                      name,
+                      export.clone(),
+                      *public,
+                      true,
+                    );
                   } else {
                     return Err(Error::new(
                       ErrorKind::ReferenceError(format!(
@@ -120,7 +140,7 @@ impl<'ast> Interpreter<'ast> {
               body: body.clone(),
               kind: kind.clone(),
             })));
-          self.env_mut(span)?.set(name, function, *public);
+          self.env_mut(span)?.set(name, function, *public, true);
           Ok(Object::Void)
         }
         StatementKind::Return { value } => {
@@ -159,9 +179,9 @@ impl<'ast> Interpreter<'ast> {
           body,
         } => {
           let iterable_value = self.eval_expression(iterable, None).await?;
-          let elements: &[Object<'ast>] = match &iterable_value {
-            Object::Array { elements, .. } => elements,
-            Object::Tuple { elements } => elements,
+          let elements = match &iterable_value {
+            Object::Array { elements, .. } => elements.read().to_vec(),
+            Object::Tuple { elements } => elements.to_vec(),
             _ => {
               return Err(Error::new(
                 ErrorKind::TypeError(format!(
@@ -178,6 +198,7 @@ impl<'ast> Interpreter<'ast> {
             new_interpreter.environment.borrow_mut().set(
               name,
               element.clone(),
+              false,
               false,
             );
 

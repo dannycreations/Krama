@@ -1,8 +1,9 @@
-use std::{io::Error, path::Path, str};
+use std::{io::Error, path::Path, str, sync::Arc};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use krama_core::{ErrorKind, Object, Span, Type, TypeKind};
 use krama_macro::register_module;
+use parking_lot::RwLock;
 use tokio::fs;
 
 fn io_err_to_krama_err(e: Error) -> ErrorKind {
@@ -82,9 +83,11 @@ async fn read_dir<'ast>(
     entries.push(Object::String(arena.alloc_str(&entry)));
   }
 
+  #[allow(clippy::arc_with_non_send_sync)]
   Ok(Object::Array {
-    elements: entries.into_bump_slice(),
+    elements: Arc::new(RwLock::new(entries)),
     kind: Type::new(TypeKind::Str, Span::empty()),
+    constant: true,
   })
 }
 

@@ -10,7 +10,34 @@ impl<'ast> Interpreter<'ast> {
     span: Span<'ast>,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match &mut object {
-      Object::Array { elements, .. } | Object::Tuple { elements } => {
+      Object::Array { elements, .. } => {
+        let idx = match index {
+          Object::Integer(i) => i,
+          _ => {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "indices must be integers, not {}",
+                index.type_name()
+              )),
+              span,
+            ))
+          }
+        };
+
+        let elements_lock = elements.read();
+        let element = if idx < 0 {
+          elements_lock.get((elements_lock.len() as i64 + idx) as usize)
+        } else {
+          elements_lock.get(idx as usize)
+        };
+
+        if let Some(element) = element {
+          Ok(element.clone())
+        } else {
+          Ok(Object::Void)
+        }
+      }
+      Object::Tuple { elements } => {
         let idx = match index {
           Object::Integer(i) => i,
           _ => {
@@ -77,7 +104,7 @@ impl<'ast> Interpreter<'ast> {
           }
         };
 
-        let map = map.read().await;
+        let map = map.read();
         if let Some(value) = map.get(key) {
           Ok(value.clone())
         } else {

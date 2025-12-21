@@ -16,5 +16,6 @@ futures.workspace = true
 krama_core.workspace = true
 krama_std.workspace = true
 logos.workspace = true
+parking_lot.workspace = true
 path-clean.workspace = true
 tokio = { workspace = true, features = ["sync", "fs", "macros", "rt"] }

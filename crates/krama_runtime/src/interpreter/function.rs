@@ -74,7 +74,7 @@ impl<'ast> Interpreter<'ast> {
       new_interpreter
         .environment
         .borrow_mut()
-        .set(param.name, value, false);
+        .set(param.name, value, false, false);
     }
 
     let result = match &user_fn.body {
