@@ -7,7 +7,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     expression: &Expression<'ast>,
     name: &'ast str,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     if let Some(distance) = self.get_resolved_distance(expression) {
       if let Some(value) = self.get_at(distance, name) {

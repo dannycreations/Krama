@@ -30,7 +30,7 @@ where
   pub fn new(lexer: Lexer<'a>, arena: &'ast Bump) -> Self {
     let mut lexer = lexer.peekable();
     let current_token = lexer.next().unwrap_or_else(|| {
-      let eof_span = Span::new(0, 0, Some(""), None);
+      let eof_span = Span::new(0, 0);
       Token::new(TokenKind::Eof, eof_span)
     });
 
@@ -45,10 +45,7 @@ where
     self.current_token = self.lexer.next().unwrap_or_else(|| {
       let span = &self.current_token.span;
       let eof_pos = span.end;
-      Token::new(
-        TokenKind::Eof,
-        Span::new(eof_pos, eof_pos, span.source, span.file),
-      )
+      Token::new(TokenKind::Eof, Span::new(eof_pos, eof_pos))
     });
   }
 

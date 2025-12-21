@@ -6,26 +6,40 @@ use super::Span;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Error<'a> {
   pub kind: ErrorKind,
-  pub span: Span<'a>,
+  pub span: Span,
+  pub source: Option<&'a str>,
+  pub file: Option<&'a str>,
 }
 
 impl<'a> Error<'a> {
-  pub fn new(kind: ErrorKind, span: Span<'a>) -> Self {
-    Self { kind, span }
+  pub fn new(kind: ErrorKind, span: Span) -> Self {
+    Self {
+      kind,
+      span,
+      source: None,
+      file: None,
+    }
+  }
+
+  /// Attach source code and file path context to the error for reporting.
+  pub fn with_context(mut self, source: &'a str, file: &'a str) -> Self {
+    self.source = Some(source);
+    self.file = Some(file);
+    self
   }
 }
 
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum ErrorKind {
-  #[error("RuntimeError: {0}")]
+  #[error("{0}")]
   RuntimeError(String),
-  #[error("SyntaxError: {0}")]
+  #[error("{0}")]
   SyntaxError(String),
-  #[error("TypeError: {0}")]
+  #[error("{0}")]
   TypeError(String),
-  #[error("ReferenceError: {0}")]
+  #[error("{0}")]
   ReferenceError(String),
-  #[error("ArgumentError: {0}")]
+  #[error("{0}")]
   ArgumentError(String),
 }
 
@@ -41,23 +55,32 @@ impl ErrorKind {
   }
 }
 
+/// Reports the error using Ariadne.
+/// The error MUST have context attached via `with_context`.
 pub fn report_error(error: Error<'_>) {
   let msg = error.kind.to_string();
   let kind = error.kind.name();
   let span = error.span;
-  let file = span.file.unwrap_or("<unknown>");
+
+  let file = error
+    .file
+    .expect("Error must have file context for reporting")
+    .replace('\\', "/");
+  let source = error
+    .source
+    .expect("Error must have source context for reporting");
 
   Report::build(
     ReportKind::Custom(kind, Color::Magenta),
-    (file, span.start..span.end),
+    (&file, span.start..span.end),
   )
   .with_message(&msg)
   .with_label(
-    Label::new((file, span.start..span.end))
+    Label::new((&file, span.start..span.end))
       .with_message(&msg)
       .with_color(Color::Red),
   )
   .finish()
-  .print((file, Source::from(span.source.unwrap_or_default())))
+  .print((&file, Source::from(source)))
   .unwrap();
 }

@@ -20,9 +20,17 @@ impl<'a> Lexer<'a> {
     self.logos.source().len()
   }
 
-  pub fn span(&self) -> Span<'a> {
+  pub fn span(&self) -> Span {
     let span = self.logos.span();
-    Span::new(span.start, span.end, Some(self.logos.slice()), self.file)
+    Span::new(span.start, span.end)
+  }
+
+  pub fn file(&self) -> Option<&'a str> {
+    self.file
+  }
+
+  pub fn source(&self) -> &'a str {
+    self.logos.source()
   }
 }
 

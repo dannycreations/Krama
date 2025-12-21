@@ -7,7 +7,7 @@ pub type Statement<'ast> = Node<'ast, StatementKind<'ast>>;
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockStatement<'ast> {
   pub statements: BumpVec<'ast, Statement<'ast>>,
-  pub span: Span<'ast>,
+  pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,13 +31,20 @@ pub struct Parameter<'ast> {
   pub name: &'ast str,
   pub kind: Option<Type<'ast>>,
   pub default: Option<&'ast Expression<'ast>>,
-  pub span: Span<'ast>,
+  pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ForBinding<'ast> {
   Identifier(&'ast str),
   Array(BumpVec<'ast, ForBinding<'ast>>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumVariant<'ast> {
+  pub name: &'ast str,
+  pub fields: Option<BumpVec<'ast, Type<'ast>>>,
+  pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -63,6 +70,11 @@ pub enum StatementKind<'ast> {
     parameters: BumpVec<'ast, Parameter<'ast>>,
     body: FunctionBody<'ast>,
     kind: Option<Type<'ast>>,
+  },
+  Enum {
+    public: bool,
+    name: &'ast str,
+    variants: BumpVec<'ast, EnumVariant<'ast>>,
   },
   Expression {
     expression: &'ast Expression<'ast>,

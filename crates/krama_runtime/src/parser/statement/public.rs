@@ -12,8 +12,9 @@ where
     match self.current_token.kind {
       TokenKind::Const => self.parse_const_statement(true, start_span),
       TokenKind::Fn => self.parse_fn_statement(true, start_span),
+      TokenKind::Enum => self.parse_enum_statement(true, start_span),
       _ => Err(ErrorKind::SyntaxError(
-        "Expected 'const' or 'fn' after 'pub'".to_string(),
+        "Expected 'const', 'fn' or 'enum' after 'pub'".to_string(),
       )),
     }
   }

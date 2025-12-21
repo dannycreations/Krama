@@ -1,6 +1,7 @@
 mod assignment;
 mod block;
 mod control;
+mod r#enum;
 mod flow;
 mod function;
 mod public;
@@ -21,6 +22,7 @@ where
       TokenKind::Pub => self.parse_pub_statement(),
       TokenKind::Const => self.parse_const_statement(false, token.span),
       TokenKind::Fn => self.parse_fn_statement(false, token.span),
+      TokenKind::Enum => self.parse_enum_statement(false, token.span),
       TokenKind::Let => self.parse_let_statement(),
       TokenKind::Return => self.parse_return_statement(),
       TokenKind::Break => self.parse_break_statement(),

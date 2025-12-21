@@ -6,7 +6,7 @@ use krama_core::{
 
 pub struct Checker<'a> {
   scopes: Vec<IndexMap<&'a str, bool>>,
-  locals: IndexMap<Span<'a>, usize>,
+  locals: IndexMap<Span, usize>,
 }
 
 impl<'a> Default for Checker<'a> {
@@ -26,7 +26,7 @@ impl<'a> Checker<'a> {
   pub fn check(
     &mut self,
     program: &Program<'a>,
-  ) -> Result<IndexMap<Span<'a>, usize>, Error<'a>> {
+  ) -> Result<IndexMap<Span, usize>, Error<'a>> {
     for statement in &program.statements {
       self.check_statement(statement)?;
     }
@@ -93,6 +93,10 @@ impl<'a> Checker<'a> {
           }
         }
         self.end_scope();
+      }
+      StatementKind::Enum { name, .. } => {
+        self.declare(name);
+        self.define(name);
       }
       StatementKind::Return { value } => {
         if let Some(value) = value {

@@ -9,7 +9,7 @@ impl<'ast> Interpreter<'ast> {
     &'s self,
     subject: &'s Object<'ast>,
     pattern: &'s MatchPattern<'ast>,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<bool, Error<'ast>>
   where
     'ast: 's,

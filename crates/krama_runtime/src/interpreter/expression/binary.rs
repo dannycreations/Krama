@@ -9,7 +9,7 @@ impl<'ast> Interpreter<'ast> {
     operator: BinaryOperator,
     left: Object<'ast>,
     right: Object<'ast>,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match (left, right) {
       (Object::Integer(l), Object::Integer(r)) => match operator {
@@ -104,7 +104,7 @@ impl<'ast> Interpreter<'ast> {
     operator: BinaryOperator,
     left: f64,
     right: f64,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
       BinaryOperator::Add => Ok(Object::Float(left + right)),
@@ -134,7 +134,7 @@ impl<'ast> Interpreter<'ast> {
     operator: BinaryOperator,
     left: &str,
     right: &str,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
       BinaryOperator::Add => {
@@ -159,7 +159,7 @@ impl<'ast> Interpreter<'ast> {
     operator: BinaryOperator,
     left: bool,
     right: bool,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
       BinaryOperator::Equal => Ok(Object::Boolean(left == right)),

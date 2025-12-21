@@ -15,7 +15,7 @@ impl<'ast> Interpreter<'ast> {
   pub async fn eval_import(
     &self,
     path: &'ast str,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     if path.starts_with("std:") {
       self.eval_std_module(path, span)
@@ -27,7 +27,7 @@ impl<'ast> Interpreter<'ast> {
   async fn resolve_import_path(
     &self,
     path: &str,
-    span: &Span<'ast>,
+    span: &Span,
   ) -> Result<(PathBuf, String), Error<'ast>> {
     let base_path = self
       .path
@@ -71,7 +71,7 @@ impl<'ast> Interpreter<'ast> {
   fn eval_std_module(
     &self,
     path: &'ast str,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     let module_name = self.arena.alloc_str(path.strip_prefix("std:").unwrap());
 
@@ -114,7 +114,7 @@ impl<'ast> Interpreter<'ast> {
   async fn eval_file_module(
     &self,
     path: &'ast str,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     let (resolved_path, source) = self.resolve_import_path(path, &span).await?;
     let resolved_path_str = resolved_path.to_str().ok_or_else(|| {

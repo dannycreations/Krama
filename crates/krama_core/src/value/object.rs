@@ -50,10 +50,18 @@ pub struct UserFunction<'ast> {
   pub kind: Option<Type<'ast>>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumConstructor<'ast> {
+  pub name: &'ast str,
+  pub variant: &'ast str,
+  pub field_count: usize,
+}
+
 #[derive(Copy, Clone)]
 pub enum Function<'ast> {
   Native(NativeFunction),
   User(&'ast UserFunction<'ast>),
+  Enum(&'ast EnumConstructor<'ast>),
 }
 
 impl<'ast> PartialEq for Function<'ast> {
@@ -61,6 +69,7 @@ impl<'ast> PartialEq for Function<'ast> {
     match (self, other) {
       (Function::Native(a), Function::Native(b)) => a == b,
       (Function::User(a), Function::User(b)) => a == b,
+      (Function::Enum(a), Function::Enum(b)) => a == b,
       _ => false,
     }
   }
@@ -71,6 +80,7 @@ impl<'ast> Debug for Function<'ast> {
     match self {
       Function::Native(n) => n.fmt(f),
       Function::User(u) => u.fmt(f),
+      Function::Enum(e) => e.fmt(f),
     }
   }
 }
@@ -80,6 +90,9 @@ impl<'ast> Display for Function<'ast> {
     match self {
       Function::Native(_) => write!(f, "[native function]"),
       Function::User(_) => write!(f, "[function]"),
+      Function::Enum(e) => {
+        write!(f, "[enum constructor {}::{}]", e.name, e.variant)
+      }
     }
   }
 }
@@ -126,6 +139,12 @@ pub enum Object<'ast> {
   Ok(Arc<Object<'ast>>),
   #[strum(props(name = "err"))]
   Err(Arc<Object<'ast>>),
+  #[strum(props(name = "enum"))]
+  Enum {
+    name: &'ast str,
+    variant: &'ast str,
+    fields: Option<&'ast [Object<'ast>]>,
+  },
 }
 
 // We implement Send and Sync for Object because it's required by tokio/futures
@@ -173,13 +192,25 @@ impl<'ast> PartialEq for Object<'ast> {
       (Self::Continue, Self::Continue) => true,
       (Self::Ok(l), Self::Ok(r)) => Arc::ptr_eq(l, r),
       (Self::Err(l), Self::Err(r)) => Arc::ptr_eq(l, r),
+      (
+        Self::Enum {
+          name: ln,
+          variant: lv,
+          fields: lf,
+        },
+        Self::Enum {
+          name: rn,
+          variant: rv,
+          fields: rf,
+        },
+      ) => ln == rn && lv == rv && lf == rf,
       _ => false,
     }
   }
 }
 
 impl<'ast> Object<'ast> {
-  pub fn type_name(&self) -> &'static str {
+  pub fn type_name(&self) -> &str {
     match self {
       Object::Scope(scope) => {
         if scope.name.is_some() {
@@ -188,6 +219,7 @@ impl<'ast> Object<'ast> {
           "global"
         }
       }
+      Object::Enum { name, .. } => name,
       _ => self.get_str("name").unwrap_or("unknown"),
     }
   }
@@ -257,6 +289,24 @@ impl<'ast> Display for Object<'ast> {
       Object::Continue => write!(f, "continue"),
       Object::Ok(value) => write!(f, "Ok({})", value),
       Object::Err(error) => write!(f, "Err({})", error),
+      Object::Enum {
+        name,
+        variant,
+        fields,
+      } => {
+        write!(f, "{}::{}", name, variant)?;
+        if let Some(fields) = fields {
+          write!(f, "(")?;
+          for (i, field) in fields.iter().enumerate() {
+            if i > 0 {
+              write!(f, ", ")?;
+            }
+            write!(f, "{}", field)?;
+          }
+          write!(f, ")")?;
+        }
+        Ok(())
+      }
     }
   }
 }
@@ -293,6 +343,16 @@ impl<'ast> Debug for Object<'ast> {
       Object::Continue => write!(f, "Continue"),
       Object::Ok(value) => f.debug_tuple("Ok").field(value).finish(),
       Object::Err(error) => f.debug_tuple("Err").field(error).finish(),
+      Object::Enum {
+        name,
+        variant,
+        fields,
+      } => f
+        .debug_struct("Enum")
+        .field("name", name)
+        .field("variant", variant)
+        .field("fields", fields)
+        .finish(),
     }
   }
 }

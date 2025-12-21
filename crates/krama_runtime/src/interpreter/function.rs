@@ -11,7 +11,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     function: Object<'ast>,
     arguments: &'ast [Object<'ast>],
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match function {
       Object::Function(function) => match function {
@@ -22,6 +22,25 @@ impl<'ast> Interpreter<'ast> {
         }
         Function::User(user_fn) => {
           self.eval_user_function_call(user_fn, arguments, span).await
+        }
+        Function::Enum(constructor) => {
+          if arguments.len() != constructor.field_count {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "Expected {} arguments for variant {}::{}, found {}",
+                constructor.field_count,
+                constructor.name,
+                constructor.variant,
+                arguments.len()
+              )),
+              span,
+            ));
+          }
+          Ok(Object::Enum {
+            name: constructor.name,
+            variant: constructor.variant,
+            fields: Some(arguments),
+          })
         }
       },
       _ => Err(Error::new(
@@ -38,7 +57,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     user_fn: &'ast UserFunction<'ast>,
     arguments: &'ast [Object<'ast>],
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     if arguments.len() > user_fn.parameters.len() {
       return Err(Error::new(

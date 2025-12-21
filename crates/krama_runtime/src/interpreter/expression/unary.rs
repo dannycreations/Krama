@@ -7,7 +7,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     operator: UnaryOperator,
     right: Object<'ast>,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
       UnaryOperator::Not => Ok(Object::Boolean(!bool::from(&right))),

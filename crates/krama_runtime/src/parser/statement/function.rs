@@ -12,7 +12,7 @@ where
   pub fn parse_fn_statement(
     &mut self,
     public: bool,
-    start_span: Span<'a>,
+    start_span: Span,
   ) -> Result<Statement<'ast>, ErrorKind> {
     self.advance();
     let name = self.parse_identifier()?;

@@ -33,7 +33,7 @@ where
   pub fn parse_const_statement(
     &mut self,
     public: bool,
-    start_span: Span<'a>,
+    start_span: Span,
   ) -> Result<Statement<'ast>, ErrorKind> {
     self.consume(TokenKind::Const)?;
 

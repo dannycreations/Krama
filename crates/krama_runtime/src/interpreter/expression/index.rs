@@ -7,7 +7,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     mut object: Object<'ast>,
     index: Object<'ast>,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match &mut object {
       Object::Array { elements, .. } => {

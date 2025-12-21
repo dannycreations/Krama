@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use futures::future::{FutureExt, LocalBoxFuture};
+use indexmap::IndexMap;
 use krama_core::{
-  Binding, BlockStatement, Error, ErrorKind, ForBinding, Function, Object,
-  Statement, StatementKind, UserFunction,
+  Binding, BlockStatement, EnumConstructor, Error, ErrorKind, ForBinding,
+  Function, Object, Statement, StatementKind, UserFunction,
 };
+use parking_lot::RwLock;
 
 use super::{types::check_type, Interpreter};
 
@@ -155,6 +157,40 @@ impl<'ast> Interpreter<'ast> {
           self.env_mut(span)?.set(name, function, *public, true);
           Ok(Object::Void)
         }
+        StatementKind::Enum {
+          public,
+          name,
+          variants,
+        } => {
+          let mut properties = IndexMap::default();
+          for variant in variants {
+            let variant_name = variant.name;
+
+            if let Some(fields) = &variant.fields {
+                let field_count = fields.len();
+                let constructor = self.arena.alloc(EnumConstructor {
+                    name,
+                    variant: variant_name,
+                    field_count,
+                });
+                properties.insert(variant_name, Object::Function(Function::Enum(constructor)));
+            } else {
+                properties.insert(variant_name, Object::Enum {
+                    name,
+                    variant: variant_name,
+                    fields: None,
+                });
+            }
+          }
+
+          let enum_obj = Object::Object {
+            properties: Arc::new(RwLock::new(properties)),
+            constant: true,
+          };
+
+          self.env_mut(span)?.set(name, enum_obj, *public, true);
+          Ok(Object::Void)
+        }
         StatementKind::Return { value } => {
           let value = match value {
             Some(expression) => self.eval_expression(expression, None).await?,
@@ -272,7 +308,7 @@ impl<'ast> Interpreter<'ast> {
     interpreter: &Interpreter<'ast>,
     binding: &ForBinding<'ast>,
     value: Object<'ast>,
-    span: krama_core::Span<'ast>,
+    span: krama_core::Span,
   ) -> Result<(), Error<'ast>> {
     match binding {
       ForBinding::Identifier(name) => {

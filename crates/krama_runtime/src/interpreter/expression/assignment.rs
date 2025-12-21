@@ -11,7 +11,7 @@ impl<'ast> Interpreter<'ast> {
     left: &Expression<'ast>,
     operator: AssignmentOperator,
     right: &Expression<'ast>,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     let right_val = self.eval_expression(right, None).await?;
 
@@ -262,7 +262,7 @@ impl<'ast> Interpreter<'ast> {
     operator: UpdateOperator,
     argument: &Expression<'ast>,
     prefix: bool,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match &argument.kind {
       ExpressionKind::Identifier(ident) => {
@@ -469,7 +469,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     operator: UpdateOperator,
     value: &Object<'ast>,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     match (operator, value) {
       (UpdateOperator::Increment, Object::Integer(i)) => {

@@ -7,7 +7,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     object: Object<'ast>,
     property: &Expression<'ast>,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     let property_name = if let ExpressionKind::Identifier(name) = property.kind
     {

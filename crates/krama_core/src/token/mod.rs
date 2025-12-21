@@ -8,11 +8,11 @@ use super::Span;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token<'a> {
   pub kind: TokenKind<'a>,
-  pub span: Span<'a>,
+  pub span: Span,
 }
 
 impl<'a> Token<'a> {
-  pub fn new(kind: TokenKind<'a>, span: Span<'a>) -> Self {
+  pub fn new(kind: TokenKind<'a>, span: Span) -> Self {
     Self { kind, span }
   }
 }
@@ -64,6 +64,8 @@ pub enum TokenKind<'a> {
   As,
   #[token("null")]
   Null,
+  #[token("enum")]
+  Enum,
   #[token("i8")]
   I8,
   #[token("i16")]
@@ -230,6 +232,7 @@ impl<'a> TokenKind<'a> {
         | TokenKind::Import
         | TokenKind::As
         | TokenKind::Null
+        | TokenKind::Enum
         | TokenKind::I8
         | TokenKind::I16
         | TokenKind::I32

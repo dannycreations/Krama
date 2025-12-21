@@ -27,7 +27,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     subject: &Expression<'ast>,
     arms: &[MatchArm<'ast>],
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
     let subject = self.eval_expression(subject, None).await?;
 

@@ -25,7 +25,7 @@ pub struct Interpreter<'ast> {
   pub modules: &'ast RefCell<IndexMap<&'ast str, Object<'ast>>>,
   pub arena: &'ast Bump,
   pub path: Option<&'ast str>,
-  locals: RefCell<AHashMap<Span<'ast>, usize>>,
+  locals: RefCell<AHashMap<Span, usize>>,
 }
 
 impl<'ast> Interpreter<'ast> {
@@ -97,7 +97,17 @@ impl<'ast> Interpreter<'ast> {
     source: &'ast str,
   ) -> Result<Object<'ast>, Error<'ast>> {
     let program = self.parse_and_check(source)?;
-    self.eval_program_statements(&program.statements).await
+    self
+      .eval_program_statements(&program.statements)
+      .await
+      .map_err(|e| {
+        // Ensure errors from eval carry the source and path if not already present
+        if e.source.is_none() {
+          e.with_context(source, self.path.unwrap_or("<unknown>"))
+        } else {
+          e
+        }
+      })
   }
 
   pub fn parse_and_check(
@@ -106,9 +116,21 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Program<'ast>, Error<'ast>> {
     let lexer = Lexer::new(source, self.path);
     let mut parser = Parser::new(lexer, self.arena);
-    let program = parser.parse()?;
+    let program = parser.parse().map_err(|e| {
+      if e.source.is_none() {
+        e.with_context(source, self.path.unwrap_or("<unknown>"))
+      } else {
+        e
+      }
+    })?;
     let mut checker = Checker::new();
-    let locals = checker.check(&program)?;
+    let locals = checker.check(&program).map_err(|e| {
+      if e.source.is_none() {
+        e.with_context(source, self.path.unwrap_or("<unknown>"))
+      } else {
+        e
+      }
+    })?;
     *self.locals.borrow_mut() = locals.into_iter().collect();
     Ok(program)
   }
@@ -126,7 +148,7 @@ impl<'ast> Interpreter<'ast> {
 
   pub fn env_mut(
     &self,
-    span: Span<'ast>,
+    span: Span,
   ) -> Result<RefMut<'_, Environment<'ast>>, Error<'ast>> {
     self
       .environment
