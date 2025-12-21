@@ -105,7 +105,10 @@ pub enum Object<'ast> {
     elements: &'ast [Object<'ast>],
   },
   #[strum(props(name = "object"))]
-  Object(Arc<RwLock<AHashMap<&'ast str, Object<'ast>>>>),
+  Object {
+    properties: Arc<RwLock<AHashMap<&'ast str, Object<'ast>>>>,
+    constant: bool,
+  },
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]
@@ -151,7 +154,16 @@ impl<'ast> PartialEq for Object<'ast> {
         },
       ) => Arc::ptr_eq(l, r) && lk == rk && lc == rc,
       (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => l == r,
-      (Self::Object(l), Self::Object(r)) => Arc::ptr_eq(l, r),
+      (
+        Self::Object {
+          properties: l,
+          constant: lc,
+        },
+        Self::Object {
+          properties: r,
+          constant: rc,
+        },
+      ) => Arc::ptr_eq(l, r) && lc == rc,
       (Self::Null, Self::Null) => true,
       (Self::Void, Self::Void) => true,
       (Self::Scope(l), Self::Scope(r)) => std::ptr::eq(*l, *r),
@@ -190,7 +202,7 @@ impl<'ast> From<&Object<'ast>> for bool {
       Object::String(s) => !s.is_empty(),
       Object::Array { elements, .. } => !elements.read().is_empty(),
       Object::Tuple { elements } => !elements.is_empty(),
-      Object::Object(_) => true,
+      Object::Object { .. } => true,
       Object::Null | Object::Void => false,
       Object::Ok(_) => true,
       Object::Err(_) => false,
@@ -227,7 +239,7 @@ impl<'ast> Display for Object<'ast> {
         }
         write!(f, "]")
       }
-      Object::Object(_) => {
+      Object::Object { .. } => {
         write!(f, "[object]")
       }
       Object::Null => write!(f, "null"),
@@ -256,16 +268,22 @@ impl<'ast> Debug for Object<'ast> {
       Object::Float(fl) => write!(f, "Float({})", fl),
       Object::Boolean(b) => write!(f, "Boolean({})", b),
       Object::String(s) => write!(f, "String(\"{}\")", s),
-      Object::Array { elements, .. } => {
+      Object::Array {
+        elements, constant, ..
+      } => {
         let elements = elements.read();
-        f.debug_tuple("Array").field(&*elements).finish()
+        f.debug_struct("Array")
+          .field("elements", &*elements)
+          .field("constant", constant)
+          .finish()
       }
       Object::Tuple { elements } => {
         f.debug_tuple("Tuple").field(elements).finish()
       }
-      Object::Object(_) => {
-        write!(f, "Object(...)")
-      }
+      Object::Object { constant, .. } => f
+        .debug_struct("Object")
+        .field("constant", constant)
+        .finish_non_exhaustive(),
       Object::Null => write!(f, "Null"),
       Object::Void => write!(f, "Void"),
       Object::Scope(scope) => f.debug_tuple("Scope").field(scope).finish(),

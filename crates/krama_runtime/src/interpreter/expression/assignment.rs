@@ -57,11 +57,23 @@ impl<'ast> Interpreter<'ast> {
           };
 
         match obj_val {
-          Object::Object(map) => {
+          Object::Object {
+            properties,
+            constant,
+          } => {
+            if constant {
+              return Err(Error::new(
+                ErrorKind::TypeError(
+                  "Cannot assign to property of constant object".to_string(),
+                ),
+                span,
+              ));
+            }
+
             let final_val = if operator == AssignmentOperator::Assign {
               right_val
             } else {
-              let left_val = map
+              let left_val = properties
                 .read()
                 .get(property_name)
                 .cloned()
@@ -71,7 +83,7 @@ impl<'ast> Interpreter<'ast> {
                 .eval_binary_expression(binary_op, left_val, right_val, span)?
             };
 
-            map.write().insert(property_name, final_val.clone());
+            properties.write().insert(property_name, final_val.clone());
             Ok(final_val)
           }
           _ => Err(Error::new(
@@ -90,7 +102,19 @@ impl<'ast> Interpreter<'ast> {
         )?;
 
         match obj_val {
-          Object::Object(map) => {
+          Object::Object {
+            properties,
+            constant,
+          } => {
+            if constant {
+              return Err(Error::new(
+                ErrorKind::TypeError(
+                  "Cannot assign to index of constant object".to_string(),
+                ),
+                span,
+              ));
+            }
+
             let key = match index_val {
               Object::String(s) => s,
               _ => {
@@ -107,13 +131,13 @@ impl<'ast> Interpreter<'ast> {
               right_val
             } else {
               let left_val =
-                map.read().get(key).cloned().unwrap_or(Object::Void);
+                properties.read().get(key).cloned().unwrap_or(Object::Void);
               let binary_op = self.assignment_to_binary_op(operator);
               self
                 .eval_binary_expression(binary_op, left_val, right_val, span)?
             };
 
-            map.write().insert(key, final_val.clone());
+            properties.write().insert(key, final_val.clone());
             Ok(final_val)
           }
           Object::Array {
@@ -279,15 +303,27 @@ impl<'ast> Interpreter<'ast> {
           };
 
         match obj_val {
-          Object::Object(map) => {
-            let original_value = map
+          Object::Object {
+            properties,
+            constant,
+          } => {
+            if constant {
+              return Err(Error::new(
+                ErrorKind::TypeError(
+                  "Cannot update property of constant object".to_string(),
+                ),
+                span,
+              ));
+            }
+
+            let original_value = properties
               .read()
               .get(property_name)
               .cloned()
               .unwrap_or(Object::Void);
             let new_value =
               self.apply_update(operator, &original_value, span)?;
-            map.write().insert(property_name, new_value.clone());
+            properties.write().insert(property_name, new_value.clone());
             Ok(if prefix { new_value } else { original_value })
           }
           _ => Err(Error::new(
@@ -305,7 +341,19 @@ impl<'ast> Interpreter<'ast> {
         )?;
 
         match obj_val {
-          Object::Object(map) => {
+          Object::Object {
+            properties,
+            constant,
+          } => {
+            if constant {
+              return Err(Error::new(
+                ErrorKind::TypeError(
+                  "Cannot update index of constant object".to_string(),
+                ),
+                span,
+              ));
+            }
+
             let key = match index_val {
               Object::String(s) => s,
               _ => {
@@ -319,10 +367,10 @@ impl<'ast> Interpreter<'ast> {
             };
 
             let original_value =
-              map.read().get(key).cloned().unwrap_or(Object::Void);
+              properties.read().get(key).cloned().unwrap_or(Object::Void);
             let new_value =
               self.apply_update(operator, &original_value, span)?;
-            map.write().insert(key, new_value.clone());
+            properties.write().insert(key, new_value.clone());
             Ok(if prefix { new_value } else { original_value })
           }
           Object::Array {

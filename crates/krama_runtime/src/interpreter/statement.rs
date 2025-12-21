@@ -30,8 +30,14 @@ impl<'ast> Interpreter<'ast> {
           }
 
           let mut value = value;
-          if let Object::Array { constant, .. } = &mut value {
-            *constant = false;
+          match &mut value {
+            Object::Array { constant, .. } => {
+              *constant = false;
+            }
+            Object::Object { constant, .. } => {
+              *constant = false;
+            }
+            _ => {}
           }
 
           self.env_mut(span)?.set(name, value, false, false);
@@ -53,8 +59,14 @@ impl<'ast> Interpreter<'ast> {
           }
 
           let mut value = value;
-          if let Object::Array { constant, .. } = &mut value {
-            *constant = true;
+          match &mut value {
+            Object::Array { constant, .. } => {
+              *constant = true;
+            }
+            Object::Object { constant, .. } => {
+              *constant = true;
+            }
+            _ => {}
           }
 
           match binding {

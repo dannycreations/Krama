@@ -90,7 +90,7 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
       }
-      Object::Object(map) => {
+      Object::Object { properties, .. } => {
         let key = match index {
           Object::String(s) => s,
           _ => {
@@ -104,8 +104,8 @@ impl<'ast> Interpreter<'ast> {
           }
         };
 
-        let map = map.read();
-        if let Some(value) = map.get(key) {
+        let properties = properties.read();
+        if let Some(value) = properties.get(key) {
           Ok(value.clone())
         } else {
           Ok(Object::Void)

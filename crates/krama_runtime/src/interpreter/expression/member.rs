@@ -20,9 +20,9 @@ impl<'ast> Interpreter<'ast> {
     };
 
     match object {
-      Object::Object(map) => {
-        let map = map.read();
-        if let Some(value) = map.get(property_name) {
+      Object::Object { properties, .. } => {
+        let properties = properties.read();
+        if let Some(value) = properties.get(property_name) {
           Ok(value.clone())
         } else {
           Ok(Object::Void)

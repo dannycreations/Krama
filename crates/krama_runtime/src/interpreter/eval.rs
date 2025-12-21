@@ -214,7 +214,10 @@ impl<'ast> Interpreter<'ast> {
             object.insert(key, value);
           }
           #[allow(clippy::arc_with_non_send_sync)]
-          Ok(Object::Object(Arc::new(RwLock::new(object))))
+          Ok(Object::Object {
+            properties: Arc::new(RwLock::new(object)),
+            constant: false,
+          })
         }
         ExpressionKind::Typed { expr, kind } => {
           let value = self.eval_expression(expr, Some(kind)).await?;

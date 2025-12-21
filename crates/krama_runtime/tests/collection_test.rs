@@ -63,6 +63,12 @@ test_eval_err!(
   ErrorKind::TypeError(_)
 );
 
+test_eval_err!(
+  eval_const_array_update_immutability,
+  "const a: i32[] = [1, 2, 3]; a[0]++; a[0]",
+  ErrorKind::TypeError(_)
+);
+
 test_eval_match!(
   eval_tuple,
   "const a = [1, true, \"hello\"]; a",
@@ -96,5 +102,11 @@ test_eval_err!(
 test_eval_err!(
   eval_tuple_immutability,
   "let a = [1, true]; a[0] = 2; a",
+  ErrorKind::TypeError(_)
+);
+
+test_eval_err!(
+  eval_tuple_update_immutability,
+  "let a = [1, true]; a[0]++; a",
   ErrorKind::TypeError(_)
 );
