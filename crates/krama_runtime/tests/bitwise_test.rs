@@ -15,30 +15,30 @@ test_eval_ok!(eval_right_shift, "5 >> 1", Object::Integer(2));
 
 test_eval_ok!(
   eval_bitwise_and_assignment,
-  "let a = 5\na &= 3",
+  "let a = 5; a &= 3",
   Object::Integer(1)
 );
 
 test_eval_ok!(
   eval_bitwise_or_assignment,
-  "let a = 5\na |= 3",
+  "let a = 5; a |= 3",
   Object::Integer(7)
 );
 
 test_eval_ok!(
   eval_bitwise_xor_assignment,
-  "let a = 5\na ^= 3",
+  "let a = 5; a ^= 3",
   Object::Integer(6)
 );
 
 test_eval_ok!(
   eval_left_shift_assignment,
-  "let a = 5\na <<= 1",
+  "let a = 5; a <<= 1",
   Object::Integer(10)
 );
 
 test_eval_ok!(
   eval_right_shift_assignment,
-  "let a = 5\na >>= 1",
+  "let a = 5; a >>= 1",
   Object::Integer(2)
 );

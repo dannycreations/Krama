@@ -5,7 +5,7 @@ test_eval_ok!(
   eval_for_in_array,
   r#"
     let a = 0
-    let b: u32[] = [1, 2, 3, 4, 5]
+    const b: u32[] = [1, 2, 3, 4, 5]
     for (x in b) {
       a = a + x
     }
@@ -18,7 +18,7 @@ test_eval_ok!(
   eval_for_in_tuple,
   r#"
     let a = 0
-    let b = [10, 20, 30]
+    const b = [10, 20, 30]
     for (x in b) {
       a = a + x
     }

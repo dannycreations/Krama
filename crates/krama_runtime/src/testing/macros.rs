@@ -14,15 +14,14 @@ macro_rules! test_eval_ok {
 
 #[macro_export]
 macro_rules! test_eval_match {
-  ($name:ident, $source:expr, $matcher:expr) => {
+  ($name:ident, $source:expr, $expected:pat) => {
     #[tokio::test]
     async fn $name() {
       let arena = ::bumpalo::Bump::new();
       let interpreter = $crate::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
-      let matcher: fn(::krama_core::Object) -> bool = $matcher;
-      assert!(matcher(result));
+      assert!(matches!(result, $expected));
     }
   };
 }

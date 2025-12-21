@@ -61,7 +61,7 @@ test_eval_ok!(
 
 test_eval_ok!(
   eval_match_expression_with_assignment,
-  "const a = match (5) { 0..10 => 1, else => 2 }\na",
+  "const a = match (5) { 0..10 => 1, else => 2 }; a",
   Object::Integer(1)
 );
 

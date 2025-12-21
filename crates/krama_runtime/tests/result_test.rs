@@ -18,7 +18,7 @@ test_eval_ok!(
     }
 
     fn calculate() {
-      let x = divide(10, 2)?;
+      const x = divide(10, 2)?;
       x + 5
     }
 
@@ -35,7 +35,7 @@ test_eval_err!(
     }
 
     fn calculate() {
-      let x = fail()?;
+      const x = fail()?;
       x + 1
     }
 

@@ -9,7 +9,7 @@ test_eval_ok!(
 
 test_eval_ok!(
   eval_get_array_length,
-  "const a: i64[] = [1, 2, 3]; a.length",
+  "const a: i32[] = [1, 2, 3]; a.length",
   Object::Integer(3)
 );
 

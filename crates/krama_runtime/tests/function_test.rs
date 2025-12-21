@@ -9,7 +9,7 @@ test_eval_ok!(
 
 test_eval_ok!(
   eval_let_bound_function_call,
-  "let a = fn(x) { x }; a(5)",
+  "let a = fn(x) { x }; a = a(5)",
   Object::Integer(5)
 );
 
@@ -21,19 +21,19 @@ test_eval_ok!(
 
 test_eval_ok!(
   eval_arrow_function_call,
-  "let a = (x) => x; a(5)",
+  "const a = (x) => x; a(5)",
   Object::Integer(5)
 );
 
 test_eval_err!(
   eval_arrow_function_call_with_block,
-  "let a = (x) => { x }; a(5)",
+  "const a = (x) => { x }; a(5)",
   ErrorKind::SyntaxError(_)
 );
 
 test_eval_err!(
   eval_classic_function_call_with_arrow,
-  "let a = fn(x) => x; a(5)",
+  "const a = fn(x) => x; a(5)",
   ErrorKind::SyntaxError(_)
 );
 

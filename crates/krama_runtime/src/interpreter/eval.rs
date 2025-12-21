@@ -176,6 +176,20 @@ impl<'ast> Interpreter<'ast> {
               _ => {}
             }
           }
+
+          if elements.is_empty() {
+            return Ok(Object::Array {
+              elements: elements_slice,
+              kind: Type::new(
+                TypeKind::Array {
+                  element: self.arena.alloc(Type::new(TypeKind::Void, *span)),
+                  size: None,
+                },
+                *span,
+              ),
+            });
+          }
+
           Ok(Object::Tuple {
             elements: elements_slice,
           })
