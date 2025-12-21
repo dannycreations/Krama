@@ -1,4 +1,7 @@
-use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use std::{
+  fmt::{Debug, Display, Formatter, Result as FmtResult},
+  ptr,
+};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
@@ -66,8 +69,8 @@ impl<'ast> PartialEq for Function<'ast> {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (Function::Native(a), Function::Native(b)) => a == b,
-      (Function::User(a), Function::User(b)) => a == b,
-      (Function::Enum(a), Function::Enum(b)) => a == b,
+      (Function::User(a), Function::User(b)) => ptr::eq(*a, *b),
+      (Function::Enum(a), Function::Enum(b)) => ptr::eq(*a, *b),
       _ => false,
     }
   }
@@ -103,19 +106,23 @@ pub struct StructDefinition<'ast> {
 }
 
 #[derive(Clone, EnumPropertyMacro)]
+#[repr(C, u8)]
 pub enum Object<'ast> {
+  #[strum(props(name = "null"))]
+  Null,
+  #[strum(props(name = "void"))]
+  Void,
+  #[strum(props(name = "boolean"))]
+  Boolean(bool),
   #[strum(props(name = "integer"))]
   Integer(i64),
   #[strum(props(name = "float"))]
   Float(f64),
-  #[strum(props(name = "boolean"))]
-  Boolean(bool),
   #[strum(props(name = "string"))]
   String(&'ast str),
   #[strum(props(name = "array"))]
   Array {
-    // Use arena-allocated RwLock to avoid Arc overhead.
-    // This aligns with Krama's DRT strategy where the arena manages the lifetime.
+    // Arena-allocated RwLock for interior mutability without Arc.
     elements: &'ast RwLock<BumpVec<'ast, Object<'ast>>>,
     kind: Type<'ast>,
     constant: bool,
@@ -126,14 +133,9 @@ pub enum Object<'ast> {
   },
   #[strum(props(name = "object"))]
   Object {
-    // Use arena-allocated RwLock to avoid Arc overhead.
     properties: &'ast RwLock<IndexMap<&'ast str, Object<'ast>>>,
     constant: bool,
   },
-  #[strum(props(name = "null"))]
-  Null,
-  #[strum(props(name = "void"))]
-  Void,
   Scope(&'ast Scope<'ast>),
   #[strum(props(name = "function"))]
   Function(Function<'ast>),
@@ -171,7 +173,7 @@ impl<'ast> PartialEq for Object<'ast> {
       (Self::Integer(l), Self::Integer(r)) => l == r,
       (Self::Float(l), Self::Float(r)) => l == r,
       (Self::Boolean(l), Self::Boolean(r)) => l == r,
-      (Self::String(l), Self::String(r)) => l == r,
+      (Self::String(l), Self::String(r)) => ptr::eq(*l, *r) || l == r,
       (
         Self::Array {
           elements: l,
@@ -183,8 +185,10 @@ impl<'ast> PartialEq for Object<'ast> {
           kind: rk,
           constant: rc,
         },
-      ) => std::ptr::eq(*l, *r) && lk == rk && lc == rc,
-      (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => l == r,
+      ) => ptr::eq(*l, *r) && lk == rk && lc == rc,
+      (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => {
+        ptr::eq(*l, *r) || l == r
+      }
       (
         Self::Object {
           properties: l,
@@ -194,16 +198,16 @@ impl<'ast> PartialEq for Object<'ast> {
           properties: r,
           constant: rc,
         },
-      ) => std::ptr::eq(*l, *r) && lc == rc,
+      ) => ptr::eq(*l, *r) && lc == rc,
       (Self::Null, Self::Null) => true,
       (Self::Void, Self::Void) => true,
-      (Self::Scope(l), Self::Scope(r)) => std::ptr::eq(*l, *r),
+      (Self::Scope(l), Self::Scope(r)) => ptr::eq(*l, *r),
       (Self::Function(l), Self::Function(r)) => l == r,
-      (Self::Return(l), Self::Return(r)) => std::ptr::eq(*l, *r),
+      (Self::Return(l), Self::Return(r)) => ptr::eq(*l, *r),
       (Self::Break, Self::Break) => true,
       (Self::Continue, Self::Continue) => true,
-      (Self::Ok(l), Self::Ok(r)) => std::ptr::eq(*l, *r),
-      (Self::Err(l), Self::Err(r)) => std::ptr::eq(*l, *r),
+      (Self::Ok(l), Self::Ok(r)) => ptr::eq(*l, *r),
+      (Self::Err(l), Self::Err(r)) => ptr::eq(*l, *r),
       (
         Self::Enum {
           name: ln,
@@ -216,7 +220,7 @@ impl<'ast> PartialEq for Object<'ast> {
           fields: rf,
         },
       ) => ln == rn && lv == rv && lf == rf,
-      (Self::Struct(l), Self::Struct(r)) => l == r,
+      (Self::Struct(l), Self::Struct(r)) => ptr::eq(*l, *r),
       (
         Self::StructInstance {
           definition: ld,
@@ -226,7 +230,7 @@ impl<'ast> PartialEq for Object<'ast> {
           definition: rd,
           fields: rf,
         },
-      ) => ld == rd && std::ptr::eq(*lf, *rf),
+      ) => ptr::eq(*ld, *rd) && ptr::eq(*lf, *rf),
       (Self::Type(l), Self::Type(r)) => l == r,
       _ => false,
     }
@@ -265,12 +269,11 @@ impl<'ast> Object<'ast> {
       Object::Type(_) => "type",
     }
   }
-}
 
-impl<'ast> From<&Object<'ast>> for bool {
+  /// Returns true if the object is truthy.
   #[inline]
-  fn from(obj: &Object<'ast>) -> bool {
-    match obj {
+  pub fn is_truthy(&self) -> bool {
+    match self {
       Object::Boolean(b) => *b,
       Object::Integer(i) => *i != 0,
       Object::Float(f) => *f != 0.0,
@@ -283,6 +286,13 @@ impl<'ast> From<&Object<'ast>> for bool {
       Object::Err(_) => false,
       _ => true,
     }
+  }
+}
+
+impl<'ast> From<&Object<'ast>> for bool {
+  #[inline]
+  fn from(obj: &Object<'ast>) -> bool {
+    obj.is_truthy()
   }
 }
 

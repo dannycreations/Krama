@@ -1,10 +1,8 @@
 use std::{
-  io,
   path::{Path, PathBuf},
   str,
 };
 
-use indexmap::IndexMap;
 use krama_core::{Error, ErrorKind, Function, Object, Scope, Span};
 use path_clean::PathClean;
 use tokio::fs;
@@ -36,27 +34,15 @@ impl<'ast> Interpreter<'ast> {
 
     let path_buf = base_path.join(path).clean();
 
-    match fs::read_to_string(&path_buf).await {
-      Ok(content) => return Ok((path_buf, content)),
-      Err(e) if e.kind() != io::ErrorKind::NotFound => {
-        return Err(Error::new(
-          ErrorKind::ReferenceError(e.to_string()),
-          *span,
-        ));
-      }
-      _ => {}
+    // Fast path: check if file exists and read it.
+    if let Ok(content) = fs::read_to_string(&path_buf).await {
+      return Ok((path_buf, content));
     }
 
+    // Try with .km extension.
     let path_with_ext = path_buf.with_extension("km");
-    match fs::read_to_string(&path_with_ext).await {
-      Ok(content) => return Ok((path_with_ext, content)),
-      Err(e) if e.kind() != io::ErrorKind::NotFound => {
-        return Err(Error::new(
-          ErrorKind::ReferenceError(e.to_string()),
-          *span,
-        ));
-      }
-      _ => {}
+    if let Ok(content) = fs::read_to_string(&path_with_ext).await {
+      return Ok((path_with_ext, content));
     }
 
     Err(Error::new(
@@ -82,12 +68,11 @@ impl<'ast> Interpreter<'ast> {
     krama_std::MODULES
       .get(module_name)
       .map(|bindings| {
-        let scope_bindings = bindings
-          .iter()
-          .map(|(name, native_fn)| {
-            (*name, Object::Function(Function::Native(*native_fn)))
-          })
-          .collect();
+        let mut scope_bindings = ahash::AHashMap::with_capacity(bindings.len());
+        for (name, native_fn) in bindings {
+          scope_bindings
+            .insert(*name, Object::Function(Function::Native(*native_fn)));
+        }
 
         let module = Scope {
           name: Some(module_name),
@@ -134,7 +119,7 @@ impl<'ast> Interpreter<'ast> {
     let new_interpreter = Interpreter::new(self.arena, Some(resolved_path_key));
     new_interpreter.eval(source_str).await?;
 
-    let bindings: IndexMap<_, _> = new_interpreter
+    let bindings = new_interpreter
       .environment
       .borrow()
       .get_public_bindings()

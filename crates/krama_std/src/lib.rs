@@ -31,14 +31,14 @@ pub static GLOBALS: LazyLock<AHashMap<&'static str, NativeFunction>> =
 
 /// Built-in modules organized by name.
 pub static MODULES: LazyLock<
-  AHashMap<String, AHashMap<&'static str, NativeFunction>>,
+  AHashMap<&'static str, AHashMap<&'static str, NativeFunction>>,
 > = LazyLock::new(|| {
-  let mut modules = AHashMap::default();
+  let mut modules = AHashMap::with_capacity(STANDARD_MODULES.len());
 
   for native in STANDARD_MODULES {
     let module = modules
-      .entry(native.module.to_string())
-      .or_insert_with(AHashMap::default);
+      .entry(native.module)
+      .or_insert_with(|| AHashMap::with_capacity(4));
 
     module.insert(
       native.name,
@@ -56,12 +56,13 @@ pub static MODULES: LazyLock<
 pub static PROPS: LazyLock<
   AHashMap<&'static str, AHashMap<&'static str, PropertyFnCb>>,
 > = LazyLock::new(|| {
-  let mut props = AHashMap::default();
+  let mut props = AHashMap::with_capacity(STANDARD_PROPERTIES.len());
 
   for prop in STANDARD_PROPERTIES {
     for type_name in prop.types {
-      let type_props =
-        props.entry(*type_name).or_insert_with(AHashMap::default);
+      let type_props = props
+        .entry(*type_name)
+        .or_insert_with(|| AHashMap::with_capacity(4));
       type_props.insert(prop.name, prop.callback);
     }
   }

@@ -22,7 +22,10 @@ pub struct Environment<'ast> {
 
 impl<'ast> Environment<'ast> {
   pub fn new() -> Self {
-    Default::default()
+    Self {
+      store: AHashMap::with_capacity(0),
+      outer: None,
+    }
   }
 
   pub fn with_globals() -> Self {
@@ -37,7 +40,7 @@ impl<'ast> Environment<'ast> {
 
   pub fn new_enclosed(outer: &'ast RefCell<Environment<'ast>>) -> Self {
     Environment {
-      store: AHashMap::default(),
+      store: AHashMap::with_capacity(4), // Small initial capacity for enclosed scopes
       outer: Some(outer),
     }
   }

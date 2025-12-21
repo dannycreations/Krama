@@ -116,7 +116,7 @@ impl<'ast> Interpreter<'ast> {
             || *operator == BinaryOperator::LogicalAnd
           {
             let left_value = self.eval_expression(left, None).await?;
-            let left_bool = bool::from(&left_value);
+            let left_bool = left_value.is_truthy();
 
             if *operator == BinaryOperator::LogicalOr {
               if left_bool {
@@ -167,11 +167,7 @@ impl<'ast> Interpreter<'ast> {
             {
               let object_val = self.eval_expression(object, None).await?;
 
-              let this_binding = if let Object::Struct(_) = object_val {
-                Some(object_val.clone())
-              } else {
-                Some(object_val.clone())
-              };
+              let this_binding = Some(object_val.clone());
 
               let func = self
                 .eval_member_expression(object_val, property, *span)
@@ -295,10 +291,16 @@ impl<'ast> Interpreter<'ast> {
             });
           }
 
-          let element_futures = elements
-            .iter()
-            .map(|e| self.eval_expression(e, element_kind));
-          let results = try_join_all(element_futures).await?;
+          let results = if elements.len() > 1 {
+            // Parallelize evaluation for multiple elements.
+            let element_futures = elements
+              .iter()
+              .map(|e| self.eval_expression(e, element_kind));
+            try_join_all(element_futures).await?
+          } else {
+            // Fast path for single element.
+            vec![self.eval_expression(&elements[0], element_kind).await?]
+          };
 
           if let Some(hint) = kind {
             match hint.kind {

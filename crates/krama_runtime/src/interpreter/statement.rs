@@ -1,5 +1,5 @@
+use ahash::AHashMap;
 use futures::future::{FutureExt, LocalBoxFuture};
-use indexmap::IndexMap;
 use krama_core::{
   Binding, BlockStatement, EnumConstructor, Error, ErrorKind, ForBinding,
   Function, Object, Statement, StatementKind, StructDefinition, UserFunction,
@@ -181,7 +181,7 @@ impl<'ast> Interpreter<'ast> {
           name,
           variants,
         } => {
-          let mut properties = IndexMap::default();
+          let mut properties = AHashMap::with_capacity(variants.len());
           for variant in variants {
             let variant_name = variant.name;
 
@@ -204,7 +204,7 @@ impl<'ast> Interpreter<'ast> {
 
           let enum_obj = Object::Object {
             // Use arena-allocated RwLock as per Object definition update.
-            properties: self.arena.alloc(RwLock::new(properties)),
+            properties: self.arena.alloc(RwLock::new(properties.into_iter().collect())),
             constant: true,
           };
 
@@ -243,7 +243,7 @@ impl<'ast> Interpreter<'ast> {
           loop {
             let condition_result =
               self.eval_expression(condition, None).await?;
-            if !bool::from(&condition_result) {
+            if !condition_result.is_truthy() {
               break;
             }
             let result = self.eval_block_statement(body).await?;
@@ -274,7 +274,7 @@ impl<'ast> Interpreter<'ast> {
               .collect(),
             Object::Object { properties, .. } => {
               let props = properties.read();
-              let mut yields = Vec::new();
+              let mut yields = Vec::with_capacity(props.len());
 
               match binding {
                 ForBinding::Identifier(_) => {
@@ -289,7 +289,7 @@ impl<'ast> Interpreter<'ast> {
                     let key = Object::String(k);
                     let value = v.clone();
                     let mut elements =
-                      bumpalo::collections::Vec::new_in(self.arena);
+                      bumpalo::collections::Vec::with_capacity_in(2, self.arena);
                     elements.push(key);
                     elements.push(value);
                     yields.push(Object::Tuple {
