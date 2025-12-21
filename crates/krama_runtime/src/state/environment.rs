@@ -1,11 +1,11 @@
 use std::cell::RefCell;
 
-use ahash::AHashMap;
+use indexmap::IndexMap;
 use krama_core::{Function, Object};
 
 #[derive(Debug, Default, Clone)]
 pub struct Environment<'ast> {
-  pub store: AHashMap<&'ast str, (Object<'ast>, bool, bool)>, // value, public, constant
+  pub store: IndexMap<&'ast str, (Object<'ast>, bool, bool)>, // value, public, constant
   pub outer: Option<&'ast RefCell<Environment<'ast>>>,
 }
 
@@ -25,7 +25,7 @@ impl<'ast> Environment<'ast> {
 
   pub fn new_enclosed(outer: &'ast RefCell<Environment<'ast>>) -> Self {
     Environment {
-      store: AHashMap::default(),
+      store: IndexMap::default(),
       outer: Some(outer),
     }
   }
@@ -60,7 +60,7 @@ impl<'ast> Environment<'ast> {
     self.store.get(name).map(|(_, _, c)| *c).unwrap_or(false)
   }
 
-  pub fn get_public_bindings(&self) -> AHashMap<&'ast str, Object<'ast>> {
+  pub fn get_public_bindings(&self) -> IndexMap<&'ast str, Object<'ast>> {
     self
       .store
       .iter()

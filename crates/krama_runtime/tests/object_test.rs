@@ -78,3 +78,21 @@ test_eval_err! {
   "const a = { score: 10 }; a.score++; a.score",
   ErrorKind::TypeError(_)
 }
+
+test_eval_ok!(
+  eval_object_in,
+  r#"
+    const o = { a: 1, b: 2 }
+    "a" in o
+  "#,
+  Object::Boolean(true)
+);
+
+test_eval_ok!(
+  eval_object_not_in,
+  r#"
+    const o = { a: 1, b: 2 }
+    "c" in o
+  "#,
+  Object::Boolean(false)
+);

@@ -1,12 +1,12 @@
-use ahash::AHashMap;
+use indexmap::IndexMap;
 use krama_core::{
-  Binding, Error, ErrorKind, Expression, ExpressionKind, FunctionBody,
-  MatchPattern, Program, Span, Statement, StatementKind,
+  Binding, Error, ErrorKind, Expression, ExpressionKind, ForBinding,
+  FunctionBody, MatchPattern, Program, Span, Statement, StatementKind,
 };
 
 pub struct Checker<'a> {
-  scopes: Vec<AHashMap<&'a str, bool>>,
-  locals: AHashMap<Span<'a>, usize>,
+  scopes: Vec<IndexMap<&'a str, bool>>,
+  locals: IndexMap<Span<'a>, usize>,
 }
 
 impl<'a> Default for Checker<'a> {
@@ -18,15 +18,15 @@ impl<'a> Default for Checker<'a> {
 impl<'a> Checker<'a> {
   pub fn new() -> Self {
     Self {
-      scopes: vec![AHashMap::default()],
-      locals: AHashMap::default(),
+      scopes: vec![IndexMap::default()],
+      locals: IndexMap::default(),
     }
   }
 
   pub fn check(
     &mut self,
     program: &Program<'a>,
-  ) -> Result<AHashMap<Span<'a>, usize>, Error<'a>> {
+  ) -> Result<IndexMap<Span<'a>, usize>, Error<'a>> {
     for statement in &program.statements {
       self.check_statement(statement)?;
     }
@@ -106,14 +106,13 @@ impl<'a> Checker<'a> {
         }
       }
       StatementKind::For {
-        name,
+        binding,
         iterable,
         body,
       } => {
         self.check_expression(iterable)?;
         self.begin_scope();
-        self.declare(name);
-        self.define(name);
+        self.declare_for_binding(binding);
         for statement in &body.statements {
           self.check_statement(statement)?;
         }
@@ -129,6 +128,20 @@ impl<'a> Checker<'a> {
       StatementKind::Break | StatementKind::Continue => {}
     }
     Ok(())
+  }
+
+  fn declare_for_binding(&mut self, binding: &ForBinding<'a>) {
+    match binding {
+      ForBinding::Identifier(name) => {
+        self.declare(name);
+        self.define(name);
+      }
+      ForBinding::Array(bindings) => {
+        for b in bindings {
+          self.declare_for_binding(b);
+        }
+      }
+    }
   }
 
   fn check_expression(
@@ -288,7 +301,7 @@ impl<'a> Checker<'a> {
   }
 
   fn begin_scope(&mut self) {
-    self.scopes.push(AHashMap::default());
+    self.scopes.push(IndexMap::default());
   }
 
   fn end_scope(&mut self) {

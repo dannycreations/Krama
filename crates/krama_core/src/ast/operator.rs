@@ -35,6 +35,7 @@ pub enum BinaryOperator {
   LeftShift,
   RightShift,
   Range,
+  In,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]

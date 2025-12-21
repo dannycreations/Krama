@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  Binding, BlockStatement, Error, ErrorKind, Function, Object, Statement,
-  StatementKind, UserFunction,
+  Binding, BlockStatement, Error, ErrorKind, ForBinding, Function, Object,
+  Statement, StatementKind, UserFunction,
 };
 
 use super::{types::check_type, Interpreter};
@@ -186,7 +186,7 @@ impl<'ast> Interpreter<'ast> {
           Ok(Object::Void)
         }
         StatementKind::For {
-          name,
+          binding,
           iterable,
           body,
         } => {
@@ -194,10 +194,49 @@ impl<'ast> Interpreter<'ast> {
           let elements = match &iterable_value {
             Object::Array { elements, .. } => elements.read().to_vec(),
             Object::Tuple { elements } => elements.to_vec(),
+            Object::String(s) => s
+              .chars()
+              .map(|c| Object::String(self.arena.alloc_str(&c.to_string())))
+              .collect(),
+            Object::Object { properties, .. } => {
+              let props = properties.read();
+              let mut yields = Vec::new();
+
+              match binding {
+                ForBinding::Identifier(_) => {
+                  // If single identifier, yield keys
+                  for &k in props.keys() {
+                    yields.push(Object::String(k));
+                  }
+                }
+                ForBinding::Array(bindings) if bindings.len() == 2 => {
+                  // If [k, v], yield [key, value] tuples
+                  for (k, v) in props.iter() {
+                    let key = Object::String(k);
+                    let value = v.clone();
+                    let mut elements =
+                      bumpalo::collections::Vec::new_in(self.arena);
+                    elements.push(key);
+                    elements.push(value);
+                    yields.push(Object::Tuple {
+                      elements: elements.into_bump_slice(),
+                    });
+                  }
+                }
+                _ => {
+                  // Default to keys for other patterns, or maybe error?
+                  // For now, let's yield keys.
+                  for &k in props.keys() {
+                    yields.push(Object::String(k));
+                  }
+                }
+              }
+              yields
+            }
             _ => {
               return Err(Error::new(
                 ErrorKind::TypeError(format!(
-                  "Expected array or tuple for for..in loop, found {}",
+                  "Expected array, tuple, string or object for for..in loop, found {}",
                   iterable_value.type_name()
                 )),
                 span,
@@ -207,12 +246,7 @@ impl<'ast> Interpreter<'ast> {
 
           for element in elements {
             let new_interpreter = self.new_enclosed();
-            new_interpreter.environment.borrow_mut().set(
-              name,
-              element.clone(),
-              false,
-              false,
-            );
+            self.assign_for_binding(&new_interpreter, binding, element, span)?;
 
             let result = new_interpreter.eval_block_statement(body).await?;
 
@@ -231,6 +265,47 @@ impl<'ast> Interpreter<'ast> {
       }
     }
     .boxed_local()
+  }
+
+  fn assign_for_binding(
+    &self,
+    interpreter: &Interpreter<'ast>,
+    binding: &ForBinding<'ast>,
+    value: Object<'ast>,
+    span: krama_core::Span<'ast>,
+  ) -> Result<(), Error<'ast>> {
+    match binding {
+      ForBinding::Identifier(name) => {
+        interpreter.environment.borrow_mut().set(
+          name,
+          value.clone(),
+          false,
+          false,
+        );
+        Ok(())
+      }
+      ForBinding::Array(bindings) => {
+        let elements = match &value {
+          Object::Array { elements, .. } => elements.read().to_vec(),
+          Object::Tuple { elements } => elements.to_vec(),
+          _ => {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "Expected array or tuple for destructuring, found {}",
+                value.type_name()
+              )),
+              span,
+            ));
+          }
+        };
+
+        for (i, binding) in bindings.iter().enumerate() {
+          let val = elements.get(i).cloned().unwrap_or(Object::Void);
+          self.assign_for_binding(interpreter, binding, val, span)?;
+        }
+        Ok(())
+      }
+    }
   }
 
   async fn eval_statements<'s>(

@@ -45,7 +45,8 @@ impl Precedence {
       TokenKind::LessThan
       | TokenKind::LessThanEqual
       | TokenKind::GreaterThan
-      | TokenKind::GreaterThanEqual => Precedence::LessGreater,
+      | TokenKind::GreaterThanEqual
+      | TokenKind::In => Precedence::LessGreater,
       TokenKind::Pipe => Precedence::BitwiseOr,
       TokenKind::Caret => Precedence::BitwiseXor,
       TokenKind::Ampersand => Precedence::BitwiseAnd,

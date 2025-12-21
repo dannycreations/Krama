@@ -3,9 +3,9 @@ use std::{
   sync::Arc,
 };
 
-use ahash::AHashMap;
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
+use indexmap::IndexMap;
 use parking_lot::RwLock;
 use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
@@ -106,7 +106,7 @@ pub enum Object<'ast> {
   },
   #[strum(props(name = "object"))]
   Object {
-    properties: Arc<RwLock<AHashMap<&'ast str, Object<'ast>>>>,
+    properties: Arc<RwLock<IndexMap<&'ast str, Object<'ast>>>>,
     constant: bool,
   },
   #[strum(props(name = "null"))]

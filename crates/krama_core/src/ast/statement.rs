@@ -35,6 +35,12 @@ pub struct Parameter<'ast> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum ForBinding<'ast> {
+  Identifier(&'ast str),
+  Array(BumpVec<'ast, ForBinding<'ast>>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum StatementKind<'ast> {
   Test {
     name: &'ast Expression<'ast>,
@@ -69,7 +75,7 @@ pub enum StatementKind<'ast> {
     body: &'ast BlockStatement<'ast>,
   },
   For {
-    name: &'ast str,
+    binding: ForBinding<'ast>,
     iterable: &'ast Expression<'ast>,
     body: &'ast BlockStatement<'ast>,
   },

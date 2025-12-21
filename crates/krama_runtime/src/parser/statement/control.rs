@@ -1,4 +1,6 @@
-use krama_core::{ErrorKind, Precedence, Statement, StatementKind, TokenKind};
+use krama_core::{
+  ErrorKind, ForBinding, Precedence, Statement, StatementKind, TokenKind,
+};
 
 use super::Parser;
 
@@ -34,7 +36,7 @@ where
 
     self.consume(TokenKind::LParen)?;
 
-    let name = self.parse_identifier()?;
+    let binding = self.parse_for_binding()?;
 
     self.consume(TokenKind::In)?;
 
@@ -46,11 +48,41 @@ where
 
     Ok(Statement::new(
       StatementKind::For {
-        name,
+        binding,
         iterable: self.arena.alloc(iterable),
         body: self.arena.alloc(body),
       },
       start_span,
     ))
+  }
+
+  fn parse_for_binding(&mut self) -> Result<ForBinding<'ast>, ErrorKind> {
+    match self.current_token.kind {
+      TokenKind::Identifier(name) => {
+        self.advance();
+        Ok(ForBinding::Identifier(name))
+      }
+      TokenKind::LBracket => {
+        self.advance();
+        let mut elements = bumpalo::collections::Vec::new_in(self.arena);
+        while self.current_token.kind != TokenKind::RBracket {
+          elements.push(self.parse_for_binding()?);
+          if self.current_token.kind == TokenKind::Comma {
+            self.advance();
+          } else if self.current_token.kind != TokenKind::RBracket {
+            return Err(ErrorKind::SyntaxError(format!(
+              "Expected ',' or ']', but got {}",
+              self.current_token.kind
+            )));
+          }
+        }
+        self.consume(TokenKind::RBracket)?;
+        Ok(ForBinding::Array(elements))
+      }
+      _ => Err(ErrorKind::SyntaxError(format!(
+        "Expected identifier or '[', but got {}",
+        self.current_token.kind
+      ))),
+    }
   }
 }

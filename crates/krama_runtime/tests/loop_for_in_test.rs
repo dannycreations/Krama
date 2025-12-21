@@ -68,3 +68,56 @@ test_eval_ok!(
   "#,
   Object::Integer(15)
 );
+
+test_eval_ok!(
+  eval_for_in_destructure,
+  r#"
+    let a = 0
+    const b = [[1, 2], [3, 4]]
+    for ([x, y] in b) {
+      a = a + x + y
+    }
+    a
+  "#,
+  Object::Integer(10)
+);
+
+test_eval_ok!(
+  eval_for_in_object_kv,
+  r#"
+    let a = ""
+    let sum = 0
+    const o = { a: 1, b: 2 }
+    for ([k, v] in o) {
+      a = a + k
+      sum = sum + v
+    }
+    a == "ab" && sum == 3
+  "#,
+  Object::Boolean(true)
+);
+
+test_eval_ok!(
+  eval_for_in_object_keys,
+  r#"
+    let a = ""
+    const o = { a: 1, b: 2 }
+    for (x in o) {
+      a = a + x
+    }
+    a
+  "#,
+  Object::String("ab")
+);
+
+test_eval_ok!(
+  eval_for_in_string,
+  r#"
+    let a = ""
+    for (x in "hello") {
+      a = a + x + "-"
+    }
+    a
+  "#,
+  Object::String("h-e-l-l-o-")
+);

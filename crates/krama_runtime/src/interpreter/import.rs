@@ -4,7 +4,7 @@ use std::{
   str,
 };
 
-use ahash::AHashMap;
+use indexmap::IndexMap;
 use krama_core::{Error, ErrorKind, Function, Object, Scope, Span};
 use path_clean::PathClean;
 use tokio::fs;
@@ -134,7 +134,7 @@ impl<'ast> Interpreter<'ast> {
     let new_interpreter = Interpreter::new(self.arena, Some(resolved_path_key));
     new_interpreter.eval(source_str).await?;
 
-    let bindings: AHashMap<_, _> = new_interpreter
+    let bindings: IndexMap<_, _> = new_interpreter
       .environment
       .borrow()
       .get_public_bindings()

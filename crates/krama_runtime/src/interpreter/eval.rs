@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use ahash::AHashMap;
 use bumpalo::collections::Vec as BumpVec;
 use futures::{
   future::{try_join_all, FutureExt, LocalBoxFuture},
   try_join,
 };
+use indexmap::IndexMap;
 use krama_core::{
   BinaryOperator, Error, ErrorKind, Expression, ExpressionKind, Function,
   Object, Type, TypeKind, UserFunction,
@@ -199,7 +199,7 @@ impl<'ast> Interpreter<'ast> {
           })
         }
         ExpressionKind::Object { properties } => {
-          let mut object = AHashMap::default();
+          let mut object = IndexMap::default();
           for (key, value) in properties {
             let key = match self.eval_expression(key, None).await? {
               Object::String(s) => s,

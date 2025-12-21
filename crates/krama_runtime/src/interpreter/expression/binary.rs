@@ -59,8 +59,31 @@ impl<'ast> Interpreter<'ast> {
       (Object::String(l), Object::String(r)) => {
         self.eval_string_binary_expression(operator, l, r, span)
       }
+      (Object::String(l), r) if operator == BinaryOperator::Add => {
+        let mut s = BumpString::from_str_in(l, self.arena);
+        s.push_str(&format!("{}", r));
+        Ok(Object::String(s.into_bump_str()))
+      }
+      (l, Object::String(r)) if operator == BinaryOperator::Add => {
+        let mut s = BumpString::from_str_in(&format!("{}", l), self.arena);
+        s.push_str(r);
+        Ok(Object::String(s.into_bump_str()))
+      }
       (Object::Boolean(l), Object::Boolean(r)) => {
         self.eval_boolean_binary_expression(operator, l, r, span)
+      }
+      (Object::String(l), Object::Object { properties, .. }) => {
+        if operator == BinaryOperator::In {
+          Ok(Object::Boolean(properties.read().contains_key(l)))
+        } else {
+          Err(Error::new(
+            ErrorKind::TypeError(format!(
+              "Unsupported types for binary operation: String and Object with {:?}",
+              operator
+            )),
+            span,
+          ))
+        }
       }
       (l, r) => match operator {
         BinaryOperator::Equal => Ok(Object::Boolean(l == r)),

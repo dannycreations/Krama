@@ -12,6 +12,7 @@ use std::cell::{RefCell, RefMut};
 
 use ahash::AHashMap;
 use bumpalo::Bump;
+use indexmap::IndexMap;
 use krama_core::{
   Error, ErrorKind, Expression, Object, Program, Span, Statement,
 };
@@ -21,7 +22,7 @@ use crate::{Checker, Environment, Lexer, Parser};
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
   pub environment: &'ast RefCell<Environment<'ast>>,
-  pub modules: &'ast RefCell<AHashMap<&'ast str, Object<'ast>>>,
+  pub modules: &'ast RefCell<IndexMap<&'ast str, Object<'ast>>>,
   pub arena: &'ast Bump,
   pub path: Option<&'ast str>,
   locals: RefCell<AHashMap<Span<'ast>, usize>>,
@@ -33,7 +34,7 @@ impl<'ast> Interpreter<'ast> {
 
     Self {
       environment: arena.alloc(RefCell::new(env)),
-      modules: arena.alloc(RefCell::new(AHashMap::default())),
+      modules: arena.alloc(RefCell::new(IndexMap::default())),
       arena,
       path,
       locals: RefCell::new(AHashMap::default()),
@@ -108,7 +109,7 @@ impl<'ast> Interpreter<'ast> {
     let program = parser.parse()?;
     let mut checker = Checker::new();
     let locals = checker.check(&program)?;
-    *self.locals.borrow_mut() = locals;
+    *self.locals.borrow_mut() = locals.into_iter().collect();
     Ok(program)
   }
 
