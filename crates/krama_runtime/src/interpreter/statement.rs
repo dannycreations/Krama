@@ -6,7 +6,10 @@ use krama_core::{
 };
 use parking_lot::RwLock;
 
-use super::{types::check_type, Interpreter};
+use super::{
+  types::{check_type, resolve_type},
+  Interpreter,
+};
 
 impl<'ast> Interpreter<'ast> {
   pub fn eval_statement<'s>(
@@ -23,9 +26,15 @@ impl<'ast> Interpreter<'ast> {
           self.eval_expression(expression, None).await
         }
         StatementKind::Let { name, value, kind } => {
-          let value = self.eval_expression(value, kind.as_ref()).await?;
+          let resolved_kind = if let Some(k) = kind {
+            Some(resolve_type(self, k)?)
+          } else {
+            None
+          };
 
-          if let Some(kind) = kind {
+          let value = self.eval_expression(value, resolved_kind.as_ref()).await?;
+
+          if let Some(kind) = &resolved_kind {
             check_type(kind, &value)?;
           }
 
@@ -52,9 +61,15 @@ impl<'ast> Interpreter<'ast> {
           public,
           kind,
         } => {
-          let value = self.eval_expression(value, kind.as_ref()).await?;
+          let resolved_kind = if let Some(k) = kind {
+            Some(resolve_type(self, k)?)
+          } else {
+            None
+          };
 
-          if let Some(kind) = kind {
+          let value = self.eval_expression(value, resolved_kind.as_ref()).await?;
+
+          if let Some(kind) = &resolved_kind {
             check_type(kind, &value)?;
           }
 
@@ -146,11 +161,17 @@ impl<'ast> Interpreter<'ast> {
           public,
           kind,
         } => {
+          let resolved_kind = if let Some(k) = kind {
+            Some(resolve_type(self, k)?)
+          } else {
+            None
+          };
+
           let function =
             Object::Function(Function::User(self.arena.alloc(UserFunction {
               parameters: parameters.clone(),
               body: body.clone(),
-              kind: kind.clone(),
+              kind: resolved_kind,
             })));
           self.env_mut(span)?.set(name, function, *public, true);
           Ok(Object::Void)
@@ -188,6 +209,11 @@ impl<'ast> Interpreter<'ast> {
           };
 
           self.env_mut(span)?.set(name, enum_obj, *public, true);
+          Ok(Object::Void)
+        }
+        StatementKind::Type { public, name, kind } => {
+          let resolved = resolve_type(self, kind)?;
+          self.env_mut(span)?.set(name, Object::Type(resolved), *public, true);
           Ok(Object::Void)
         }
         StatementKind::Return { value } => {

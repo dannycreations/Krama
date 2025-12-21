@@ -6,6 +6,7 @@ mod flow;
 mod function;
 mod public;
 mod test;
+mod types;
 
 use krama_core::{ErrorKind, Precedence, Statement, StatementKind, TokenKind};
 
@@ -23,6 +24,7 @@ where
       TokenKind::Const => self.parse_const_statement(false, token.span),
       TokenKind::Fn => self.parse_fn_statement(false, token.span),
       TokenKind::Enum => self.parse_enum_statement(false, token.span),
+      TokenKind::Type => self.parse_type_statement(false, token.span),
       TokenKind::Let => self.parse_let_statement(),
       TokenKind::Return => self.parse_return_statement(),
       TokenKind::Break => self.parse_break_statement(),

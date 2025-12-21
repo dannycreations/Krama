@@ -66,6 +66,8 @@ pub enum TokenKind<'a> {
   Null,
   #[token("enum")]
   Enum,
+  #[token("type")]
+  Type,
   #[token("i8")]
   I8,
   #[token("i16")]
@@ -233,6 +235,7 @@ impl<'a> TokenKind<'a> {
         | TokenKind::As
         | TokenKind::Null
         | TokenKind::Enum
+        | TokenKind::Type
         | TokenKind::I8
         | TokenKind::I16
         | TokenKind::I32

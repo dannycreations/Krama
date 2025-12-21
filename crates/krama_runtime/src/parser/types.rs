@@ -1,5 +1,8 @@
 use bumpalo::collections::Vec as BumpVec;
-use krama_core::{ErrorKind, Literal, TokenKind, Type, TypeKind};
+use indexmap::IndexMap;
+use krama_core::{
+  ErrorKind, Literal, ObjectProperty, TokenKind, Type, TypeKind,
+};
 
 use super::Parser;
 
@@ -10,6 +13,8 @@ where
   pub fn parse_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
     let mut kind = if self.current_token.kind == TokenKind::LBracket {
       self.parse_tuple_type()?
+    } else if self.current_token.kind == TokenKind::LBrace {
+      self.parse_object_type()?
     } else {
       self.parse_base_type()?
     };
@@ -56,6 +61,45 @@ where
 
     Ok(Type::new(
       TypeKind::Tuple(types),
+      start_span.merge(&end_span),
+    ))
+  }
+
+  fn parse_object_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
+    let start_span = self.current_token.span;
+    self.consume(TokenKind::LBrace)?;
+
+    let mut properties = IndexMap::new();
+
+    if self.current_token.kind != TokenKind::RBrace {
+      loop {
+        let name = self.parse_identifier()?;
+
+        let optional = if self.current_token.kind == TokenKind::Question {
+          self.advance();
+          true
+        } else {
+          false
+        };
+
+        self.consume(TokenKind::Colon)?;
+        let kind = self.parse_type()?;
+        properties.insert(name, ObjectProperty { kind, optional });
+
+        if self.current_token.kind == TokenKind::RBrace {
+          break;
+        }
+        self.consume(TokenKind::Comma)?;
+        if self.current_token.kind == TokenKind::RBrace {
+          break;
+        }
+      }
+    }
+
+    let end_span = self.consume(TokenKind::RBrace)?.span;
+
+    Ok(Type::new(
+      TypeKind::Object(properties),
       start_span.merge(&end_span),
     ))
   }

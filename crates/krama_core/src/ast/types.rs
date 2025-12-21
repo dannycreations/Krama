@@ -1,4 +1,5 @@
 use bumpalo::collections::Vec as BumpVec;
+use indexmap::IndexMap;
 
 use crate::{Literal, Node};
 
@@ -30,4 +31,11 @@ pub enum TypeKind<'ast> {
     size: Option<Literal<'ast>>,
   },
   Tuple(BumpVec<'ast, Type<'ast>>),
+  Object(IndexMap<&'ast str, ObjectProperty<'ast>>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjectProperty<'ast> {
+  pub kind: Type<'ast>,
+  pub optional: bool,
 }

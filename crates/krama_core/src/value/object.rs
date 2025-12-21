@@ -144,6 +144,8 @@ pub enum Object<'ast> {
     variant: &'ast str,
     fields: Option<&'ast [Object<'ast>]>,
   },
+  #[strum(props(name = "type"))]
+  Type(Type<'ast>),
 }
 
 impl<'ast> PartialEq for Object<'ast> {
@@ -198,6 +200,7 @@ impl<'ast> PartialEq for Object<'ast> {
           fields: rf,
         },
       ) => ln == rn && lv == rv && lf == rf,
+      (Self::Type(l), Self::Type(r)) => l == r,
       _ => false,
     }
   }
@@ -230,6 +233,7 @@ impl<'ast> Object<'ast> {
       Object::Ok(_) => "ok",
       Object::Err(_) => "err",
       Object::Enum { name, .. } => name,
+      Object::Type(_) => "type",
     }
   }
 }
@@ -317,6 +321,7 @@ impl<'ast> Display for Object<'ast> {
         }
         Ok(())
       }
+      Object::Type(_) => write!(f, "[type]"),
     }
   }
 }
@@ -363,6 +368,7 @@ impl<'ast> Debug for Object<'ast> {
         .field("variant", variant)
         .field("fields", fields)
         .finish(),
+      Object::Type(t) => f.debug_tuple("Type").field(t).finish(),
     }
   }
 }

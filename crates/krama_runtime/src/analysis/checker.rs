@@ -98,6 +98,10 @@ impl<'a> Checker<'a> {
         self.declare(name);
         self.define(name);
       }
+      StatementKind::Type { name, .. } => {
+        self.declare(name);
+        self.define(name);
+      }
       StatementKind::Return { value } => {
         if let Some(value) = value {
           self.check_expression(value)?;

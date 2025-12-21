@@ -35,16 +35,16 @@ pub struct Parameter<'ast> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ForBinding<'ast> {
-  Identifier(&'ast str),
-  Array(BumpVec<'ast, ForBinding<'ast>>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct EnumVariant<'ast> {
   pub name: &'ast str,
   pub fields: Option<BumpVec<'ast, Type<'ast>>>,
   pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ForBinding<'ast> {
+  Identifier(&'ast str),
+  Array(BumpVec<'ast, ForBinding<'ast>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -75,6 +75,11 @@ pub enum StatementKind<'ast> {
     public: bool,
     name: &'ast str,
     variants: BumpVec<'ast, EnumVariant<'ast>>,
+  },
+  Type {
+    public: bool,
+    name: &'ast str,
+    kind: Type<'ast>,
   },
   Expression {
     expression: &'ast Expression<'ast>,

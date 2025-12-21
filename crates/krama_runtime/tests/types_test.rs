@@ -132,3 +132,87 @@ test_eval_err!(
   "const a = (b: i8) => b\na(1.0)",
   ErrorKind::TypeError(_)
 );
+
+test_eval_ok!(
+  eval_custom_type_alias,
+  "type MyInt = i32\nconst a: MyInt = 10\na",
+  Object::Integer(10)
+);
+
+test_eval_ok!(
+  eval_custom_type_alias_complex,
+  "type MyList = i32[]\nconst a: MyList = [1, 2, 3]\na[0]",
+  Object::Integer(1)
+);
+
+test_eval_err!(
+  eval_custom_type_alias_mismatch,
+  "type MyInt = i32\nconst a: MyInt = \"hello\"",
+  ErrorKind::TypeError(_)
+);
+
+test_eval_ok!(
+  eval_custom_type_object,
+  r#"
+    type User = {
+      name: str,
+      age: i32
+    }
+
+    const a: User = {
+      name: "admin",
+      age: 25
+    }
+
+    a.name == "admin" && a.age == 25
+  "#,
+  Object::Boolean(true)
+);
+
+test_eval_err!(
+  eval_custom_type_object_mismatch,
+  r#"
+    type User = {
+      name: str,
+      age: i32
+    }
+
+    const a: User = {
+      name: "admin",
+      age: "25"
+    }
+  "#,
+  ErrorKind::TypeError(_)
+);
+
+test_eval_err!(
+  eval_custom_type_object_missing_property,
+  r#"
+    type User = {
+      name: str,
+      age: i32
+    }
+
+    const a: User = {
+      name: "admin"
+    }
+  "#,
+  ErrorKind::TypeError(_)
+);
+
+test_eval_ok!(
+  eval_custom_type_object_optional_property,
+  r#"
+    type User = {
+      name: str,
+      age?: i32
+    }
+
+    const a: User = {
+      name: "admin"
+    }
+
+    a.name == "admin"
+  "#,
+  Object::Boolean(true)
+);
