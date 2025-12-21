@@ -32,6 +32,10 @@ pub enum TokenKind<'a> {
   Pub,
   #[token("let")]
   Let,
+  #[token("struct")]
+  Struct,
+  #[token("this")]
+  This,
   #[token("if")]
   If,
   #[token("elif")]
@@ -218,6 +222,8 @@ impl<'a> TokenKind<'a> {
         | TokenKind::Fn
         | TokenKind::Pub
         | TokenKind::Let
+        | TokenKind::Struct
+        | TokenKind::This
         | TokenKind::If
         | TokenKind::Elif
         | TokenKind::Else

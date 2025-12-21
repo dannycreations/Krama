@@ -42,6 +42,25 @@ pub struct EnumVariant<'ast> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct StructField<'ast> {
+  pub public: bool,
+  pub name: &'ast str,
+  pub kind: Type<'ast>,
+  pub default: Option<&'ast Expression<'ast>>,
+  pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructMethod<'ast> {
+  pub public: bool,
+  pub name: &'ast str,
+  pub parameters: BumpVec<'ast, Parameter<'ast>>,
+  pub body: FunctionBody<'ast>,
+  pub kind: Option<Type<'ast>>,
+  pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum ForBinding<'ast> {
   Identifier(&'ast str),
   Array(BumpVec<'ast, ForBinding<'ast>>),
@@ -75,6 +94,12 @@ pub enum StatementKind<'ast> {
     public: bool,
     name: &'ast str,
     variants: BumpVec<'ast, EnumVariant<'ast>>,
+  },
+  Struct {
+    public: bool,
+    name: &'ast str,
+    fields: BumpVec<'ast, StructField<'ast>>,
+    methods: BumpVec<'ast, StructMethod<'ast>>,
   },
   Type {
     public: bool,

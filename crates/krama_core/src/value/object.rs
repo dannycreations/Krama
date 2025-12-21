@@ -6,7 +6,9 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 use strum_macros::EnumProperty as EnumPropertyMacro;
 
-use crate::{ErrorKind, FunctionBody, Parameter, Scope, Type};
+use crate::{
+  ErrorKind, FunctionBody, Parameter, Scope, StructField, StructMethod, Type,
+};
 
 pub type NativeFnCb =
   for<'ast> fn(
@@ -93,6 +95,13 @@ impl<'ast> Display for Function<'ast> {
   }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructDefinition<'ast> {
+  pub name: &'ast str,
+  pub fields: BumpVec<'ast, StructField<'ast>>,
+  pub methods: BumpVec<'ast, StructMethod<'ast>>,
+}
+
 #[derive(Clone, EnumPropertyMacro)]
 pub enum Object<'ast> {
   #[strum(props(name = "integer"))]
@@ -143,6 +152,13 @@ pub enum Object<'ast> {
     name: &'ast str,
     variant: &'ast str,
     fields: Option<&'ast [Object<'ast>]>,
+  },
+  #[strum(props(name = "struct"))]
+  Struct(&'ast StructDefinition<'ast>),
+  #[strum(props(name = "struct_instance"))]
+  StructInstance {
+    definition: &'ast StructDefinition<'ast>,
+    fields: &'ast RwLock<IndexMap<&'ast str, Object<'ast>>>,
   },
   #[strum(props(name = "type"))]
   Type(Type<'ast>),
@@ -200,6 +216,17 @@ impl<'ast> PartialEq for Object<'ast> {
           fields: rf,
         },
       ) => ln == rn && lv == rv && lf == rf,
+      (Self::Struct(l), Self::Struct(r)) => l == r,
+      (
+        Self::StructInstance {
+          definition: ld,
+          fields: lf,
+        },
+        Self::StructInstance {
+          definition: rd,
+          fields: rf,
+        },
+      ) => ld == rd && std::ptr::eq(*lf, *rf),
       (Self::Type(l), Self::Type(r)) => l == r,
       _ => false,
     }
@@ -233,6 +260,8 @@ impl<'ast> Object<'ast> {
       Object::Ok(_) => "ok",
       Object::Err(_) => "err",
       Object::Enum { name, .. } => name,
+      Object::Struct(def) => def.name,
+      Object::StructInstance { definition, .. } => definition.name,
       Object::Type(_) => "type",
     }
   }
@@ -321,6 +350,10 @@ impl<'ast> Display for Object<'ast> {
         }
         Ok(())
       }
+      Object::Struct(def) => write!(f, "[struct {}]", def.name),
+      Object::StructInstance { definition, .. } => {
+        write!(f, "[instance {}]", definition.name)
+      }
       Object::Type(_) => write!(f, "[type]"),
     }
   }
@@ -366,6 +399,12 @@ impl<'ast> Debug for Object<'ast> {
         .debug_struct("Enum")
         .field("name", name)
         .field("variant", variant)
+        .field("fields", fields)
+        .finish(),
+      Object::Struct(def) => f.debug_tuple("Struct").field(def).finish(),
+      Object::StructInstance { definition, fields } => f
+        .debug_struct("StructInstance")
+        .field("definition", definition)
         .field("fields", fields)
         .finish(),
       Object::Type(t) => f.debug_tuple("Type").field(t).finish(),

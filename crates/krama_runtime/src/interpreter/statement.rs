@@ -2,7 +2,7 @@ use futures::future::{FutureExt, LocalBoxFuture};
 use indexmap::IndexMap;
 use krama_core::{
   Binding, BlockStatement, EnumConstructor, Error, ErrorKind, ForBinding,
-  Function, Object, Statement, StatementKind, UserFunction,
+  Function, Object, Statement, StatementKind, StructDefinition, UserFunction,
 };
 use parking_lot::RwLock;
 
@@ -209,6 +209,20 @@ impl<'ast> Interpreter<'ast> {
           };
 
           self.env_mut(span)?.set(name, enum_obj, *public, true);
+          Ok(Object::Void)
+        }
+        StatementKind::Struct {
+          public,
+          name,
+          fields,
+          methods,
+        } => {
+          let struct_def = self.arena.alloc(StructDefinition {
+            name,
+            fields: fields.clone(),
+            methods: methods.clone(),
+          });
+          self.env_mut(span)?.set(name, Object::Struct(struct_def), *public, true);
           Ok(Object::Void)
         }
         StatementKind::Type { public, name, kind } => {

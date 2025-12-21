@@ -159,6 +159,7 @@ where
       TokenKind::Bool => TypeKind::Bool,
       TokenKind::Str => TypeKind::Str,
       TokenKind::Identifier(ident) => TypeKind::Identifier(ident),
+      TokenKind::This => TypeKind::Identifier("this"),
       _ => return Err(ErrorKind::SyntaxError("Expected type".to_string())),
     };
     self.advance();

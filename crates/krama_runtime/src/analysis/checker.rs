@@ -98,6 +98,42 @@ impl<'a> Checker<'a> {
         self.declare(name);
         self.define(name);
       }
+      StatementKind::Struct {
+        name,
+        fields,
+        methods,
+        ..
+      } => {
+        self.declare(name);
+        self.define(name);
+
+        for field in fields {
+          if let Some(default) = field.default {
+            self.check_expression(default)?;
+          }
+        }
+
+        for method in methods {
+          self.begin_scope();
+
+          for param in &method.parameters {
+            self.declare(param.name);
+            self.define(param.name);
+          }
+
+          match &method.body {
+            FunctionBody::Block(block) => {
+              for statement in &block.statements {
+                self.check_statement(statement)?;
+              }
+            }
+            FunctionBody::Expression(expression) => {
+              self.check_expression(expression)?;
+            }
+          }
+          self.end_scope();
+        }
+      }
       StatementKind::Type { name, .. } => {
         self.declare(name);
         self.define(name);
@@ -292,6 +328,13 @@ impl<'a> Checker<'a> {
       }
       ExpressionKind::Try(expr) => {
         self.check_expression(expr)?;
+      }
+      ExpressionKind::This => {}
+      ExpressionKind::StructConstruction { properties } => {
+        for (key, value) in properties {
+          self.check_expression(key)?;
+          self.check_expression(value)?;
+        }
       }
     }
     Ok(())

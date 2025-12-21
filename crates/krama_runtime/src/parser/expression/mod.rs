@@ -48,6 +48,35 @@ where
 
     match token.kind {
       TokenKind::Identifier(_) => self.parse_identifier_expression(),
+      TokenKind::This => {
+        let span = token.span;
+        self.advance();
+        if self.current_token.kind == TokenKind::LBrace {
+          // Parse as object but wrap in StructConstruction
+          let mut object_parser = self.clone();
+          if let Ok(expr) = object_parser.parse_object_expression() {
+            *self = object_parser;
+            if let ExpressionKind::Object { properties } = expr.kind {
+              let end_span = expr.span;
+              return Ok(Expression::new(
+                ExpressionKind::StructConstruction { properties },
+                span.merge(&end_span),
+              ));
+            }
+            // Should not happen if parse_object_expression returns Object
+            return Ok(expr);
+          }
+          // Fallback if parsing fails? Or error?
+          // If it starts with {, it should parse as object.
+          // If not, it's just 'this'.
+          // But here we checked for LBrace.
+          Err(ErrorKind::SyntaxError(
+            "Invalid struct construction".to_string(),
+          ))
+        } else {
+          Ok(Expression::new(ExpressionKind::This, token.span))
+        }
+      }
       TokenKind::Integer(_)
       | TokenKind::Float(_)
       | TokenKind::String(_)

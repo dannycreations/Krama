@@ -41,6 +41,50 @@ impl<'ast> Interpreter<'ast> {
           })
         }
       },
+      // Error on any other object type
+      _ => Err(Error::new(
+        ErrorKind::TypeError(format!(
+          "Expected a function, but got {}",
+          function.type_name()
+        )),
+        span,
+      )),
+    }
+  }
+
+  pub async fn eval_call_expression_with_this(
+    &self,
+    function: Object<'ast>,
+    arguments: &'ast [Object<'ast>],
+    this: Object<'ast>,
+    span: Span,
+  ) -> Result<Object<'ast>, Error<'ast>> {
+    match function {
+      Object::Function(function) => match function {
+        Function::Native(native_fn) => {
+          (native_fn.callback)(self.arena, arguments)
+            .await
+            .map_err(|kind| Error::new(kind, span))
+        }
+        Function::User(user_fn) => {
+          self
+            .eval_user_function_call_with_this(user_fn, arguments, this, span)
+            .await
+        }
+        Function::Enum(_) => {
+          // Enums don't support 'this' context in this way
+          self
+            .eval_call_expression(Object::Function(function), arguments, span)
+            .await
+        }
+      },
+      Object::Struct(_) => Err(Error::new(
+        ErrorKind::TypeError(format!(
+          "{} is not callable directly. Use .new() or other static methods.",
+          function.type_name()
+        )),
+        span,
+      )),
       _ => Err(Error::new(
         ErrorKind::TypeError(format!(
           "Expected a function, but got {}",
@@ -57,6 +101,18 @@ impl<'ast> Interpreter<'ast> {
     arguments: &'ast [Object<'ast>],
     span: Span,
   ) -> Result<Object<'ast>, Error<'ast>> {
+    self
+      .eval_user_function_call_with_this(user_fn, arguments, Object::Void, span)
+      .await
+  }
+
+  async fn eval_user_function_call_with_this(
+    &self,
+    user_fn: &'ast UserFunction<'ast>,
+    arguments: &'ast [Object<'ast>],
+    this: Object<'ast>,
+    span: Span,
+  ) -> Result<Object<'ast>, Error<'ast>> {
     if arguments.len() > user_fn.parameters.len() {
       return Err(Error::new(
         ErrorKind::TypeError(format!(
@@ -68,6 +124,33 @@ impl<'ast> Interpreter<'ast> {
       ));
     }
     let new_interpreter = self.new_enclosed();
+
+    // Set 'this' in the new scope
+    if !matches!(this, Object::Void) {
+      new_interpreter.environment.borrow_mut().set(
+        "this",
+        this.clone(),
+        false,
+        true,
+      );
+
+      // Also set '__current_struct__' if 'this' is a StructInstance or StructDefinition
+      if let Object::StructInstance { definition, .. } = &this {
+        new_interpreter.environment.borrow_mut().set(
+          "__current_struct__",
+          Object::String(definition.name),
+          false,
+          true,
+        );
+      } else if let Object::Struct(definition) = &this {
+        new_interpreter.environment.borrow_mut().set(
+          "__current_struct__",
+          Object::String(definition.name),
+          false,
+          true,
+        );
+      }
+    }
 
     for (i, param) in user_fn.parameters.iter().enumerate() {
       let value = if let Some(arg) = arguments.get(i) {

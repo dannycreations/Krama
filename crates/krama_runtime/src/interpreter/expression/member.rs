@@ -1,4 +1,7 @@
-use krama_core::{Error, ErrorKind, Expression, ExpressionKind, Object, Span};
+use krama_core::{
+  Error, ErrorKind, Expression, ExpressionKind, Function, Object, Span,
+  UserFunction,
+};
 
 use crate::Interpreter;
 
@@ -27,6 +30,122 @@ impl<'ast> Interpreter<'ast> {
         } else {
           Ok(Object::Void)
         }
+      }
+      Object::StructInstance { definition, fields } => {
+        // 1. Check fields
+        {
+          let fields = fields.read();
+          if let Some(value) = fields.get(property_name) {
+            // Find the field definition
+            if let Some(field_def) =
+              definition.fields.iter().find(|f| f.name == property_name)
+            {
+              if !field_def.public {
+                let env = self.environment.borrow();
+                let current_struct = env.get("__current_struct__");
+                let allowed = if let Some(Object::String(name)) = current_struct
+                {
+                  name == definition.name
+                } else {
+                  false
+                };
+
+                if !allowed {
+                  return Err(Error::new(
+                    ErrorKind::TypeError(format!(
+                      "Property '{}' is private",
+                      property_name
+                    )),
+                    span,
+                  ));
+                }
+              }
+            }
+
+            return Ok(value.clone());
+          }
+        }
+
+        // 2. Check methods
+        if let Some(method) =
+          definition.methods.iter().find(|m| m.name == property_name)
+        {
+          if !method.public {
+            let env = self.environment.borrow();
+            let current_struct = env.get("__current_struct__");
+            let allowed = if let Some(Object::String(name)) = current_struct {
+              name == definition.name
+            } else {
+              false
+            };
+
+            if !allowed {
+              return Err(Error::new(
+                ErrorKind::TypeError(format!(
+                  "Method '{}' is private",
+                  property_name
+                )),
+                span,
+              ));
+            }
+          }
+
+          let user_fn = self.arena.alloc(UserFunction {
+            parameters: method.parameters.clone(),
+            body: method.body.clone(),
+            kind: method.kind.clone(),
+          });
+          return Ok(Object::Function(Function::User(user_fn)));
+        }
+
+        // 3. Not found
+        Err(Error::new(
+          ErrorKind::ReferenceError(format!(
+            "Property or method '{}' not found in struct '{}'",
+            property_name, definition.name
+          )),
+          span,
+        ))
+      }
+      Object::Struct(definition) => {
+        if let Some(method) =
+          definition.methods.iter().find(|m| m.name == property_name)
+        {
+          if !method.public {
+            let env = self.environment.borrow();
+            let current_struct = env.get("__current_struct__");
+            let allowed = if let Some(Object::String(name)) = current_struct {
+              name == definition.name
+            } else {
+              false
+            };
+
+            if !allowed {
+              return Err(Error::new(
+                ErrorKind::TypeError(format!(
+                  "Method '{}' is private",
+                  property_name
+                )),
+                span,
+              ));
+            }
+          }
+
+          let user_fn = self.arena.alloc(UserFunction {
+            parameters: method.parameters.clone(),
+            body: method.body.clone(),
+            kind: method.kind.clone(),
+          });
+          return Ok(Object::Function(Function::User(user_fn)));
+        }
+
+        Err(Error::new(
+          ErrorKind::ReferenceError(format!(
+            "Method '{}' not found in struct '{}'",
+            property_name, definition.name
+          )),
+          span,
+        ))
       }
       Object::Scope(scope) => {
         if let Some(value) = scope.get_binding(property_name) {

@@ -5,6 +5,7 @@ mod r#enum;
 mod flow;
 mod function;
 mod public;
+mod r#struct;
 mod test;
 mod types;
 
@@ -24,6 +25,7 @@ where
       TokenKind::Const => self.parse_const_statement(false, token.span),
       TokenKind::Fn => self.parse_fn_statement(false, token.span),
       TokenKind::Enum => self.parse_enum_statement(false, token.span),
+      TokenKind::Struct => self.parse_struct_statement(false, token.span),
       TokenKind::Type => self.parse_type_statement(false, token.span),
       TokenKind::Let => self.parse_let_statement(),
       TokenKind::Return => self.parse_return_statement(),

@@ -30,6 +30,78 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Identifier(name) => {
           self.eval_identifier(expression, name, *span).await
         }
+        ExpressionKind::This => {
+          self.environment.borrow().get("this").ok_or_else(|| {
+            Error::new(
+              ErrorKind::ReferenceError(
+                "'this' is not defined in the current scope".to_string(),
+              ),
+              *span,
+            )
+          })
+        }
+        ExpressionKind::StructConstruction { properties } => {
+          let this_obj =
+            self.environment.borrow().get("this").ok_or_else(|| {
+              Error::new(
+                ErrorKind::ReferenceError(
+                  "'this' is not defined in the current scope".to_string(),
+                ),
+                *span,
+              )
+            })?;
+
+          if let Object::Struct(definition) = this_obj {
+            let mut fields = IndexMap::with_capacity(properties.len());
+            for (key, value) in properties {
+              let key = match self.eval_expression(key, None).await? {
+                Object::String(s) => s,
+                _ => {
+                  return Err(Error::new(
+                    ErrorKind::TypeError("Expected string key".to_string()),
+                    key.span,
+                  ))
+                }
+              };
+              let value = self.eval_expression(value, None).await?;
+              fields.insert(key, value);
+            }
+
+            for field in &definition.fields {
+              if !fields.contains_key(field.name) {
+                if let Some(default) = field.default {
+                  let default_val = self.eval_expression(default, None).await?;
+                  fields.insert(field.name, default_val);
+                } else {
+                  return Err(Error::new(
+                    ErrorKind::TypeError(format!(
+                      "Missing field '{}'",
+                      field.name
+                    )),
+                    *span,
+                  ));
+                }
+              }
+
+              if let Some(val) = fields.get(field.name) {
+                check_type(&field.kind, val)?;
+              }
+            }
+
+            Ok(Object::StructInstance {
+              definition,
+              fields: self.arena.alloc(RwLock::new(fields)),
+            })
+          } else {
+            Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "'this' is not a struct definition, found {}",
+                this_obj.type_name()
+              )),
+              *span,
+            ))
+          }
+        }
         ExpressionKind::Unary { operator, right } => {
           let right = self.eval_expression(right, None).await?;
           self.eval_unary_expression(*operator, right, *span)
@@ -89,10 +161,32 @@ impl<'ast> Interpreter<'ast> {
           function,
           arguments,
         } => {
-          let func_future = self.eval_expression(function, None);
+          // Special handling for member expressions to bind 'this'
+          let (function_obj, this_obj) =
+            if let ExpressionKind::Member { object, property } = &function.kind
+            {
+              let object_val = self.eval_expression(object, None).await?;
+
+              let this_binding = if let Object::Struct(_) = object_val {
+                Some(object_val.clone())
+              } else {
+                Some(object_val.clone())
+              };
+
+              let func = self
+                .eval_member_expression(object_val, property, *span)
+                .await?;
+              (func, this_binding)
+            } else {
+              (self.eval_expression(function, None).await?, None)
+            };
 
           if arguments.is_empty() {
-            let function_obj = func_future.await?;
+            if let Some(this) = this_obj {
+              return self
+                .eval_call_expression_with_this(function_obj, &[], this, *span)
+                .await;
+            }
             return self.eval_call_expression(function_obj, &[], *span).await;
           }
 
@@ -100,11 +194,21 @@ impl<'ast> Interpreter<'ast> {
           let args_futures =
             arguments.iter().map(|arg| self.eval_expression(arg, None));
 
-          let (function_obj, evaluated_args_vec) =
-            try_join!(func_future, try_join_all(args_futures))?;
+          let evaluated_args_vec = try_join_all(args_futures).await?;
 
           // Direct allocation into the arena to minimize intermediate heap usage.
           let args_slice = self.arena.alloc_slice_fill_iter(evaluated_args_vec);
+
+          if let Some(this) = this_obj {
+            return self
+              .eval_call_expression_with_this(
+                function_obj,
+                args_slice,
+                this,
+                *span,
+              )
+              .await;
+          }
 
           self
             .eval_call_expression(function_obj, args_slice, *span)

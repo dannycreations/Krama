@@ -24,24 +24,39 @@ where
     }
 
     loop {
-      let key = match self.current_token.kind {
+      let (key, value) = match self.current_token.kind {
         TokenKind::Identifier(_) => {
           let key_span = self.current_token.span;
           let key_ident = self.parse_identifier()?;
-          Expression::new(
+          let key_expr = Expression::new(
             ExpressionKind::Literal(Literal::String(key_ident)),
             key_span,
-          )
+          );
+
+          if self.current_token.kind == TokenKind::Colon {
+            self.advance();
+            let value = self.parse_expression(Precedence::Lowest)?;
+            (key_expr, value)
+          } else {
+            // Shorthand: { x } -> { x: x }
+            let value =
+              Expression::new(ExpressionKind::Identifier(key_ident), key_span);
+            (key_expr, value)
+          }
         }
-        TokenKind::String(_) => self.parse_literal()?,
+        TokenKind::String(_) => {
+          let key = self.parse_literal()?;
+          self.consume(TokenKind::Colon)?;
+          let value = self.parse_expression(Precedence::Lowest)?;
+          (key, value)
+        }
         _ => {
           return Err(ErrorKind::SyntaxError(
-            "Expected string for object key".to_string(),
+            "Expected string or identifier for object key".to_string(),
           ));
         }
       };
-      self.consume(TokenKind::Colon)?;
-      let value = self.parse_expression(Precedence::Lowest)?;
+
       properties.push((key, value));
 
       if self.current_token.kind == TokenKind::RBrace {

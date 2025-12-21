@@ -1,0 +1,78 @@
+use krama_core::{ErrorKind, Object};
+use krama_runtime::{test_eval_err, test_eval_ok};
+
+test_eval_ok! {
+  struct_init,
+  r#"
+    struct Point {
+      pub x: f32,
+      pub y: f32,
+      
+      pub fn new(x: f32, y: f32): this {
+        this { x, y }
+      }
+    }
+    
+    const p = Point.new(1.0, 2.0)
+    p.x
+  "#,
+  Object::Float(1.0)
+}
+
+test_eval_ok! {
+  struct_methods,
+  r#"
+    struct Vec3 {
+      x: f32,
+      y: f32,
+      z: f32,
+      
+      pub fn new(x: f32, y: f32, z: f32): this {
+        this { x, y, z }
+      }
+      
+      pub fn sum(): f32 {
+        this.x + this.y + this.z
+      }
+    }
+    
+    const v = Vec3.new(1.0, 2.0, 3.0)
+    v.sum()
+  "#,
+  Object::Float(6.0)
+}
+
+test_eval_ok! {
+  struct_defaults,
+  r#"
+    struct Config {
+      pub port: i32 = 8080,
+      pub host: str = "localhost",
+      
+      pub fn new(): this {
+        this {}
+      }
+    }
+    
+    const c = Config.new()
+    c.port
+  "#,
+  Object::Integer(8080)
+}
+
+test_eval_err! {
+  struct_private_field,
+  r#"
+    struct Box {
+      value: i32,
+      
+      pub fn new(v: i32): this {
+        this { value: v }
+      }
+    }
+    
+    const b = Box.new(42)
+    b.value
+  "#,
+  ErrorKind::TypeError(_)
+}

@@ -17,6 +17,10 @@ pub enum FunctionBody<'ast> {
 pub enum ExpressionKind<'ast> {
   Identifier(&'ast str),
   Literal(Literal<'ast>),
+  This,
+  StructConstruction {
+    properties: BumpVec<'ast, (Expression<'ast>, Expression<'ast>)>,
+  },
   Block(&'ast BlockStatement<'ast>),
   Collection {
     elements: BumpVec<'ast, Expression<'ast>>,
