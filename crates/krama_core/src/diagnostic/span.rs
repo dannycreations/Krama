@@ -37,7 +37,3 @@ impl Display for Span {
     write!(f, "{}:{}", self.start, self.end)
   }
 }
-
-// We implement Send and Sync for Span because it only contains usize
-unsafe impl Send for Span {}
-unsafe impl Sync for Span {}

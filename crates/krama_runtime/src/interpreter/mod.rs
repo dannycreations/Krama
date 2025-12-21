@@ -67,6 +67,7 @@ impl<'ast> Interpreter<'ast> {
     distance: usize,
     name: &'ast str,
     value: Object<'ast>,
+    span: Span,
   ) -> Result<(), Error<'ast>> {
     let mut env_cell = self.environment;
     for _ in 0..distance {
@@ -76,7 +77,7 @@ impl<'ast> Interpreter<'ast> {
     if env.is_constant(name) {
       return Err(Error::new(
         ErrorKind::TypeError(format!("Cannot assign to constant '{}'", name)),
-        Span::empty(), // TODO: pass span
+        span,
       ));
     }
     env.set(name, value, false, false);

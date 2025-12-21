@@ -1,13 +1,9 @@
-use std::{
-  fmt::{Debug, Display, Formatter, Result as FmtResult},
-  sync::Arc,
-};
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
 use indexmap::IndexMap;
 use parking_lot::RwLock;
-use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
 
 use crate::{ErrorKind, FunctionBody, Parameter, Scope, Type};
@@ -109,7 +105,9 @@ pub enum Object<'ast> {
   String(&'ast str),
   #[strum(props(name = "array"))]
   Array {
-    elements: Arc<RwLock<BumpVec<'ast, Object<'ast>>>>,
+    // Use arena-allocated RwLock to avoid Arc overhead.
+    // This aligns with Krama's DRT strategy where the arena manages the lifetime.
+    elements: &'ast RwLock<BumpVec<'ast, Object<'ast>>>,
     kind: Type<'ast>,
     constant: bool,
   },
@@ -119,7 +117,8 @@ pub enum Object<'ast> {
   },
   #[strum(props(name = "object"))]
   Object {
-    properties: Arc<RwLock<IndexMap<&'ast str, Object<'ast>>>>,
+    // Use arena-allocated RwLock to avoid Arc overhead.
+    properties: &'ast RwLock<IndexMap<&'ast str, Object<'ast>>>,
     constant: bool,
   },
   #[strum(props(name = "null"))]
@@ -130,15 +129,15 @@ pub enum Object<'ast> {
   #[strum(props(name = "function"))]
   Function(Function<'ast>),
   #[strum(props(name = "return"))]
-  Return(Arc<Object<'ast>>),
+  Return(&'ast Object<'ast>),
   #[strum(props(name = "break"))]
   Break,
   #[strum(props(name = "continue"))]
   Continue,
   #[strum(props(name = "ok"))]
-  Ok(Arc<Object<'ast>>),
+  Ok(&'ast Object<'ast>),
   #[strum(props(name = "err"))]
-  Err(Arc<Object<'ast>>),
+  Err(&'ast Object<'ast>),
   #[strum(props(name = "enum"))]
   Enum {
     name: &'ast str,
@@ -147,13 +146,8 @@ pub enum Object<'ast> {
   },
 }
 
-// We implement Send and Sync for Object because it's required by tokio/futures
-// when used in async blocks that are spawned or boxed.
-unsafe impl<'ast> Send for Object<'ast> {}
-unsafe impl<'ast> Sync for Object<'ast> {}
-
-#[allow(clippy::arc_with_non_send_sync)]
 impl<'ast> PartialEq for Object<'ast> {
+  #[inline]
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (Self::Integer(l), Self::Integer(r)) => l == r,
@@ -171,7 +165,7 @@ impl<'ast> PartialEq for Object<'ast> {
           kind: rk,
           constant: rc,
         },
-      ) => Arc::ptr_eq(l, r) && lk == rk && lc == rc,
+      ) => std::ptr::eq(*l, *r) && lk == rk && lc == rc,
       (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => l == r,
       (
         Self::Object {
@@ -182,16 +176,16 @@ impl<'ast> PartialEq for Object<'ast> {
           properties: r,
           constant: rc,
         },
-      ) => Arc::ptr_eq(l, r) && lc == rc,
+      ) => std::ptr::eq(*l, *r) && lc == rc,
       (Self::Null, Self::Null) => true,
       (Self::Void, Self::Void) => true,
       (Self::Scope(l), Self::Scope(r)) => std::ptr::eq(*l, *r),
       (Self::Function(l), Self::Function(r)) => l == r,
-      (Self::Return(l), Self::Return(r)) => Arc::ptr_eq(l, r),
+      (Self::Return(l), Self::Return(r)) => std::ptr::eq(*l, *r),
       (Self::Break, Self::Break) => true,
       (Self::Continue, Self::Continue) => true,
-      (Self::Ok(l), Self::Ok(r)) => Arc::ptr_eq(l, r),
-      (Self::Err(l), Self::Err(r)) => Arc::ptr_eq(l, r),
+      (Self::Ok(l), Self::Ok(r)) => std::ptr::eq(*l, *r),
+      (Self::Err(l), Self::Err(r)) => std::ptr::eq(*l, *r),
       (
         Self::Enum {
           name: ln,
@@ -210,8 +204,18 @@ impl<'ast> PartialEq for Object<'ast> {
 }
 
 impl<'ast> Object<'ast> {
+  #[inline(always)]
   pub fn type_name(&self) -> &str {
     match self {
+      Object::Integer(_) => "integer",
+      Object::Float(_) => "float",
+      Object::Boolean(_) => "boolean",
+      Object::String(_) => "string",
+      Object::Array { .. } => "array",
+      Object::Tuple { .. } => "tuple",
+      Object::Object { .. } => "object",
+      Object::Null => "null",
+      Object::Void => "void",
       Object::Scope(scope) => {
         if scope.name.is_some() {
           "module"
@@ -219,13 +223,19 @@ impl<'ast> Object<'ast> {
           "global"
         }
       }
+      Object::Function(_) => "function",
+      Object::Return(_) => "return",
+      Object::Break => "break",
+      Object::Continue => "continue",
+      Object::Ok(_) => "ok",
+      Object::Err(_) => "err",
       Object::Enum { name, .. } => name,
-      _ => self.get_str("name").unwrap_or("unknown"),
     }
   }
 }
 
 impl<'ast> From<&Object<'ast>> for bool {
+  #[inline]
   fn from(obj: &Object<'ast>) -> bool {
     match obj {
       Object::Boolean(b) => *b,

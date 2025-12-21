@@ -28,7 +28,7 @@ impl<'ast> Interpreter<'ast> {
         };
 
         if let Some(distance) = distance {
-          self.assign_at(distance, ident, final_val.clone())?;
+          self.assign_at(distance, ident, final_val.clone(), span)?;
         } else {
           let mut env = self.env_mut(span)?;
           if env.is_constant(ident) {
@@ -273,7 +273,7 @@ impl<'ast> Interpreter<'ast> {
         let new_value = self.apply_update(operator, &original_value, span)?;
 
         if let Some(distance) = distance {
-          self.assign_at(distance, ident, new_value.clone())?;
+          self.assign_at(distance, ident, new_value.clone(), span)?;
         } else {
           let mut env = self.env_mut(span)?;
           if env.is_constant(ident) {

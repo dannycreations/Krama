@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use futures::future::{FutureExt, LocalBoxFuture};
 use indexmap::IndexMap;
 use krama_core::{
@@ -184,7 +182,8 @@ impl<'ast> Interpreter<'ast> {
           }
 
           let enum_obj = Object::Object {
-            properties: Arc::new(RwLock::new(properties)),
+            // Use arena-allocated RwLock as per Object definition update.
+            properties: self.arena.alloc(RwLock::new(properties)),
             constant: true,
           };
 
@@ -196,8 +195,7 @@ impl<'ast> Interpreter<'ast> {
             Some(expression) => self.eval_expression(expression, None).await?,
             None => Object::Void,
           };
-          #[allow(clippy::arc_with_non_send_sync)]
-          Ok(Object::Return(Arc::new(value)))
+          Ok(Object::Return(self.arena.alloc(value)))
         }
         StatementKind::Break => Ok(Object::Break),
         StatementKind::Continue => Ok(Object::Continue),

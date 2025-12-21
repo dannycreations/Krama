@@ -10,22 +10,26 @@ mod globals;
 mod modules;
 mod props;
 
+// Optimized standard library maps using ahash for O(1) lookups.
+// LazyLock ensures zero initialization cost until the first access.
+
+/// Global functions available in the default scope.
 pub static GLOBALS: LazyLock<AHashMap<&'static str, NativeFunction>> =
   LazyLock::new(|| {
-    STANDARD_GLOBALS
-      .iter()
-      .map(|native| {
-        (
-          native.name,
-          NativeFunction {
-            name: native.name,
-            callback: native.callback,
-          },
-        )
-      })
-      .collect()
+    let mut map = AHashMap::with_capacity(STANDARD_GLOBALS.len());
+    for native in STANDARD_GLOBALS {
+      map.insert(
+        native.name,
+        NativeFunction {
+          name: native.name,
+          callback: native.callback,
+        },
+      );
+    }
+    map
   });
 
+/// Built-in modules organized by name.
 pub static MODULES: LazyLock<
   AHashMap<String, AHashMap<&'static str, NativeFunction>>,
 > = LazyLock::new(|| {
@@ -48,6 +52,7 @@ pub static MODULES: LazyLock<
   modules
 });
 
+/// Built-in properties available on specific types.
 pub static PROPS: LazyLock<
   AHashMap<&'static str, AHashMap<&'static str, PropertyFnCb>>,
 > = LazyLock::new(|| {

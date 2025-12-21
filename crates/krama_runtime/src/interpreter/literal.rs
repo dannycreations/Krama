@@ -3,7 +3,9 @@ use krama_core::{Error, Literal, Object};
 use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  #[inline(always)]
+  /// Evaluates a literal into an Object.
+  /// Marked with #[inline] to encourage the compiler to embed this small function.
+  #[inline]
   pub fn eval_literal(
     &self,
     literal: Literal<'ast>,

@@ -21,9 +21,10 @@ pub fn check_type<'ast>(
     (TypeKind::F64, Object::Float(_)) => false,
     (TypeKind::Bool, Object::Boolean(_)) => false,
     (TypeKind::Str, Object::String(_)) => false,
-    (TypeKind::Identifier(_), _) => {
-      // TODO: check for functions and other identifiers
-      false
+    (TypeKind::Identifier(name), _) => {
+      // If the expected type is an identifier, we check if the object's type name matches.
+      // This handles custom types like Enums.
+      object.type_name() != *name
     }
     (
       TypeKind::Array {
@@ -67,6 +68,8 @@ pub fn check_type<'ast>(
       }
       return Ok(());
     }
+    (TypeKind::Void, Object::Void) => false,
+    (TypeKind::Null, Object::Null) => false,
     _ => true,
   };
 

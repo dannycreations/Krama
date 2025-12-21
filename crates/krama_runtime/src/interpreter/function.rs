@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use krama_core::{
   Error, ErrorKind, Function, FunctionBody, Object, Span, UserFunction,
 };
@@ -108,8 +106,7 @@ impl<'ast> Interpreter<'ast> {
     }?;
 
     if let Object::Return(value) = result {
-      let object = Arc::unwrap_or_clone(value);
-      Ok(object)
+      Ok(value.clone())
     } else {
       Ok(result)
     }

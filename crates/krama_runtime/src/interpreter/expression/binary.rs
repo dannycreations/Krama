@@ -4,6 +4,8 @@ use krama_core::{BinaryOperator, Error, ErrorKind, Object, Span};
 use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
+  /// Evaluates a binary expression.
+  /// Optimized for common types (integers, strings) to minimize overhead.
   pub fn eval_binary_expression(
     &self,
     operator: BinaryOperator,
@@ -31,7 +33,9 @@ impl<'ast> Interpreter<'ast> {
         BinaryOperator::LessThan => Ok(Object::Boolean(l < r)),
         BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r)),
         BinaryOperator::Range => {
-          let mut elements = BumpVec::new_in(self.arena);
+          let count = (r - l).max(-1) + 1;
+          let mut elements =
+            BumpVec::with_capacity_in(count as usize, self.arena);
           for i in l..=r {
             elements.push(Object::Integer(i));
           }
@@ -60,12 +64,20 @@ impl<'ast> Interpreter<'ast> {
         self.eval_string_binary_expression(operator, l, r, span)
       }
       (Object::String(l), r) if operator == BinaryOperator::Add => {
-        let mut s = BumpString::from_str_in(l, self.arena);
-        s.push_str(&format!("{}", r));
+        // Use a single allocation for the combined string to minimize fragmentation.
+        let rs = r.to_string();
+        let mut s =
+          BumpString::with_capacity_in(l.len() + rs.len(), self.arena);
+        s.push_str(l);
+        s.push_str(&rs);
         Ok(Object::String(s.into_bump_str()))
       }
       (l, Object::String(r)) if operator == BinaryOperator::Add => {
-        let mut s = BumpString::from_str_in(&format!("{}", l), self.arena);
+        // Use a single allocation for the combined string to minimize fragmentation.
+        let ls = l.to_string();
+        let mut s =
+          BumpString::with_capacity_in(ls.len() + r.len(), self.arena);
+        s.push_str(&ls);
         s.push_str(r);
         Ok(Object::String(s.into_bump_str()))
       }
@@ -99,6 +111,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
+  #[inline]
   fn eval_float_op(
     &self,
     operator: BinaryOperator,
@@ -129,6 +142,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
+  #[inline]
   fn eval_string_binary_expression(
     &self,
     operator: BinaryOperator,
@@ -138,7 +152,9 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<Object<'ast>, Error<'ast>> {
     match operator {
       BinaryOperator::Add => {
-        let mut s = BumpString::from_str_in(left, self.arena);
+        let mut s =
+          BumpString::with_capacity_in(left.len() + right.len(), self.arena);
+        s.push_str(left);
         s.push_str(right);
         Ok(Object::String(s.into_bump_str()))
       }
@@ -154,6 +170,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
+  #[inline]
   fn eval_boolean_binary_expression(
     &self,
     operator: BinaryOperator,

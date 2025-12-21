@@ -1,4 +1,4 @@
-use std::{io::Error, path::Path, str, sync::Arc};
+use std::{io::Error, path::Path, str};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use krama_core::{ErrorKind, Object, Span, Type, TypeKind};
@@ -83,9 +83,9 @@ async fn read_dir<'ast>(
     entries.push(Object::String(arena.alloc_str(&entry)));
   }
 
-  #[allow(clippy::arc_with_non_send_sync)]
   Ok(Object::Array {
-    elements: Arc::new(RwLock::new(entries)),
+    // Use arena-allocated RwLock as per Object definition update.
+    elements: arena.alloc(RwLock::new(entries)),
     kind: Type::new(TypeKind::Str, Span::empty()),
     constant: true,
   })

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use bumpalo::collections::Vec as BumpVec;
 use futures::{
   future::{try_join_all, FutureExt, LocalBoxFuture},
@@ -15,6 +13,8 @@ use parking_lot::RwLock;
 use super::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
+  /// Evaluates an expression with an optional type hint.
+  /// Uses LocalBoxFuture to handle recursion in an async context efficiently.
   pub fn eval_expression<'s>(
     &'s self,
     expression: &'s Expression<'ast>,
@@ -39,6 +39,7 @@ impl<'ast> Interpreter<'ast> {
           operator,
           right,
         } => {
+          // Short-circuiting logical operators to avoid unnecessary evaluations.
           if *operator == BinaryOperator::LogicalOr
             || *operator == BinaryOperator::LogicalAnd
           {
@@ -55,6 +56,7 @@ impl<'ast> Interpreter<'ast> {
             return self.eval_expression(right, None).await;
           }
 
+          // Parallel evaluation of binary operands when possible.
           let (left, right) = try_join!(
             self.eval_expression(left, None),
             self.eval_expression(right, None)
@@ -88,16 +90,21 @@ impl<'ast> Interpreter<'ast> {
           arguments,
         } => {
           let func_future = self.eval_expression(function, None);
+
+          if arguments.is_empty() {
+            let function_obj = func_future.await?;
+            return self.eval_call_expression(function_obj, &[], *span).await;
+          }
+
+          // Parallelize argument evaluation to improve performance.
           let args_futures =
             arguments.iter().map(|arg| self.eval_expression(arg, None));
 
           let (function_obj, evaluated_args_vec) =
             try_join!(func_future, try_join_all(args_futures))?;
 
-          let mut evaluated_args = BumpVec::new_in(self.arena);
-          evaluated_args.extend(evaluated_args_vec);
-
-          let args_slice = evaluated_args.into_bump_slice();
+          // Direct allocation into the arena to minimize intermediate heap usage.
+          let args_slice = self.arena.alloc_slice_fill_iter(evaluated_args_vec);
 
           self
             .eval_call_expression(function_obj, args_slice, *span)
@@ -151,38 +158,28 @@ impl<'ast> Interpreter<'ast> {
             }
           }
 
-          let element_futures = elements
-            .iter()
-            .map(|e| self.eval_expression(e, element_kind));
-          let results = try_join_all(element_futures).await?;
-
-          let mut evaluated_elements = BumpVec::new_in(self.arena);
-          evaluated_elements.extend(results);
-
-          if let Some(hint) = kind {
-            match hint.kind {
-              TypeKind::Array { .. } =>
-              {
-                #[allow(clippy::arc_with_non_send_sync)]
-                return Ok(Object::Array {
-                  elements: Arc::new(RwLock::new(evaluated_elements)),
-                  kind: hint.clone(),
-                  constant: false,
-                })
-              }
-              TypeKind::Tuple(_) => {
-                return Ok(Object::Tuple {
-                  elements: evaluated_elements.into_bump_slice(),
-                })
-              }
-              _ => {}
-            }
-          }
-
           if elements.is_empty() {
-            #[allow(clippy::arc_with_non_send_sync)]
+            if let Some(hint) = kind {
+              match &hint.kind {
+                TypeKind::Array { .. } => {
+                  return Ok(Object::Array {
+                    elements: self
+                      .arena
+                      .alloc(RwLock::new(BumpVec::new_in(self.arena))),
+                    kind: hint.clone(),
+                    constant: false,
+                  })
+                }
+                TypeKind::Tuple(_) => {
+                  return Ok(Object::Tuple { elements: &[] })
+                }
+                _ => {}
+              }
+            }
             return Ok(Object::Array {
-              elements: Arc::new(RwLock::new(evaluated_elements)),
+              elements: self
+                .arena
+                .alloc(RwLock::new(BumpVec::new_in(self.arena))),
               kind: Type::new(
                 TypeKind::Array {
                   element: self.arena.alloc(Type::new(TypeKind::Void, *span)),
@@ -194,12 +191,38 @@ impl<'ast> Interpreter<'ast> {
             });
           }
 
+          let element_futures = elements
+            .iter()
+            .map(|e| self.eval_expression(e, element_kind));
+          let results = try_join_all(element_futures).await?;
+
+          if let Some(hint) = kind {
+            match hint.kind {
+              TypeKind::Array { .. } => {
+                let mut evaluated_elements =
+                  BumpVec::with_capacity_in(results.len(), self.arena);
+                evaluated_elements.extend(results);
+                return Ok(Object::Array {
+                  elements: self.arena.alloc(RwLock::new(evaluated_elements)),
+                  kind: hint.clone(),
+                  constant: false,
+                });
+              }
+              TypeKind::Tuple(_) => {
+                return Ok(Object::Tuple {
+                  elements: self.arena.alloc_slice_fill_iter(results),
+                })
+              }
+              _ => {}
+            }
+          }
+
           Ok(Object::Tuple {
-            elements: evaluated_elements.into_bump_slice(),
+            elements: self.arena.alloc_slice_fill_iter(results),
           })
         }
         ExpressionKind::Object { properties } => {
-          let mut object = IndexMap::default();
+          let mut object = IndexMap::with_capacity(properties.len());
           for (key, value) in properties {
             let key = match self.eval_expression(key, None).await? {
               Object::String(s) => s,
@@ -213,9 +236,8 @@ impl<'ast> Interpreter<'ast> {
             let value = self.eval_expression(value, None).await?;
             object.insert(key, value);
           }
-          #[allow(clippy::arc_with_non_send_sync)]
           Ok(Object::Object {
-            properties: Arc::new(RwLock::new(object)),
+            properties: self.arena.alloc(RwLock::new(object)),
             constant: false,
           })
         }
@@ -227,7 +249,7 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Try(expr) => {
           let value = self.eval_expression(expr, None).await?;
           match value {
-            Object::Ok(v) => Ok((*v).clone()),
+            Object::Ok(v) => Ok(v.clone()),
             Object::Err(e) => {
               Err(Error::new(ErrorKind::RuntimeError(format!("{}", e)), *span))
             }
