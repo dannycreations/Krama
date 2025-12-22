@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use krama_core::{
   AssignmentOperator, Error, Expression, ExpressionKind, FunctionBody, Match,
   ObjectKind, Span, Type,
@@ -107,17 +109,44 @@ impl<'ast> Interpreter<'ast> {
     arms: &[Match<'ast>],
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
-    let subject = self.eval_expression(subject, None).await?;
+    let subject_val = self.eval_expression(subject, None).await?;
+
+    // Unwrap Return(Err) if present, same as if-let logic
+    let effective_val = if let ObjectKind::Return(inner) = &subject_val {
+      if let ObjectKind::Err(_) = inner {
+        inner
+      } else {
+        &subject_val
+      }
+    } else {
+      &subject_val
+    };
 
     for arm in arms {
       for pattern in &arm.patterns {
-        if self.eval_match_pattern(&subject, pattern, span).await? {
+        if let Some(bindings) = self
+          .eval_match_pattern(effective_val, pattern, span)
+          .await?
+        {
+          // If we have bindings, we need a new scope
+          let interpreter = if !bindings.is_empty() {
+            let new_interp = self.new_enclosed();
+            for (name, val) in bindings {
+              new_interp.env_mut(span)?.set(name, val, false, false);
+            }
+            Cow::Owned(new_interp)
+          } else {
+            Cow::Borrowed(self)
+          };
+
           let result = match &arm.body {
             FunctionBody::Block(block) => {
-              self.eval_block_statement_with_new_scope(block).await?
+              interpreter
+                .eval_block_statement_with_new_scope(block)
+                .await?
             }
             FunctionBody::Expression(expression) => {
-              self
+              interpreter
                 .new_enclosed()
                 .eval_expression(expression, None)
                 .await?

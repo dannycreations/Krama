@@ -10,18 +10,63 @@ impl<'ast> Interpreter<'ast> {
     subject: &'s ObjectKind<'ast>,
     pattern: &'s MatchPattern<'ast>,
     span: Span,
-  ) -> Result<bool, Error<'ast>>
+  ) -> Result<Option<Vec<(&'ast str, ObjectKind<'ast>)>>, Error<'ast>>
   where
     'ast: 's,
   {
     match (pattern, subject) {
       (MatchPattern::Expression(expression), _) => {
+        if let ExpressionKind::Call {
+          function,
+          arguments,
+        } = &expression.kind
+        {
+          if let ExpressionKind::Identifier(name) = &function.kind {
+            if (*name == "Ok" || *name == "Err") && arguments.len() == 1 {
+              let is_match = matches!(
+                (name, subject),
+                (&"Ok", ObjectKind::Ok(_)) | (&"Err", ObjectKind::Err(_))
+              );
+
+              if is_match {
+                let inner_val = match subject {
+                  ObjectKind::Ok(v) => v,
+                  ObjectKind::Err(v) => v,
+                  _ => unreachable!(),
+                };
+
+                let arg = &arguments[0];
+                if let ExpressionKind::Identifier(bind_name) = &arg.kind {
+                  return Ok(Some(vec![(*bind_name, (*inner_val).clone())]));
+                } else {
+                  let arg_val = self.eval_expression(arg, None).await?;
+                  if arg_val == **inner_val {
+                    return Ok(Some(Vec::new()));
+                  } else {
+                    return Ok(None);
+                  }
+                }
+              } else {
+                return Ok(None);
+              }
+            }
+          }
+        }
+
         if let ExpressionKind::Literal(literal) = expression.kind {
           let pattern_val = self.eval_literal(literal)?;
-          Ok(pattern_val == *subject)
+          if pattern_val == *subject {
+            Ok(Some(Vec::new()))
+          } else {
+            Ok(None)
+          }
         } else {
           let pattern_val = self.eval_expression(expression, None).await?;
-          Ok(pattern_val == *subject)
+          if pattern_val == *subject {
+            Ok(Some(Vec::new()))
+          } else {
+            Ok(None)
+          }
         }
       }
       (MatchPattern::Range(start, end), ObjectKind::Integer(i)) => {
@@ -30,7 +75,11 @@ impl<'ast> Interpreter<'ast> {
         if let (ObjectKind::Integer(start), ObjectKind::Integer(end)) =
           (start_val, end_val)
         {
-          Ok(*i >= start && *i <= end)
+          if *i >= start && *i <= end {
+            Ok(Some(Vec::new()))
+          } else {
+            Ok(None)
+          }
         } else {
           Err(Error::new(
             ErrorKind::TypeError(
@@ -46,7 +95,11 @@ impl<'ast> Interpreter<'ast> {
         if let (ObjectKind::String(start_str), ObjectKind::String(end_str)) =
           (start_obj, end_obj)
         {
-          Ok(*s >= start_str && *s <= end_str)
+          if *s >= start_str && *s <= end_str {
+            Ok(Some(Vec::new()))
+          } else {
+            Ok(None)
+          }
         } else {
           Err(Error::new(
             ErrorKind::TypeError(
@@ -56,8 +109,8 @@ impl<'ast> Interpreter<'ast> {
           ))
         }
       }
-      (MatchPattern::Else, _) => Ok(true),
-      _ => Ok(false),
+      (MatchPattern::Else, _) => Ok(Some(Vec::new())),
+      _ => Ok(None),
     }
   }
 }

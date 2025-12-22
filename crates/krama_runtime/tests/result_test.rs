@@ -101,3 +101,27 @@ test_eval_ok!(
   "#,
   ObjectKind::String("error")
 );
+
+test_eval_ok!(
+  ok_match_pattern,
+  r#"
+    const a = Ok(100)
+    match (a) {
+      Ok(v) => v,
+      Err(e) => 0,
+    }
+  "#,
+  ObjectKind::Integer(100)
+);
+
+test_eval_ok!(
+  err_match_pattern,
+  r#"
+    const a = Err(100)?
+    match (a) {
+      Ok(v) => v,
+      Err(e) => 0,
+    }
+  "#,
+  ObjectKind::Integer(0)
+);
