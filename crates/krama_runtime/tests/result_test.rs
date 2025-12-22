@@ -125,3 +125,39 @@ test_eval_ok!(
   "#,
   ObjectKind::Integer(0)
 );
+
+test_eval_ok!(
+  ok_while_pattern,
+  r#"
+    let sum = 0
+    let a = Ok(5)
+    while (Ok(v) = a) {
+      sum = sum + v
+      if (v > 0) {
+        a = Err(0)?
+      } else {
+        a = Ok(0)
+      }
+    }
+    sum
+  "#,
+  ObjectKind::Integer(5)
+);
+
+test_eval_ok!(
+  err_while_pattern,
+  r#"
+    let sum = 0
+    let a = Err(5)?
+    while (Err(v) = a) {
+      sum = sum + v
+      if (v > 0) {
+        a = Ok(0)
+      } else {
+        a = Err(0)?
+      }
+    }
+    sum
+  "#,
+  ObjectKind::Integer(5)
+);

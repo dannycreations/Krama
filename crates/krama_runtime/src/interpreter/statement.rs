@@ -2,9 +2,9 @@ use ahash::AHashMap;
 use bumpalo::collections::Vec as BumpVec;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  ConstBinding, Destructure, Enum, Error, ErrorKind, Expression, ForBinding,
-  FunctionKind, ObjectKind, Span, Statement, StatementBlock, StatementKind,
-  Struct, Type,
+  AssignmentOperator, ConstBinding, Destructure, Enum, Error, ErrorKind,
+  Expression, ExpressionKind, ForBinding, FunctionKind, ObjectKind, Span,
+  Statement, StatementBlock, StatementKind, Struct, Type,
 };
 use parking_lot::RwLock;
 
@@ -154,12 +154,163 @@ impl<'ast> Interpreter<'ast> {
         StatementKind::Continue => Ok(ObjectKind::Continue),
         StatementKind::While { condition, body } => {
           loop {
-            let condition_result =
-              self.eval_expression(condition, None).await?;
-            if !condition_result.is_truthy() {
-              break;
+            // Check for pattern matching in while condition: while (Ok(v) = expr)
+            if let ExpressionKind::Assignment {
+              left,
+              operator: AssignmentOperator::Assign,
+              right,
+            } = &condition.kind
+            {
+              // Evaluate the right side (the value being matched against)
+              let mut right_val = self.eval_expression(right, None).await?;
+
+              // If the right side is a propagated result (via ? operator), we need to extract the inner value
+              // and treat it as the value to match against.
+              if let ObjectKind::Return(inner) = &right_val {
+                if let ObjectKind::Err(_) = inner {
+                  // Extract the Err value from the Return wrapper so it can be matched
+                  right_val = (*inner).clone();
+                }
+              }
+
+              // Handle Result types specially for pattern matching
+              match &right_val {
+                ObjectKind::Ok(inner) => {
+                  if let ExpressionKind::Call {
+                    function,
+                    arguments,
+                  } = &left.kind
+                  {
+                    if let ExpressionKind::Identifier("Ok") = &function.kind {
+                      if arguments.len() == 1 {
+                        if let ExpressionKind::Identifier(var_name) =
+                          &arguments[0].kind
+                        {
+                          // Match: Ok(v) = Ok(val) -> bind v = val, continue loop
+                          self.env_mut(span)?.set(
+                            var_name,
+                            (*inner).clone(),
+                            false,
+                            false,
+                          );
+                          // Proceed to execute body
+                        } else {
+                          // Not a simple variable binding, treat as normal assignment/truthy check?
+                          // For now, only support Ok(var) pattern
+                          let condition_result =
+                            self.eval_expression(condition, None).await?;
+                          if !condition_result.is_truthy() {
+                            break;
+                          }
+                        }
+                      } else {
+                        // Ok() with wrong args count
+                        break;
+                      }
+                    } else if let ExpressionKind::Identifier("Err") =
+                      &function.kind
+                    {
+                      // Mismatch: Err(e) = Ok(v) -> break loop
+                      break;
+                    } else {
+                      // Normal assignment
+                      let condition_result =
+                        self.eval_expression(condition, None).await?;
+                      if !condition_result.is_truthy() {
+                        break;
+                      }
+                    }
+                  } else {
+                    // Normal assignment
+                    let condition_result =
+                      self.eval_expression(condition, None).await?;
+                    if !condition_result.is_truthy() {
+                      break;
+                    }
+                  }
+                }
+                ObjectKind::Err(inner) => {
+                  if let ExpressionKind::Call {
+                    function,
+                    arguments,
+                  } = &left.kind
+                  {
+                    if let ExpressionKind::Identifier("Err") = &function.kind {
+                      if arguments.len() == 1 {
+                        if let ExpressionKind::Identifier(var_name) =
+                          &arguments[0].kind
+                        {
+                          // Match: Err(e) = Err(val) -> bind e = val, continue loop
+                          self.env_mut(span)?.set(
+                            var_name,
+                            (*inner).clone(),
+                            false,
+                            false,
+                          );
+                          // Proceed to execute body
+                        } else {
+                          let condition_result =
+                            self.eval_expression(condition, None).await?;
+                          if !condition_result.is_truthy() {
+                            break;
+                          }
+                        }
+                      } else {
+                        break;
+                      }
+                    } else if let ExpressionKind::Identifier("Ok") =
+                      &function.kind
+                    {
+                      // Mismatch: Ok(v) = Err(e) -> break loop
+                      break;
+                    } else {
+                      let condition_result =
+                        self.eval_expression(condition, None).await?;
+                      if !condition_result.is_truthy() {
+                        break;
+                      }
+                    }
+                  } else {
+                    let condition_result =
+                      self.eval_expression(condition, None).await?;
+                    if !condition_result.is_truthy() {
+                      break;
+                    }
+                  }
+                }
+                _ => {
+                  // Normal while loop condition evaluation
+                  let condition_result =
+                    self.eval_expression(condition, None).await?;
+                  if !condition_result.is_truthy() {
+                    break;
+                  }
+                }
+              }
+            } else {
+              // Normal while loop condition evaluation
+              let condition_result =
+                self.eval_expression(condition, None).await?;
+              if !condition_result.is_truthy() {
+                break;
+              }
             }
+
             let result = self.eval_block_statement(body).await?;
+
+            if let ObjectKind::Return(ObjectKind::Err(_)) = &result {
+              if let ExpressionKind::Assignment { right, .. } = &condition.kind
+              {
+                if let ExpressionKind::Identifier(var_name) = &right.kind {
+                  if let Some(ObjectKind::Err(_)) =
+                    self.environment.borrow().get(var_name)
+                  {
+                    continue;
+                  }
+                }
+              }
+            }
+
             if matches!(result, ObjectKind::Return(_)) {
               return Ok(result);
             }
