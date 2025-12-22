@@ -1,6 +1,6 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, Precedence, TokenKind,
+  ErrorKind, Expression, ExpressionKind, PrecedenceKind, TokenKind,
 };
 
 use super::{ParseResult, Parser};
@@ -40,7 +40,7 @@ where
     }
 
     loop {
-      expressions.push(self.parse_expression(Precedence::Lowest)?);
+      expressions.push(self.parse_expression(PrecedenceKind::Lowest)?);
 
       if self.current_token.kind == end_token {
         break;

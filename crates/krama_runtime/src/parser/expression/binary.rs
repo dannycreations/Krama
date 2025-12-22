@@ -1,19 +1,14 @@
 use krama_core::{
   AssignmentOperator, BinaryOperator, ErrorKind, Expression, ExpressionKind,
-  TokenKind,
 };
 
 use super::{ParseResult, Parser};
-
-enum InfixOperator {
-  Binary(BinaryOperator),
-  Assignment(AssignmentOperator),
-}
 
 impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
+  /// Parses an infix expression (binary or assignment) using Pratt parsing.
   pub fn parse_infix_expression(
     &mut self,
     left: Expression<'ast>,
@@ -21,101 +16,35 @@ where
     let precedence = self.current_precedence();
     let token = self.current_token.clone();
 
-    let operator = match token.kind {
-      TokenKind::Plus => InfixOperator::Binary(BinaryOperator::Add),
-      TokenKind::Minus => InfixOperator::Binary(BinaryOperator::Subtract),
-      TokenKind::Star => InfixOperator::Binary(BinaryOperator::Multiply),
-      TokenKind::StarStar => InfixOperator::Binary(BinaryOperator::Exponent),
-      TokenKind::Slash => InfixOperator::Binary(BinaryOperator::Divide),
-      TokenKind::Percent => InfixOperator::Binary(BinaryOperator::Modulo),
-      TokenKind::EqualEqual => InfixOperator::Binary(BinaryOperator::Equal),
-      TokenKind::BangEqual => InfixOperator::Binary(BinaryOperator::NotEqual),
-      TokenKind::LessThan => InfixOperator::Binary(BinaryOperator::LessThan),
-      TokenKind::LessThanEqual => {
-        InfixOperator::Binary(BinaryOperator::LessThanOrEqual)
-      }
-      TokenKind::GreaterThan => {
-        InfixOperator::Binary(BinaryOperator::GreaterThan)
-      }
-      TokenKind::GreaterThanEqual => {
-        InfixOperator::Binary(BinaryOperator::GreaterThanOrEqual)
-      }
-      TokenKind::AmpersandAmpersand => {
-        InfixOperator::Binary(BinaryOperator::LogicalAnd)
-      }
-      TokenKind::PipePipe => InfixOperator::Binary(BinaryOperator::LogicalOr),
-      TokenKind::Ampersand => InfixOperator::Binary(BinaryOperator::BitwiseAnd),
-      TokenKind::Pipe => InfixOperator::Binary(BinaryOperator::BitwiseOr),
-      TokenKind::Caret => InfixOperator::Binary(BinaryOperator::BitwiseXor),
-      TokenKind::LessLess => InfixOperator::Binary(BinaryOperator::LeftShift),
-      TokenKind::GreaterGreater => {
-        InfixOperator::Binary(BinaryOperator::RightShift)
-      }
-      TokenKind::DotDot => InfixOperator::Binary(BinaryOperator::Range),
-      TokenKind::In => InfixOperator::Binary(BinaryOperator::In),
-
-      // Assignments
-      TokenKind::Equal => InfixOperator::Assignment(AssignmentOperator::Assign),
-      TokenKind::PlusEqual => {
-        InfixOperator::Assignment(AssignmentOperator::AddAssign)
-      }
-      TokenKind::MinusEqual => {
-        InfixOperator::Assignment(AssignmentOperator::SubtractAssign)
-      }
-      TokenKind::StarEqual => {
-        InfixOperator::Assignment(AssignmentOperator::MultiplyAssign)
-      }
-      TokenKind::SlashEqual => {
-        InfixOperator::Assignment(AssignmentOperator::DivideAssign)
-      }
-      TokenKind::PercentEqual => {
-        InfixOperator::Assignment(AssignmentOperator::ModuloAssign)
-      }
-      TokenKind::AmpersandEqual => {
-        InfixOperator::Assignment(AssignmentOperator::BitwiseAndAssign)
-      }
-      TokenKind::PipeEqual => {
-        InfixOperator::Assignment(AssignmentOperator::BitwiseOrAssign)
-      }
-      TokenKind::CaretEqual => {
-        InfixOperator::Assignment(AssignmentOperator::BitwiseXorAssign)
-      }
-      TokenKind::LessLessEqual => {
-        InfixOperator::Assignment(AssignmentOperator::LeftShiftAssign)
-      }
-      TokenKind::GreaterGreaterEqual => {
-        InfixOperator::Assignment(AssignmentOperator::RightShiftAssign)
-      }
-      _ => {
-        return Err(ErrorKind::SyntaxError(
-          "Invalid infix operator".to_string(),
-        ))
-      }
-    };
-
-    self.advance();
-    let right = self.parse_expression(precedence)?;
-
-    match operator {
-      InfixOperator::Assignment(op) => Ok(Expression::new(
+    // Consolidate operator mapping using the core methods to reduce duplication.
+    if let Some(op) = AssignmentOperator::from_token(token.kind) {
+      self.advance();
+      let right = self.parse_expression(precedence)?;
+      return Ok(Expression::new(
         ExpressionKind::Assignment {
           left: self.arena.alloc(left),
           operator: op,
           right: self.arena.alloc(right),
         },
         token.span,
-      )),
-      InfixOperator::Binary(op) => {
-        let span = left.span.merge(&right.span);
-        Ok(Expression::new(
-          ExpressionKind::Binary {
-            left: self.arena.alloc(left),
-            operator: op,
-            right: self.arena.alloc(right),
-          },
-          span,
-        ))
-      }
+      ));
     }
+
+    if let Some(op) = BinaryOperator::from_token(token.kind) {
+      self.advance();
+      let right = self.parse_expression(precedence)?;
+      let span = left.span.merge(&right.span);
+      return Ok(Expression::new(
+        ExpressionKind::Binary {
+          left: self.arena.alloc(left),
+          operator: op,
+          right: self.arena.alloc(right),
+        },
+        span,
+      ));
+    }
+
+    // This should theoretically not be reached if the precedence table is correct.
+    Err(ErrorKind::SyntaxError("Invalid infix operator".to_string()))
   }
 }

@@ -1,27 +1,64 @@
+use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  Error, ErrorKind, Function, FunctionBody, Object, Span, UserFunction,
+  Error, ErrorKind, FunctionBody, FunctionKind, ObjectKind, Parameter, Span,
+  Type, UserFunction,
 };
 
 use super::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
+  /// Allocates a new UserFunction in the interpreter's arena.
+  /// Centralizes function creation to avoid duplication in eval.rs and statement.rs.
+  pub fn alloc_user_function(
+    &self,
+    parameters: BumpVec<'ast, Parameter<'ast>>,
+    body: FunctionBody<'ast>,
+    kind: Option<Type<'ast>>,
+  ) -> ObjectKind<'ast> {
+    let user_fn = self.arena.alloc(UserFunction {
+      parameters,
+      body,
+      kind,
+    });
+    ObjectKind::Function(FunctionKind::User(user_fn))
+  }
+
   pub async fn eval_call_expression(
     &self,
-    function: Object<'ast>,
-    arguments: &'ast [Object<'ast>],
+    function: ObjectKind<'ast>,
+    arguments: &'ast [ObjectKind<'ast>],
     span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    self
+      .eval_call_expression_with_this(
+        function,
+        arguments,
+        ObjectKind::Void,
+        span,
+      )
+      .await
+  }
+
+  pub async fn eval_call_expression_with_this(
+    &self,
+    function: ObjectKind<'ast>,
+    arguments: &'ast [ObjectKind<'ast>],
+    this: ObjectKind<'ast>,
+    span: Span,
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     match function {
-      Object::Function(function) => match function {
-        Function::Native(native_fn) => {
+      ObjectKind::Function(function) => match function {
+        FunctionKind::Native(native_fn) => {
           (native_fn.callback)(self.arena, arguments)
             .await
             .map_err(|kind| Error::new(kind, span))
         }
-        Function::User(user_fn) => {
-          self.eval_user_function_call(user_fn, arguments, span).await
+        FunctionKind::User(user_fn) => {
+          self
+            .eval_user_function_call_with_this(user_fn, arguments, this, span)
+            .await
         }
-        Function::Enum(constructor) => {
+        FunctionKind::Enum(constructor) => {
           if arguments.len() != constructor.field_count {
             return Err(Error::new(
               ErrorKind::TypeError(format!(
@@ -34,51 +71,14 @@ impl<'ast> Interpreter<'ast> {
               span,
             ));
           }
-          Ok(Object::Enum {
+          Ok(ObjectKind::Enum {
             name: constructor.name,
             variant: constructor.variant,
             fields: Some(arguments),
           })
         }
       },
-      // Error on any other object type
-      _ => Err(Error::new(
-        ErrorKind::TypeError(format!(
-          "Expected a function, but got {}",
-          function.type_name()
-        )),
-        span,
-      )),
-    }
-  }
-
-  pub async fn eval_call_expression_with_this(
-    &self,
-    function: Object<'ast>,
-    arguments: &'ast [Object<'ast>],
-    this: Object<'ast>,
-    span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    match function {
-      Object::Function(function) => match function {
-        Function::Native(native_fn) => {
-          (native_fn.callback)(self.arena, arguments)
-            .await
-            .map_err(|kind| Error::new(kind, span))
-        }
-        Function::User(user_fn) => {
-          self
-            .eval_user_function_call_with_this(user_fn, arguments, this, span)
-            .await
-        }
-        Function::Enum(_) => {
-          // Enums don't support 'this' context in this way
-          self
-            .eval_call_expression(Object::Function(function), arguments, span)
-            .await
-        }
-      },
-      Object::Struct(_) => Err(Error::new(
+      ObjectKind::Struct(_) => Err(Error::new(
         ErrorKind::TypeError(format!(
           "{} is not callable directly. Use .new() or other static methods.",
           function.type_name()
@@ -95,24 +95,13 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  async fn eval_user_function_call(
-    &self,
-    user_fn: &'ast UserFunction<'ast>,
-    arguments: &'ast [Object<'ast>],
-    span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    self
-      .eval_user_function_call_with_this(user_fn, arguments, Object::Void, span)
-      .await
-  }
-
   async fn eval_user_function_call_with_this(
     &self,
     user_fn: &'ast UserFunction<'ast>,
-    arguments: &'ast [Object<'ast>],
-    this: Object<'ast>,
+    arguments: &'ast [ObjectKind<'ast>],
+    this: ObjectKind<'ast>,
     span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     if arguments.len() > user_fn.parameters.len() {
       return Err(Error::new(
         ErrorKind::TypeError(format!(
@@ -125,30 +114,19 @@ impl<'ast> Interpreter<'ast> {
     }
     let new_interpreter = self.new_enclosed();
 
-    // Set 'this' in the new scope
-    if !matches!(this, Object::Void) {
-      new_interpreter.environment.borrow_mut().set(
-        "this",
-        this.clone(),
-        false,
-        true,
-      );
+    // Set 'this' and metadata in the new scope
+    if !matches!(this, ObjectKind::Void) {
+      let mut env = new_interpreter.environment.borrow_mut();
+      env.set("this", this.clone(), false, true);
 
-      // Also set '__current_struct__' if 'this' is a StructInstance or StructDefinition
-      if let Object::StructInstance { definition, .. } = &this {
-        new_interpreter.environment.borrow_mut().set(
-          "__current_struct__",
-          Object::String(definition.name),
-          false,
-          true,
-        );
-      } else if let Object::Struct(definition) = &this {
-        new_interpreter.environment.borrow_mut().set(
-          "__current_struct__",
-          Object::String(definition.name),
-          false,
-          true,
-        );
+      let struct_name = match &this {
+        ObjectKind::StructInstance { definition, .. } => Some(definition.name),
+        ObjectKind::Struct(definition) => Some(definition.name),
+        _ => None,
+      };
+
+      if let Some(name) = struct_name {
+        env.set("__current_struct__", ObjectKind::String(name), false, true);
       }
     }
 
@@ -179,16 +157,14 @@ impl<'ast> Interpreter<'ast> {
 
     let result = match &user_fn.body {
       FunctionBody::Block(block) => {
-        new_interpreter
-          .eval_program_statements(&block.statements)
-          .await
+        new_interpreter.eval_statements(&block.statements).await
       }
       FunctionBody::Expression(expr) => {
         new_interpreter.eval_expression(expr, None).await
       }
     }?;
 
-    if let Object::Return(value) = result {
+    if let ObjectKind::Return(value) = result {
       Ok(value.clone())
     } else {
       Ok(result)

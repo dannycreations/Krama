@@ -1,14 +1,14 @@
 use bumpalo::collections::Vec as BumpVec;
 
 mod ast;
-mod diagnostic;
+mod error;
+mod object;
 mod token;
-mod value;
 
 pub use ast::*;
-pub use diagnostic::*;
+pub use error::*;
+pub use object::*;
 pub use token::*;
-pub use value::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Program<'ast> {

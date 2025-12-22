@@ -1,4 +1,4 @@
-use krama_core::Object;
+use krama_core::ObjectKind;
 use krama_runtime::{
   test_eval_is_module, test_eval_is_native_function, test_eval_ok,
   test_eval_with_file,
@@ -11,7 +11,7 @@ test_eval_ok!(
     const assert2 = import("std:assert")
     assert1 == assert2
   "#,
-  Object::Boolean(true)
+  ObjectKind::Boolean(true)
 );
 
 test_eval_is_module!(
@@ -55,5 +55,5 @@ test_eval_with_file!(
     const math = import("./math.kr")
     math.add(1, 2)
   "#,
-  Object::Integer(3)
+  ObjectKind::Integer(3)
 );

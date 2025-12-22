@@ -1,7 +1,7 @@
 use bumpalo::collections::Vec as BumpVec;
 use indexmap::IndexMap;
 use krama_core::{
-  ErrorKind, Literal, ObjectProperty, TokenKind, Type, TypeKind,
+  ErrorKind, LiteralKind, ObjectProperty, TokenKind, Type, TypeKind,
 };
 
 use super::Parser;
@@ -121,7 +121,7 @@ where
           val
         ))
       })?;
-      Some(Literal::Integer(parsed_val))
+      Some(LiteralKind::Integer(parsed_val))
     } else {
       return Err(ErrorKind::SyntaxError(
         "Expected integer literal for array size".to_string(),

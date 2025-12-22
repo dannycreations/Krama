@@ -1,64 +1,54 @@
 use bumpalo::Bump;
-use krama_core::{ErrorKind, Object};
+use krama_core::{ErrorKind, ObjectKind};
 use krama_macro::register_global;
-use tokio::{io, io::AsyncWriteExt};
+use tokio::io::{self, AsyncWrite, AsyncWriteExt};
 
-#[register_global("print")]
-pub async fn print<'ast>(
-  _: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  let mut stdout = io::stdout();
+/// Internal helper to handle asynchronous output to any writer.
+/// Consolidates the logic for printing multiple objects separated by spaces.
+async fn write_objects<'ast, W>(
+  mut writer: W,
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<(), ErrorKind>
+where
+  W: AsyncWrite + Unpin,
+{
   for (i, obj) in objects.iter().enumerate() {
     if i > 0 {
-      stdout
+      writer
         .write_all(b" ")
         .await
         .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
     }
-    stdout
+    writer
       .write_all(obj.to_string().as_bytes())
       .await
       .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
   }
-  stdout
+  writer
     .write_all(b"\n")
     .await
     .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
-  stdout
+  writer
     .flush()
     .await
     .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
+  Ok(())
+}
 
-  Ok(Object::Void)
+#[register_global("print")]
+pub async fn print<'ast>(
+  _: &'ast Bump,
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  write_objects(io::stdout(), objects).await?;
+  Ok(ObjectKind::Void)
 }
 
 #[register_global("eprint")]
 pub async fn eprint<'ast>(
   _: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  let mut stderr = io::stderr();
-  for (i, obj) in objects.iter().enumerate() {
-    if i > 0 {
-      stderr
-        .write_all(b" ")
-        .await
-        .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
-    }
-    stderr
-      .write_all(obj.to_string().as_bytes())
-      .await
-      .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
-  }
-  stderr
-    .write_all(b"\n")
-    .await
-    .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
-  stderr
-    .flush()
-    .await
-    .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
-
-  Ok(Object::Void)
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  write_objects(io::stderr(), objects).await?;
+  Ok(ObjectKind::Void)
 }

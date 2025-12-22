@@ -3,7 +3,7 @@ use std::process;
 use anyhow::Result;
 use bumpalo::{collections::String as BumpString, Bump};
 use clap::Parser;
-use krama_core::{report_error, ErrorKind, Object};
+use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::Interpreter;
 use tokio::{
   io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -69,12 +69,14 @@ impl Repl {
           return Ok(());
         }
       }
-      report_error(error);
+      error.report();
       history.clear();
     } else {
       match interpreter.eval(source).await {
-        Ok(object) if !matches!(object, Object::Void) => println!("{}", object),
-        Err(error) => report_error(error),
+        Ok(object) if !matches!(object, ObjectKind::Void) => {
+          println!("{}", object)
+        }
+        Err(error) => error.report(),
         _ => {}
       };
       history.clear();

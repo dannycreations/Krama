@@ -1,7 +1,7 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, FunctionBody, Parameter, Precedence,
-  TokenKind, Type,
+  ErrorKind, Expression, ExpressionKind, FunctionBody, Parameter,
+  PrecedenceKind, TokenKind, Type,
 };
 
 use super::{ParseResult, Parser};
@@ -53,7 +53,11 @@ where
 
       let default = if self.current_token.kind == TokenKind::Equal {
         self.advance();
-        Some(&*self.arena.alloc(self.parse_expression(Precedence::Lowest)?))
+        Some(
+          &*self
+            .arena
+            .alloc(self.parse_expression(PrecedenceKind::Lowest)?),
+        )
       } else {
         None
       };
@@ -87,7 +91,7 @@ where
       ));
     }
 
-    let body_expr = self.parse_expression(Precedence::Lowest)?;
+    let body_expr = self.parse_expression(PrecedenceKind::Lowest)?;
     let body = FunctionBody::Expression(self.arena.alloc(body_expr));
     Ok((body, kind))
   }

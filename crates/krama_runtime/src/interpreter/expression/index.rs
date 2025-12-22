@@ -1,115 +1,57 @@
-use krama_core::{Error, ErrorKind, Object, Span};
+use krama_core::{Error, ErrorKind, ObjectKind, Span};
 
 use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   pub async fn eval_index_expression(
     &self,
-    mut object: Object<'ast>,
-    index: Object<'ast>,
+    mut object: ObjectKind<'ast>,
+    index: ObjectKind<'ast>,
     span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     match &mut object {
-      Object::Array { elements, .. } => {
-        let idx = match index {
-          Object::Integer(i) => i,
-          _ => {
-            return Err(Error::new(
-              ErrorKind::TypeError(format!(
-                "indices must be integers, not {}",
-                index.type_name()
-              )),
-              span,
-            ))
-          }
-        };
-
-        let elements_lock = elements.read();
-        let element = if idx < 0 {
-          elements_lock.get((elements_lock.len() as i64 + idx) as usize)
-        } else {
-          elements_lock.get(idx as usize)
-        };
-
-        if let Some(element) = element {
-          Ok(element.clone())
-        } else {
-          Ok(Object::Void)
-        }
+      ObjectKind::Array { elements, .. } => {
+        let idx = self.ensure_int_index(&index, span)?;
+        Ok(self.get_by_index(&elements.read(), idx))
       }
-      Object::Tuple { elements } => {
-        let idx = match index {
-          Object::Integer(i) => i,
-          _ => {
-            return Err(Error::new(
-              ErrorKind::TypeError(format!(
-                "indices must be integers, not {}",
-                index.type_name()
-              )),
-              span,
-            ))
-          }
-        };
-
-        let element = if idx < 0 {
-          elements.get((elements.len() as i64 + idx) as usize)
-        } else {
-          elements.get(idx as usize)
-        };
-
-        if let Some(element) = element {
-          Ok(element.clone())
-        } else {
-          Ok(Object::Void)
-        }
+      ObjectKind::Tuple { elements } => {
+        let idx = self.ensure_int_index(&index, span)?;
+        Ok(self.get_by_index(elements, idx))
       }
-      Object::String(s) => {
-        let idx = match index {
-          Object::Integer(i) => i,
-          _ => {
-            return Err(Error::new(
-              ErrorKind::TypeError(format!(
-                "string indices must be integers, not {}",
-                index.type_name()
-              )),
-              span,
-            ))
-          }
-        };
+      ObjectKind::String(s) => {
+        let idx = self.ensure_int_index(&index, span)?;
+        let real_idx = if idx < 0 { s.len() as i64 + idx } else { idx };
 
-        let char = if idx < 0 {
-          s.chars().nth_back((idx.abs() - 1) as usize)
+        Ok(if real_idx >= 0 && (real_idx as usize) < s.len() {
+          ObjectKind::String(
+            self.arena.alloc_str(
+              &s.chars().nth(real_idx as usize).unwrap().to_string(),
+            ),
+          )
         } else {
-          s.chars().nth(idx as usize)
-        };
-
-        if let Some(c) = char {
-          let new_str = self.arena.alloc_str(&c.to_string());
-          Ok(Object::String(new_str))
-        } else {
-          Ok(Object::Void)
-        }
+          ObjectKind::Void
+        })
       }
-      Object::Object { properties, .. } => {
-        let key = match index {
-          Object::String(s) => s,
-          _ => {
-            return Err(Error::new(
-              ErrorKind::TypeError(format!(
-                "object keys must be strings, not {}",
-                index.type_name()
-              )),
-              span,
-            ))
-          }
+      ObjectKind::Object { properties, .. } => {
+        let key = if let ObjectKind::String(s) = index {
+          s
+        } else {
+          return Err(Error::new(
+            ErrorKind::TypeError(format!(
+              "object keys must be strings, not {}",
+              index.type_name()
+            )),
+            span,
+          ));
         };
 
-        let properties = properties.read();
-        if let Some(value) = properties.get(key) {
-          Ok(value.clone())
-        } else {
-          Ok(Object::Void)
-        }
+        Ok(
+          properties
+            .read()
+            .get(key)
+            .cloned()
+            .unwrap_or(ObjectKind::Void),
+        )
       }
       _ => Err(Error::new(
         ErrorKind::TypeError(format!(
@@ -118,6 +60,44 @@ impl<'ast> Interpreter<'ast> {
         )),
         span,
       )),
+    }
+  }
+
+  #[inline]
+  fn ensure_int_index(
+    &self,
+    index: &ObjectKind<'ast>,
+    span: Span,
+  ) -> Result<i64, Error<'ast>> {
+    if let ObjectKind::Integer(i) = index {
+      Ok(*i)
+    } else {
+      Err(Error::new(
+        ErrorKind::TypeError(format!(
+          "indices must be integers, not {}",
+          index.type_name()
+        )),
+        span,
+      ))
+    }
+  }
+
+  #[inline]
+  fn get_by_index(
+    &self,
+    elements: &[ObjectKind<'ast>],
+    idx: i64,
+  ) -> ObjectKind<'ast> {
+    let real_idx = if idx < 0 {
+      elements.len() as i64 + idx
+    } else {
+      idx
+    };
+
+    if real_idx >= 0 && (real_idx as usize) < elements.len() {
+      elements[real_idx as usize].clone()
+    } else {
+      ObjectKind::Void
     }
   }
 }

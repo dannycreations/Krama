@@ -6,13 +6,15 @@ use std::iter::Peekable;
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use krama_core::{
-  Error, ErrorKind, Expression, Precedence, Program, Span, Token, TokenKind,
+  Error, ErrorKind, Expression, PrecedenceKind, Program, Span, Token, TokenKind,
 };
 
 use crate::Lexer;
 
 type ParseResult<'a, 'ast> = Result<Expression<'ast>, ErrorKind>;
 
+/// Recursive descent parser for the Krama language.
+/// Uses a Bump arena for efficient AST allocation.
 #[derive(Clone)]
 pub struct Parser<'a, 'ast>
 where
@@ -27,6 +29,7 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
+  /// Initializes a new parser with a lexer and an allocation arena.
   pub fn new(lexer: Lexer<'a>, arena: &'ast Bump) -> Self {
     let mut lexer = lexer.peekable();
     let current_token = lexer.next().unwrap_or_else(|| {
@@ -41,6 +44,7 @@ where
     }
   }
 
+  /// Advances to the next token in the stream.
   pub fn advance(&mut self) {
     self.current_token = self.lexer.next().unwrap_or_else(|| {
       let span = &self.current_token.span;
@@ -49,6 +53,7 @@ where
     });
   }
 
+  /// Checks if the current token matches the expected kind and advances if it does.
   pub fn consume(
     &mut self,
     expected_kind: TokenKind,
@@ -58,10 +63,14 @@ where
       self.advance();
       Ok(token)
     } else {
-      Err(self.expected_token_error(expected_kind))
+      Err(self.error(format!(
+        "Expected token {}, but got {}",
+        expected_kind, self.current_token.kind
+      )))
     }
   }
 
+  /// Parses the entire program into an AST.
   pub fn parse(&mut self) -> Result<Program<'ast>, Error<'a>> {
     let mut statements = BumpVec::new_in(self.arena);
     while self.current_token.kind != TokenKind::Eof {
@@ -73,6 +82,7 @@ where
     Ok(Program { statements })
   }
 
+  /// Parses an identifier, handling keyword conflicts.
   pub fn parse_identifier(&mut self) -> Result<&'a str, ErrorKind> {
     match self.current_token.kind {
       TokenKind::Identifier(name) => {
@@ -90,14 +100,14 @@ where
     }
   }
 
-  pub fn current_precedence(&self) -> Precedence {
-    Precedence::from_token(&self.current_token)
+  /// Returns the precedence of the current token.
+  pub fn current_precedence(&self) -> PrecedenceKind {
+    PrecedenceKind::from_token(&self.current_token)
   }
 
-  fn expected_token_error(&self, expected_kind: TokenKind) -> ErrorKind {
-    ErrorKind::SyntaxError(format!(
-      "Expected token {}, but got {}",
-      expected_kind, self.current_token.kind
-    ))
+  /// Helper to generate a standardized syntax error at the current token.
+  #[inline(always)]
+  fn error(&self, message: String) -> ErrorKind {
+    ErrorKind::SyntaxError(message)
   }
 }

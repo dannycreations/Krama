@@ -12,7 +12,8 @@ mod object;
 mod unary;
 
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, Precedence, TokenKind,
+  ErrorKind, Expression, ExpressionKind, PrecedenceKind, TokenKind,
+  UpdateOperator,
 };
 
 use super::{ParseResult, Parser};
@@ -23,7 +24,7 @@ where
 {
   pub fn parse_expression(
     &mut self,
-    precedence: Precedence,
+    precedence: PrecedenceKind,
   ) -> ParseResult<'a, 'ast> {
     let mut left = self.parse_pratt()?;
 
@@ -141,7 +142,7 @@ where
         let span = left.span.merge(&token.span);
         Ok(Expression::new(
           ExpressionKind::Update {
-            operator: krama_core::UpdateOperator::Increment,
+            operator: UpdateOperator::Increment,
             argument: self.arena.alloc(left),
             prefix: false,
           },
@@ -152,7 +153,7 @@ where
         let span = left.span.merge(&token.span);
         Ok(Expression::new(
           ExpressionKind::Update {
-            operator: krama_core::UpdateOperator::Decrement,
+            operator: UpdateOperator::Decrement,
             argument: self.arena.alloc(left),
             prefix: false,
           },

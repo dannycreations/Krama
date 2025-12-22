@@ -1,4 +1,4 @@
-use krama_core::Object;
+use krama_core::ObjectKind;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
@@ -12,7 +12,7 @@ test_eval_ok!(
     }
     b
   "#,
-  Object::Integer(45)
+  ObjectKind::Integer(45)
 );
 
 test_eval_ok!(
@@ -27,7 +27,7 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::Integer(5)
+  ObjectKind::Integer(5)
 );
 
 test_eval_ok!(
@@ -44,7 +44,7 @@ test_eval_ok!(
     }
     b
   "#,
-  Object::Integer(25)
+  ObjectKind::Integer(25)
 );
 
 test_eval_ok!(
@@ -61,5 +61,5 @@ test_eval_ok!(
     }
     a()
   "#,
-  Object::Integer(5)
+  ObjectKind::Integer(5)
 );

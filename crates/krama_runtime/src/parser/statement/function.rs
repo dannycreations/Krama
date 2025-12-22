@@ -1,5 +1,5 @@
 use krama_core::{
-  ErrorKind, FunctionBody, Precedence, Span, Statement, StatementKind,
+  ErrorKind, FunctionBody, PrecedenceKind, Span, Statement, StatementKind,
   TokenKind,
 };
 
@@ -26,7 +26,7 @@ where
       FunctionBody::Block(self.arena.alloc(block))
     } else if self.current_token.kind == TokenKind::Arrow {
       self.advance();
-      let expr = self.parse_expression(Precedence::Lowest)?;
+      let expr = self.parse_expression(PrecedenceKind::Lowest)?;
       FunctionBody::Expression(self.arena.alloc(expr))
     } else {
       return Err(ErrorKind::SyntaxError("Expected function body".to_string()));

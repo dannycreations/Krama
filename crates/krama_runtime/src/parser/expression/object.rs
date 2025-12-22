@@ -1,6 +1,6 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, Literal, Precedence, TokenKind,
+  ErrorKind, Expression, ExpressionKind, LiteralKind, PrecedenceKind, TokenKind,
 };
 
 use super::{ParseResult, Parser};
@@ -29,13 +29,13 @@ where
           let key_span = self.current_token.span;
           let key_ident = self.parse_identifier()?;
           let key_expr = Expression::new(
-            ExpressionKind::Literal(Literal::String(key_ident)),
+            ExpressionKind::Literal(LiteralKind::String(key_ident)),
             key_span,
           );
 
           if self.current_token.kind == TokenKind::Colon {
             self.advance();
-            let value = self.parse_expression(Precedence::Lowest)?;
+            let value = self.parse_expression(PrecedenceKind::Lowest)?;
             (key_expr, value)
           } else {
             // Shorthand: { x } -> { x: x }
@@ -47,7 +47,7 @@ where
         TokenKind::String(_) => {
           let key = self.parse_literal()?;
           self.consume(TokenKind::Colon)?;
-          let value = self.parse_expression(Precedence::Lowest)?;
+          let value = self.parse_expression(PrecedenceKind::Lowest)?;
           (key, value)
         }
         _ => {

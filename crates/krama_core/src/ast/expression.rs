@@ -1,27 +1,27 @@
 use bumpalo::collections::Vec as BumpVec;
 
 use crate::{
-  AssignmentOperator, BinaryOperator, BlockStatement, Literal, Node, Parameter,
-  Type, UnaryOperator, UpdateOperator,
+  AssignmentOperator, BinaryOperator, LiteralKind, Node, Parameter,
+  StatementBlock, Type, UnaryOperator, UpdateOperator,
 };
 
 pub type Expression<'ast> = Node<'ast, ExpressionKind<'ast>>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionBody<'ast> {
-  Block(&'ast BlockStatement<'ast>),
+  Block(&'ast StatementBlock<'ast>),
   Expression(&'ast Expression<'ast>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExpressionKind<'ast> {
   Identifier(&'ast str),
-  Literal(Literal<'ast>),
+  Literal(LiteralKind<'ast>),
   This,
   StructConstruction {
     properties: BumpVec<'ast, (Expression<'ast>, Expression<'ast>)>,
   },
-  Block(&'ast BlockStatement<'ast>),
+  Block(&'ast StatementBlock<'ast>),
   Collection {
     elements: BumpVec<'ast, Expression<'ast>>,
   },
@@ -54,7 +54,7 @@ pub enum ExpressionKind<'ast> {
   },
   Match {
     subject: &'ast Expression<'ast>,
-    arms: BumpVec<'ast, MatchArm<'ast>>,
+    arms: BumpVec<'ast, Match<'ast>>,
   },
   Import {
     path: &'ast str,
@@ -85,7 +85,7 @@ pub enum ExpressionKind<'ast> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MatchArm<'ast> {
+pub struct Match<'ast> {
   pub patterns: BumpVec<'ast, MatchPattern<'ast>>,
   pub body: FunctionBody<'ast>,
 }

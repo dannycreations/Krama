@@ -1,16 +1,16 @@
-use krama_core::Object;
+use krama_core::ObjectKind;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
   eval_match_expression_with_literal_pattern,
   "match (0) { 0 => 1, else => 2 }",
-  Object::Integer(1)
+  ObjectKind::Integer(1)
 );
 
 test_eval_ok!(
   eval_match_expression_with_else_clause,
   "match (1) { 0 => 1, else => 2 }",
-  Object::Integer(2)
+  ObjectKind::Integer(2)
 );
 
 test_eval_ok!(
@@ -26,43 +26,43 @@ test_eval_ok!(
       else => 3
     }
   "#,
-  Object::Integer(2)
+  ObjectKind::Integer(2)
 );
 
 test_eval_ok!(
   eval_match_expression_with_multiple_patterns,
   "match (2) { 0 => 1, 1, 2, 3 => 2, else => 3 }",
-  Object::Integer(2)
+  ObjectKind::Integer(2)
 );
 
 test_eval_ok!(
   eval_match_expression_with_range_pattern,
   "match (5) { 0..10 => 1, else => 2 }",
-  Object::Integer(1)
+  ObjectKind::Integer(1)
 );
 
 test_eval_ok!(
   eval_match_expression_with_range_and_else,
   "match (11) { 0..10 => 1, else => 2 }",
-  Object::Integer(2)
+  ObjectKind::Integer(2)
 );
 
 test_eval_ok!(
   eval_match_expression_with_char_range_pattern,
   "match (\"b\") { \"a\"..\"z\" => 1, else => 2 }",
-  Object::Integer(1)
+  ObjectKind::Integer(1)
 );
 
 test_eval_ok!(
   eval_match_expression_with_multiple_char_ranges,
   "match (\"B\") { \"a\"..\"z\" => 1, \"A\"..\"Z\" => 2, else => 3 }",
-  Object::Integer(2)
+  ObjectKind::Integer(2)
 );
 
 test_eval_ok!(
   eval_match_expression_with_assignment,
   "const a = match (5) { 0..10 => 1, else => 2 }; a",
-  Object::Integer(1)
+  ObjectKind::Integer(1)
 );
 
 test_eval_ok!(
@@ -76,7 +76,7 @@ test_eval_ok!(
     }
     a()
   "#,
-  Object::Integer(5)
+  ObjectKind::Integer(5)
 );
 
 test_eval_ok!(
@@ -93,23 +93,23 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::Integer(5)
+  ObjectKind::Integer(5)
 );
 
 test_eval_ok!(
   eval_match_string_lexicographical_prefix,
   "match (\"car\") { \"cart\"..\"carz\" => 1, else => 2 }",
-  Object::Integer(2)
+  ObjectKind::Integer(2)
 );
 
 test_eval_ok!(
   eval_match_string_lexicographical_deeper,
   "match (\"cat\") { \"car\"..\"caz\" => 1, else => 2 }",
-  Object::Integer(1)
+  ObjectKind::Integer(1)
 );
 
 test_eval_ok!(
   eval_match_string_lexicographical_equal,
   "match (\"car\") { \"car\"..\"car\" => 1, else => 2 }",
-  Object::Integer(1)
+  ObjectKind::Integer(1)
 );

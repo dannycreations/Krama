@@ -1,24 +1,24 @@
-use krama_core::{ErrorKind, Object};
+use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_match, test_eval_ok};
 
-test_eval_match!(eval_array, "const a = []; a", Object::Array { .. });
+test_eval_match!(eval_array, "const a = []; a", ObjectKind::Array { .. });
 
 test_eval_match!(
   eval_array_value,
   "const a: i32[] = [1, 2, 3]; a",
-  Object::Array { .. }
+  ObjectKind::Array { .. }
 );
 
 test_eval_match!(
   eval_array_fixed,
   "const a: i32[3] = [1, 2, 3]; a",
-  Object::Array { .. }
+  ObjectKind::Array { .. }
 );
 
 test_eval_match!(
   eval_array_fixed_with_less_elements,
   "const a: i32[3] = [1, 2]; a",
-  Object::Array { .. }
+  ObjectKind::Array { .. }
 );
 
 test_eval_err!(
@@ -36,19 +36,19 @@ test_eval_err!(
 test_eval_ok!(
   eval_array_mutate_value,
   "let a: i32[] = [1]; a[0] = 2; a[0]",
-  Object::Integer(2)
+  ObjectKind::Integer(2)
 );
 
 test_eval_ok!(
   eval_array_mutate_length,
   "let a: i32[] = [1]; a[1] = 2; a[1]",
-  Object::Integer(2)
+  ObjectKind::Integer(2)
 );
 
 test_eval_ok!(
   eval_array_fixed_mutate_value,
   "let a: i32[1] = [1]; a[0] = 2; a[0]",
-  Object::Integer(2)
+  ObjectKind::Integer(2)
 );
 
 test_eval_err!(
@@ -72,19 +72,19 @@ test_eval_err!(
 test_eval_match!(
   eval_tuple,
   "const a = [1, true, \"hello\"]; a",
-  Object::Tuple { .. }
+  ObjectKind::Tuple { .. }
 );
 
 test_eval_match!(
   eval_tuple_nested,
   "const a = [1, [true, \"hello\"]]; a",
-  Object::Tuple { .. }
+  ObjectKind::Tuple { .. }
 );
 
 test_eval_match!(
   eval_tuple_with_type,
   "const a: [i32, bool] = [1, true]; a",
-  Object::Tuple { .. }
+  ObjectKind::Tuple { .. }
 );
 
 test_eval_err!(

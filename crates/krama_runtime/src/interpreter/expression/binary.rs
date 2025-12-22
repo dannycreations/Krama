@@ -1,193 +1,39 @@
-use bumpalo::collections::{String as BumpString, Vec as BumpVec};
-use krama_core::{BinaryOperator, Error, ErrorKind, Object, Span};
+use futures::try_join;
+use krama_core::{BinaryOperator, Error, Expression, ObjectKind, Span};
 
 use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
-  /// Evaluates a binary expression.
-  /// Optimized for common types (integers, strings) to minimize overhead.
-  pub fn eval_binary_expression(
+  pub async fn eval_binary_expression(
     &self,
+    left: &Expression<'ast>,
     operator: BinaryOperator,
-    left: Object<'ast>,
-    right: Object<'ast>,
+    right: &Expression<'ast>,
     span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    match (left, right) {
-      (Object::Integer(l), Object::Integer(r)) => match operator {
-        BinaryOperator::Add => Ok(Object::Integer(l + r)),
-        BinaryOperator::Subtract => Ok(Object::Integer(l - r)),
-        BinaryOperator::Multiply => Ok(Object::Integer(l * r)),
-        BinaryOperator::Divide => Ok(Object::Integer(l / r)),
-        BinaryOperator::Modulo => Ok(Object::Integer(l % r)),
-        BinaryOperator::Exponent => Ok(Object::Integer(l.pow(r as u32))),
-        BinaryOperator::BitwiseAnd => Ok(Object::Integer(l & r)),
-        BinaryOperator::BitwiseOr => Ok(Object::Integer(l | r)),
-        BinaryOperator::BitwiseXor => Ok(Object::Integer(l ^ r)),
-        BinaryOperator::LeftShift => Ok(Object::Integer(l << r)),
-        BinaryOperator::RightShift => Ok(Object::Integer(l >> r)),
-        BinaryOperator::Equal => Ok(Object::Boolean(l == r)),
-        BinaryOperator::NotEqual => Ok(Object::Boolean(l != r)),
-        BinaryOperator::GreaterThan => Ok(Object::Boolean(l > r)),
-        BinaryOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r)),
-        BinaryOperator::LessThan => Ok(Object::Boolean(l < r)),
-        BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r)),
-        BinaryOperator::Range => {
-          let count = (r - l).max(-1) + 1;
-          let mut elements =
-            BumpVec::with_capacity_in(count as usize, self.arena);
-          for i in l..=r {
-            elements.push(Object::Integer(i));
-          }
-          Ok(Object::Tuple {
-            elements: elements.into_bump_slice(),
-          })
-        }
-        _ => Err(Error::new(
-          ErrorKind::TypeError(format!(
-            "Unsupported operator for integers: {:?}",
-            operator
-          )),
-          span,
-        )),
-      },
-      (Object::Float(l), Object::Float(r)) => {
-        self.eval_float_op(operator, l, r, span)
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    // Handle short-circuiting for logical operators before evaluating the right side.
+    if matches!(
+      operator,
+      BinaryOperator::LogicalOr | BinaryOperator::LogicalAnd
+    ) {
+      let left_val = self.eval_expression(left, None).await?;
+      let is_truthy = left_val.is_truthy();
+      if (operator == BinaryOperator::LogicalOr && is_truthy)
+        || (operator == BinaryOperator::LogicalAnd && !is_truthy)
+      {
+        return Ok(left_val);
       }
-      (Object::Integer(l), Object::Float(r)) => {
-        self.eval_float_op(operator, l as f64, r, span)
-      }
-      (Object::Float(l), Object::Integer(r)) => {
-        self.eval_float_op(operator, l, r as f64, span)
-      }
-      (Object::String(l), Object::String(r)) => {
-        self.eval_string_binary_expression(operator, l, r, span)
-      }
-      (Object::String(l), r) if operator == BinaryOperator::Add => {
-        // Use a single allocation for the combined string to minimize fragmentation.
-        let rs = r.to_string();
-        let mut s =
-          BumpString::with_capacity_in(l.len() + rs.len(), self.arena);
-        s.push_str(l);
-        s.push_str(&rs);
-        Ok(Object::String(s.into_bump_str()))
-      }
-      (l, Object::String(r)) if operator == BinaryOperator::Add => {
-        // Use a single allocation for the combined string to minimize fragmentation.
-        let ls = l.to_string();
-        let mut s =
-          BumpString::with_capacity_in(ls.len() + r.len(), self.arena);
-        s.push_str(&ls);
-        s.push_str(r);
-        Ok(Object::String(s.into_bump_str()))
-      }
-      (Object::Boolean(l), Object::Boolean(r)) => {
-        self.eval_boolean_binary_expression(operator, l, r, span)
-      }
-      (Object::String(l), Object::Object { properties, .. }) => {
-        if operator == BinaryOperator::In {
-          Ok(Object::Boolean(properties.read().contains_key(l)))
-        } else {
-          Err(Error::new(
-            ErrorKind::TypeError(format!(
-              "Unsupported types for binary operation: String and Object with {:?}",
-              operator
-            )),
-            span,
-          ))
-        }
-      }
-      (l, r) => match operator {
-        BinaryOperator::Equal => Ok(Object::Boolean(l == r)),
-        BinaryOperator::NotEqual => Ok(Object::Boolean(l != r)),
-        _ => Err(Error::new(
-          ErrorKind::TypeError(format!(
-            "Unsupported types for binary operation: {:?} and {:?}",
-            l, r
-          )),
-          span,
-        )),
-      },
+      return self.eval_expression(right, None).await;
     }
-  }
 
-  #[inline]
-  fn eval_float_op(
-    &self,
-    operator: BinaryOperator,
-    left: f64,
-    right: f64,
-    span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    match operator {
-      BinaryOperator::Add => Ok(Object::Float(left + right)),
-      BinaryOperator::Subtract => Ok(Object::Float(left - right)),
-      BinaryOperator::Multiply => Ok(Object::Float(left * right)),
-      BinaryOperator::Divide => Ok(Object::Float(left / right)),
-      BinaryOperator::Modulo => Ok(Object::Float(left % right)),
-      BinaryOperator::Exponent => Ok(Object::Float(left.powf(right))),
-      BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
-      BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
-      BinaryOperator::GreaterThan => Ok(Object::Boolean(left > right)),
-      BinaryOperator::GreaterThanOrEqual => Ok(Object::Boolean(left >= right)),
-      BinaryOperator::LessThan => Ok(Object::Boolean(left < right)),
-      BinaryOperator::LessThanOrEqual => Ok(Object::Boolean(left <= right)),
-      _ => Err(Error::new(
-        ErrorKind::TypeError(format!(
-          "Unsupported operator for floats: {:?}",
-          operator
-        )),
-        span,
-      )),
-    }
-  }
+    // Eager evaluation for all other binary operators.
+    let (l, r) = try_join!(
+      self.eval_expression(left, None),
+      self.eval_expression(right, None)
+    )?;
 
-  #[inline]
-  fn eval_string_binary_expression(
-    &self,
-    operator: BinaryOperator,
-    left: &str,
-    right: &str,
-    span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    match operator {
-      BinaryOperator::Add => {
-        let mut s =
-          BumpString::with_capacity_in(left.len() + right.len(), self.arena);
-        s.push_str(left);
-        s.push_str(right);
-        Ok(Object::String(s.into_bump_str()))
-      }
-      BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
-      BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
-      _ => Err(Error::new(
-        ErrorKind::TypeError(format!(
-          "Unsupported operator for strings: {:?}",
-          operator
-        )),
-        span,
-      )),
-    }
-  }
-
-  #[inline]
-  fn eval_boolean_binary_expression(
-    &self,
-    operator: BinaryOperator,
-    left: bool,
-    right: bool,
-    span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    match operator {
-      BinaryOperator::Equal => Ok(Object::Boolean(left == right)),
-      BinaryOperator::NotEqual => Ok(Object::Boolean(left != right)),
-      _ => Err(Error::new(
-        ErrorKind::TypeError(format!(
-          "Unsupported operator for booleans: {:?}",
-          operator
-        )),
-        span,
-      )),
-    }
+    // Delegate to core ObjectKind logic for type-specific operations.
+    l.binary_op(operator, &r, self.arena)
+      .map_err(|k| k.at(span))
   }
 }

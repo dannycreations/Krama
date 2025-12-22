@@ -6,6 +6,9 @@ use krama_core::{
   STANDARD_PROPERTIES,
 };
 
+#[macro_use]
+mod macros;
+
 mod globals;
 mod modules;
 mod props;

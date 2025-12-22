@@ -5,7 +5,7 @@ use crate::{Expression, FunctionBody, Node, Span, Type};
 pub type Statement<'ast> = Node<'ast, StatementKind<'ast>>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct BlockStatement<'ast> {
+pub struct StatementBlock<'ast> {
   pub statements: BumpVec<'ast, Statement<'ast>>,
   pub span: Span,
 }
@@ -17,7 +17,7 @@ pub struct Destructure<'ast> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Binding<'ast> {
+pub enum ConstBinding<'ast> {
   Identifier(&'ast str),
   Destructure(BumpVec<'ast, Destructure<'ast>>),
   ModuleAndDestructure {
@@ -70,11 +70,11 @@ pub enum ForBinding<'ast> {
 pub enum StatementKind<'ast> {
   Test {
     name: &'ast Expression<'ast>,
-    body: &'ast BlockStatement<'ast>,
+    body: &'ast StatementBlock<'ast>,
   },
   Const {
     public: bool,
-    binding: Binding<'ast>,
+    binding: ConstBinding<'ast>,
     kind: Option<Type<'ast>>,
     value: &'ast Expression<'ast>,
   },
@@ -114,12 +114,12 @@ pub enum StatementKind<'ast> {
   },
   While {
     condition: &'ast Expression<'ast>,
-    body: &'ast BlockStatement<'ast>,
+    body: &'ast StatementBlock<'ast>,
   },
   For {
     binding: ForBinding<'ast>,
     iterable: &'ast Expression<'ast>,
-    body: &'ast BlockStatement<'ast>,
+    body: &'ast StatementBlock<'ast>,
   },
   Break,
   Continue,

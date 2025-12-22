@@ -1,5 +1,6 @@
+use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ErrorKind, ForBinding, Precedence, Statement, StatementKind, TokenKind,
+  ErrorKind, ForBinding, PrecedenceKind, Statement, StatementKind, TokenKind,
 };
 
 use super::Parser;
@@ -16,7 +17,7 @@ where
 
     self.consume(TokenKind::LParen)?;
 
-    let condition = self.parse_expression(Precedence::Lowest)?;
+    let condition = self.parse_expression(PrecedenceKind::Lowest)?;
 
     self.consume(TokenKind::RParen)?;
     let body = self.parse_block_statement()?;
@@ -40,7 +41,7 @@ where
 
     self.consume(TokenKind::In)?;
 
-    let iterable = self.parse_expression(Precedence::Lowest)?;
+    let iterable = self.parse_expression(PrecedenceKind::Lowest)?;
 
     self.consume(TokenKind::RParen)?;
 
@@ -64,7 +65,7 @@ where
       }
       TokenKind::LBracket => {
         self.advance();
-        let mut elements = bumpalo::collections::Vec::new_in(self.arena);
+        let mut elements = BumpVec::new_in(self.arena);
         while self.current_token.kind != TokenKind::RBracket {
           elements.push(self.parse_for_binding()?);
           if self.current_token.kind == TokenKind::Comma {

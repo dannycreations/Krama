@@ -2,13 +2,14 @@ use std::cell::RefCell;
 
 use ahash::AHashMap;
 use indexmap::IndexMap;
-use krama_core::{Function, Object};
+use krama_core::{FunctionKind, ObjectKind};
+use krama_std::GLOBALS;
 
 /// Represents a variable binding with its metadata.
 /// Packed into a struct to potentially allow for better cache locality and future bitfield optimizations.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Binding<'ast> {
-  pub value: Object<'ast>,
+  pub value: ObjectKind<'ast>,
   pub public: bool,
   pub constant: bool,
 }
@@ -31,8 +32,8 @@ impl<'ast> Environment<'ast> {
   pub fn with_globals() -> Self {
     let mut env = Environment::new();
     // Static iteration avoids LazyLock overhead in tight loops.
-    for (name, native_fn) in krama_std::GLOBALS.iter() {
-      let function = Object::Function(Function::Native(*native_fn));
+    for (name, native_fn) in GLOBALS.iter() {
+      let function = ObjectKind::Function(FunctionKind::Native(*native_fn));
       env.set(name, function, true, true);
     }
     env
@@ -45,18 +46,26 @@ impl<'ast> Environment<'ast> {
     }
   }
 
-  pub fn get_local(&self, name: &str) -> Option<Object<'ast>> {
+  #[inline(always)]
+  pub fn get_local(&self, name: &str) -> Option<ObjectKind<'ast>> {
     // Object is designed to be cheap to clone (references or small primitives).
     self.store.get(name).map(|b| b.value.clone())
   }
 
-  pub fn get(&self, name: &str) -> Option<Object<'ast>> {
+  /// Retrieves a variable value, traversing the scope chain.
+  /// Uses a non-recursive approach to avoid stack overflow in deep scope chains.
+  pub fn get(&self, name: &str) -> Option<ObjectKind<'ast>> {
     if let Some(obj) = self.get_local(name) {
       return Some(obj);
     }
 
-    if let Some(outer_env) = self.outer {
-      return outer_env.borrow().get(name);
+    let mut current = self.outer;
+    while let Some(outer_cell) = current {
+      let outer = outer_cell.borrow();
+      if let Some(obj) = outer.get_local(name) {
+        return Some(obj);
+      }
+      current = outer.outer;
     }
 
     None
@@ -65,7 +74,7 @@ impl<'ast> Environment<'ast> {
   pub fn set(
     &mut self,
     name: &'ast str,
-    value: Object<'ast>,
+    value: ObjectKind<'ast>,
     public: bool,
     constant: bool,
   ) {
@@ -83,7 +92,7 @@ impl<'ast> Environment<'ast> {
     self.store.get(name).map(|b| b.constant).unwrap_or(false)
   }
 
-  pub fn get_public_bindings(&self) -> IndexMap<&'ast str, Object<'ast>> {
+  pub fn get_public_bindings(&self) -> IndexMap<&'ast str, ObjectKind<'ast>> {
     self
       .store
       .iter()

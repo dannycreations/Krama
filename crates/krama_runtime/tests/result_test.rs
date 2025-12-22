@@ -1,7 +1,7 @@
-use krama_core::{ErrorKind, Object};
+use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_ok};
 
-test_eval_ok!(ok_result, "Ok(42)?", Object::Integer(42));
+test_eval_ok!(ok_result, "Ok(42)?", ObjectKind::Integer(42));
 
 test_eval_err!(err_result, "Err(\"oops\")?", ErrorKind::RuntimeError(_));
 
@@ -24,7 +24,7 @@ test_eval_ok!(
 
     calculate()
   "#,
-  Object::Integer(10)
+  ObjectKind::Integer(10)
 );
 
 test_eval_err!(

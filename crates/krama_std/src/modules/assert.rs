@@ -1,12 +1,12 @@
 use bumpalo::Bump;
-use krama_core::{ErrorKind, Object};
+use krama_core::{ErrorKind, ObjectKind};
 use krama_macro::register_module;
 
 #[register_module(name = "assert", module = "assert")]
 async fn assert<'ast>(
   _: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
   parse_args!(objects, "assert"; condition: condition);
   if !bool::from(condition) {
     return Err(ErrorKind::RuntimeError(
@@ -14,14 +14,14 @@ async fn assert<'ast>(
     ));
   }
 
-  Ok(Object::Void)
+  Ok(ObjectKind::Void)
 }
 
 #[register_module(name = "assertEqual", module = "assert")]
 async fn assert_eq<'ast>(
   _: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
   parse_args!(objects, "assertEqual"; a: a, b: b);
   if a != b {
     return Err(ErrorKind::RuntimeError(format!(
@@ -30,5 +30,5 @@ async fn assert_eq<'ast>(
     )));
   }
 
-  Ok(Object::Void)
+  Ok(ObjectKind::Void)
 }

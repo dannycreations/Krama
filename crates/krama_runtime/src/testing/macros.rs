@@ -62,7 +62,9 @@ macro_rules! test_eval_is_native_function {
       let result = interpreter.eval(source).await.unwrap();
       assert!(matches!(
         result,
-        ::krama_core::Object::Function(::krama_core::Function::Native(_))
+        ::krama_core::ObjectKind::Function(::krama_core::FunctionKind::Native(
+          _
+        ))
       ));
     }
   };
@@ -77,7 +79,7 @@ macro_rules! test_eval_is_module {
       let interpreter = $crate::Interpreter::new(&arena, None);
       let source = arena.alloc_str($source);
       let result = interpreter.eval(source).await.unwrap();
-      if let ::krama_core::Object::Scope(module) = result {
+      if let ::krama_core::ObjectKind::Scope(module) = result {
         assert_eq!(module.name, $expected);
       } else {
         panic!("Expected a module object, but got {:?}", result);

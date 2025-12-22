@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter, Result};
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Literal<'ast> {
+pub enum LiteralKind<'ast> {
   Integer(i64),
   Float(f64),
   String(&'ast str),
@@ -9,14 +9,14 @@ pub enum Literal<'ast> {
   Null,
 }
 
-impl<'ast> Display for Literal<'ast> {
-  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+impl<'ast> Display for LiteralKind<'ast> {
+  fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
-      Literal::Integer(i) => write!(f, "{}", i),
-      Literal::Float(fl) => write!(f, "{}", fl),
-      Literal::String(s) => write!(f, "{}", s),
-      Literal::Boolean(b) => write!(f, "{}", b),
-      Literal::Null => write!(f, "null"),
+      LiteralKind::Integer(i) => write!(f, "{}", i),
+      LiteralKind::Float(fl) => write!(f, "{}", fl),
+      LiteralKind::String(s) => write!(f, "{}", s),
+      LiteralKind::Boolean(b) => write!(f, "{}", b),
+      LiteralKind::Null => write!(f, "null"),
     }
   }
 }

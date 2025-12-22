@@ -9,7 +9,9 @@ mod r#struct;
 mod test;
 mod types;
 
-use krama_core::{ErrorKind, Precedence, Statement, StatementKind, TokenKind};
+use krama_core::{
+  ErrorKind, PrecedenceKind, Statement, StatementKind, TokenKind,
+};
 
 use super::Parser;
 
@@ -35,7 +37,7 @@ where
       TokenKind::While => self.parse_while_statement(),
       TokenKind::For => self.parse_for_statement(),
       _ => {
-        let expression = self.parse_expression(Precedence::Lowest)?;
+        let expression = self.parse_expression(PrecedenceKind::Lowest)?;
         let span = expression.span;
         let statement_kind = StatementKind::Expression {
           expression: self.arena.alloc(expression),

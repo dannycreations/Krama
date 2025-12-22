@@ -1,4 +1,4 @@
-use krama_core::{ErrorKind, Object};
+use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_ok};
 
 test_eval_ok! {
@@ -16,7 +16,7 @@ test_eval_ok! {
     const p = Point.new(1.0, 2.0)
     p.x
   "#,
-  Object::Float(1.0)
+  ObjectKind::Float(1.0)
 }
 
 test_eval_ok! {
@@ -39,7 +39,7 @@ test_eval_ok! {
     const v = Vec3.new(1.0, 2.0, 3.0)
     v.sum()
   "#,
-  Object::Float(6.0)
+  ObjectKind::Float(6.0)
 }
 
 test_eval_ok! {
@@ -57,7 +57,7 @@ test_eval_ok! {
     const c = Config.new()
     c.port
   "#,
-  Object::Integer(8080)
+  ObjectKind::Integer(8080)
 }
 
 test_eval_err! {

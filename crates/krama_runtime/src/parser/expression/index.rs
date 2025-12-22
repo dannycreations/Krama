@@ -1,4 +1,4 @@
-use krama_core::{Expression, ExpressionKind, Precedence, TokenKind};
+use krama_core::{Expression, ExpressionKind, PrecedenceKind, TokenKind};
 
 use super::{ParseResult, Parser};
 
@@ -12,7 +12,7 @@ where
   ) -> ParseResult<'a, 'ast> {
     self.advance();
 
-    let index = self.parse_expression(Precedence::Lowest)?;
+    let index = self.parse_expression(PrecedenceKind::Lowest)?;
 
     self.consume(TokenKind::RBracket)?;
     let span = left.span.merge(&self.current_token.span);

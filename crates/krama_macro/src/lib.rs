@@ -1,10 +1,11 @@
-use proc_macro2::TokenStream;
+use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
   parse::{Parse, ParseStream},
   parse2,
   punctuated::Punctuated,
-  Ident, ItemFn, Lit, LitStr, Token,
+  Error as SynError, Ident, ItemFn, Lit, LitStr, Token,
 };
 
 struct GlobalArgs {
@@ -89,14 +90,14 @@ impl Parse for PropertyArgs {
 fn transform_fn(
   item_fn: &ItemFn,
   error_msg_prefix: &str,
-  linkme_submission: TokenStream,
-) -> TokenStream {
+  linkme_submission: TokenStream2,
+) -> TokenStream2 {
   let vis = &item_fn.vis;
   let body = &item_fn.block;
   let sig = &item_fn.sig;
 
   if sig.asyncness.is_none() {
-    return syn::Error::new_spanned(
+    return SynError::new_spanned(
       sig,
       format!("{} function must be async", error_msg_prefix),
     )
@@ -111,7 +112,7 @@ fn transform_fn(
     .lifetimes()
     .any(|lt| lt.lifetime.ident == "ast");
   if !has_ast_lifetime {
-    return syn::Error::new_spanned(
+    return SynError::new_spanned(
       sig,
       format!(
         "{} function must have a `'ast` lifetime parameter",
@@ -122,7 +123,7 @@ fn transform_fn(
   }
 
   new_sig.output = syn::parse_quote! {
-    -> futures::future::LocalBoxFuture<'ast, Result<krama_core::Object<'ast>, krama_core::ErrorKind>>
+    -> futures::future::LocalBoxFuture<'ast, Result<krama_core::ObjectKind<'ast>, krama_core::ErrorKind>>
   };
 
   quote! {
@@ -136,11 +137,11 @@ fn transform_fn(
 }
 
 fn implement_register_macro<T: Parse>(
-  attr: TokenStream,
-  item: TokenStream,
+  attr: TokenStream2,
+  item: TokenStream2,
   macro_type: &str,
-  submission_generator: impl Fn(&T, &Ident) -> TokenStream,
-) -> TokenStream {
+  submission_generator: impl Fn(&T, &Ident) -> TokenStream2,
+) -> TokenStream2 {
   let args: T = match parse2(attr) {
     Ok(a) => a,
     Err(e) => return e.to_compile_error(),
@@ -157,10 +158,7 @@ fn implement_register_macro<T: Parse>(
 }
 
 #[proc_macro_attribute]
-pub fn register_global(
-  attr: proc_macro::TokenStream,
-  item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn register_global(attr: TokenStream, item: TokenStream) -> TokenStream {
   implement_register_macro::<GlobalArgs>(
     attr.into(),
     item.into(),
@@ -185,10 +183,7 @@ pub fn register_global(
 }
 
 #[proc_macro_attribute]
-pub fn register_module(
-  attr: proc_macro::TokenStream,
-  item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn register_module(attr: TokenStream, item: TokenStream) -> TokenStream {
   implement_register_macro::<ModuleArgs>(
     attr.into(),
     item.into(),
@@ -215,10 +210,7 @@ pub fn register_module(
 }
 
 #[proc_macro_attribute]
-pub fn register_property(
-  attr: proc_macro::TokenStream,
-  item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn register_property(attr: TokenStream, item: TokenStream) -> TokenStream {
   implement_register_macro::<PropertyArgs>(
     attr.into(),
     item.into(),

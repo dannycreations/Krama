@@ -1,4 +1,4 @@
-use krama_core::Object;
+use krama_core::ObjectKind;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
@@ -7,5 +7,5 @@ test_eval_ok!(
     import("std:time").sleep(10)
     "done"
   "#,
-  Object::String("done")
+  ObjectKind::String("done")
 );

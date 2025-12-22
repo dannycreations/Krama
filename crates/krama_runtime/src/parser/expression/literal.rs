@@ -1,4 +1,6 @@
-use krama_core::{ErrorKind, Expression, ExpressionKind, Literal, TokenKind};
+use krama_core::{
+  ErrorKind, Expression, ExpressionKind, LiteralKind, TokenKind,
+};
 
 use super::{ParseResult, Parser};
 
@@ -15,18 +17,20 @@ where
         let value = value.replace('_', "").parse().map_err(|_| {
           ErrorKind::SyntaxError("Invalid integer literal".to_string())
         })?;
-        Literal::Integer(value)
+        LiteralKind::Integer(value)
       }
       TokenKind::Float(value) => {
         let value = value.replace('_', "").parse().map_err(|_| {
           ErrorKind::SyntaxError("Invalid float literal".to_string())
         })?;
-        Literal::Float(value)
+        LiteralKind::Float(value)
       }
-      TokenKind::String(value) => Literal::String(self.arena.alloc_str(value)),
-      TokenKind::True => Literal::Boolean(true),
-      TokenKind::False => Literal::Boolean(false),
-      TokenKind::Null => Literal::Null,
+      TokenKind::String(value) => {
+        LiteralKind::String(self.arena.alloc_str(value))
+      }
+      TokenKind::True => LiteralKind::Boolean(true),
+      TokenKind::False => LiteralKind::Boolean(false),
+      TokenKind::Null => LiteralKind::Null,
       _ => {
         return Err(ErrorKind::SyntaxError(format!(
           "Unexpected token for literal: {}",

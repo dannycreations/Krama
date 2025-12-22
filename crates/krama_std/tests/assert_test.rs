@@ -1,4 +1,4 @@
-use krama_core::{ErrorKind, Object};
+use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_ok};
 
 test_eval_ok!(
@@ -7,7 +7,7 @@ test_eval_ok!(
     const { assert } = import("std:assert")
     assert(true)
   "#,
-  Object::Void
+  ObjectKind::Void
 );
 
 test_eval_ok!(
@@ -16,7 +16,7 @@ test_eval_ok!(
     const { assertEqual } = import("std:assert")
     assertEqual(1, 1)
   "#,
-  Object::Void
+  ObjectKind::Void
 );
 
 test_eval_err!(

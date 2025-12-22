@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 use krama_core::{
-  Binding, Error, ErrorKind, Expression, ExpressionKind, ForBinding,
+  ConstBinding, Error, ErrorKind, Expression, ExpressionKind, ForBinding,
   FunctionBody, MatchPattern, Program, Span, Statement, StatementKind,
 };
 
@@ -43,28 +43,21 @@ impl<'a> Checker<'a> {
       }
       StatementKind::Let { name, value, .. } => {
         self.check_expression(value)?;
-        self.declare(name);
-        self.define(name);
+        self.define_var(name);
       }
       StatementKind::Const { binding, value, .. } => {
         self.check_expression(value)?;
         match binding {
-          Binding::Identifier(name) => {
-            self.declare(name);
-            self.define(name);
-          }
-          Binding::Destructure(items) => {
+          ConstBinding::Identifier(name) => self.define_var(name),
+          ConstBinding::Destructure(items) => {
             for item in items {
-              self.declare(item.name);
-              self.define(item.name);
+              self.define_var(item.name);
             }
           }
-          Binding::ModuleAndDestructure { alias, items } => {
-            self.declare(alias);
-            self.define(alias);
+          ConstBinding::ModuleAndDestructure { alias, items } => {
+            self.define_var(alias);
             for item in items {
-              self.declare(item.name);
-              self.define(item.name);
+              self.define_var(item.name);
             }
           }
         }
@@ -75,28 +68,11 @@ impl<'a> Checker<'a> {
         body,
         ..
       } => {
-        self.declare(name);
-        self.define(name);
-        self.begin_scope();
-        for param in parameters {
-          self.declare(param.name);
-          self.define(param.name);
-        }
-        match body {
-          FunctionBody::Block(block) => {
-            for statement in &block.statements {
-              self.check_statement(statement)?;
-            }
-          }
-          FunctionBody::Expression(expression) => {
-            self.check_expression(expression)?;
-          }
-        }
-        self.end_scope();
+        self.define_var(name);
+        self.check_function(parameters, body)?;
       }
-      StatementKind::Enum { name, .. } => {
-        self.declare(name);
-        self.define(name);
+      StatementKind::Enum { name, .. } | StatementKind::Type { name, .. } => {
+        self.define_var(name);
       }
       StatementKind::Struct {
         name,
@@ -104,39 +80,15 @@ impl<'a> Checker<'a> {
         methods,
         ..
       } => {
-        self.declare(name);
-        self.define(name);
-
+        self.define_var(name);
         for field in fields {
           if let Some(default) = field.default {
             self.check_expression(default)?;
           }
         }
-
         for method in methods {
-          self.begin_scope();
-
-          for param in &method.parameters {
-            self.declare(param.name);
-            self.define(param.name);
-          }
-
-          match &method.body {
-            FunctionBody::Block(block) => {
-              for statement in &block.statements {
-                self.check_statement(statement)?;
-              }
-            }
-            FunctionBody::Expression(expression) => {
-              self.check_expression(expression)?;
-            }
-          }
-          self.end_scope();
+          self.check_function(&method.parameters, &method.body)?;
         }
-      }
-      StatementKind::Type { name, .. } => {
-        self.declare(name);
-        self.define(name);
       }
       StatementKind::Return { value } => {
         if let Some(value) = value {
@@ -145,9 +97,8 @@ impl<'a> Checker<'a> {
       }
       StatementKind::While { condition, body } => {
         self.check_expression(condition)?;
-        for statement in &body.statements {
-          self.check_statement(statement)?;
-        }
+        // While loop body does NOT create a new scope in the interpreter.
+        self.check_block_content(body)?;
       }
       StatementKind::For {
         binding,
@@ -157,16 +108,12 @@ impl<'a> Checker<'a> {
         self.check_expression(iterable)?;
         self.begin_scope();
         self.declare_for_binding(binding);
-        for statement in &body.statements {
-          self.check_statement(statement)?;
-        }
+        self.check_block_content(body)?;
         self.end_scope();
       }
       StatementKind::Test { body, .. } => {
         self.begin_scope();
-        for statement in &body.statements {
-          self.check_statement(statement)?;
-        }
+        self.check_block_content(body)?;
         self.end_scope();
       }
       StatementKind::Break | StatementKind::Continue => {}
@@ -174,12 +121,46 @@ impl<'a> Checker<'a> {
     Ok(())
   }
 
+  fn check_function(
+    &mut self,
+    params: &[krama_core::Parameter<'a>],
+    body: &FunctionBody<'a>,
+  ) -> Result<(), Error<'a>> {
+    self.begin_scope();
+    for param in params {
+      self.define_var(param.name);
+    }
+    match body {
+      FunctionBody::Block(block) => self.check_block_content(block)?,
+      FunctionBody::Expression(expr) => self.check_expression(expr)?,
+    }
+    self.end_scope();
+    Ok(())
+  }
+
+  fn check_block(
+    &mut self,
+    block: &krama_core::StatementBlock<'a>,
+  ) -> Result<(), Error<'a>> {
+    self.begin_scope();
+    self.check_block_content(block)?;
+    self.end_scope();
+    Ok(())
+  }
+
+  fn check_block_content(
+    &mut self,
+    block: &krama_core::StatementBlock<'a>,
+  ) -> Result<(), Error<'a>> {
+    for statement in &block.statements {
+      self.check_statement(statement)?;
+    }
+    Ok(())
+  }
+
   fn declare_for_binding(&mut self, binding: &ForBinding<'a>) {
     match binding {
-      ForBinding::Identifier(name) => {
-        self.declare(name);
-        self.define(name);
-      }
+      ForBinding::Identifier(name) => self.define_var(name),
       ForBinding::Array(bindings) => {
         for b in bindings {
           self.declare_for_binding(b);
@@ -195,16 +176,13 @@ impl<'a> Checker<'a> {
     match &expression.kind {
       ExpressionKind::Identifier(name) => {
         if let Some(scope) = self.scopes.last() {
-          if let Some(defined) = scope.get(name) {
-            if !defined {
-              return Err(Error::new(
-                ErrorKind::SyntaxError(
-                  "Cannot read local variable in its own initializer"
-                    .to_string(),
-                ),
-                expression.span,
-              ));
-            }
+          if let Some(false) = scope.get(name) {
+            return Err(Error::new(
+              ErrorKind::SyntaxError(
+                "Cannot read local variable in its own initializer".into(),
+              ),
+              expression.span,
+            ));
           }
         }
         self.check_local(expression, name);
@@ -214,23 +192,20 @@ impl<'a> Checker<'a> {
         self.check_expression(left)?;
       }
       ExpressionKind::Update { argument, .. } => {
-        self.check_expression(argument)?;
+        self.check_expression(argument)?
       }
       ExpressionKind::Binary { left, right, .. } => {
         self.check_expression(left)?;
         self.check_expression(right)?;
       }
-      ExpressionKind::Unary { right, .. } => {
-        self.check_expression(right)?;
-      }
+      ExpressionKind::Unary { right, .. } => self.check_expression(right)?,
       ExpressionKind::Call {
         function,
         arguments,
-        ..
       } => {
         self.check_expression(function)?;
-        for argument in arguments {
-          self.check_expression(argument)?;
+        for arg in arguments {
+          self.check_expression(arg)?;
         }
       }
       ExpressionKind::Member { object, property } => {
@@ -256,87 +231,49 @@ impl<'a> Checker<'a> {
         self.check_expression(subject)?;
         for arm in arms {
           for pattern in &arm.patterns {
-            match pattern {
-              MatchPattern::Expression(expression) => {
-                self.check_expression(expression)?
-              }
-              MatchPattern::Range(start, end) => {
-                self.check_expression(start)?;
-                self.check_expression(end)?;
-              }
-              _ => {}
+            if let MatchPattern::Expression(expr) = pattern {
+              self.check_expression(expr)?
+            } else if let MatchPattern::Range(start, end) = pattern {
+              self.check_expression(start)?;
+              self.check_expression(end)?;
             }
           }
-          match &arm.body {
-            FunctionBody::Block(block) => {
-              self.begin_scope();
-              for statement in &block.statements {
-                self.check_statement(statement)?;
-              }
-              self.end_scope();
-            }
-            FunctionBody::Expression(expression) => {
-              self.begin_scope();
-              self.check_expression(expression)?;
-              self.end_scope();
-            }
-          }
+          self.check_function_body(&arm.body)?;
         }
       }
-      ExpressionKind::Block(block) => {
-        self.begin_scope();
-        for statement in &block.statements {
-          self.check_statement(statement)?;
-        }
-        self.end_scope();
-      }
+      ExpressionKind::Block(block) => self.check_block(block)?,
       ExpressionKind::Fn {
         parameters, body, ..
-      } => {
-        self.begin_scope();
-        for param in parameters {
-          self.declare(param.name);
-          self.define(param.name);
-        }
-
-        match body {
-          FunctionBody::Block(block) => {
-            for statement in &block.statements {
-              self.check_statement(statement)?;
-            }
-          }
-          FunctionBody::Expression(expression) => {
-            self.check_expression(expression)?
-          }
-        }
-        self.end_scope();
-      }
+      } => self.check_function(parameters, body)?,
       ExpressionKind::Collection { elements } => {
-        for element in elements {
-          self.check_expression(element)?;
+        for el in elements {
+          self.check_expression(el)?;
         }
       }
-      ExpressionKind::Typed { expr, .. } => {
-        self.check_expression(expr)?;
-      }
-      ExpressionKind::Import { .. } | ExpressionKind::Literal(_) => {}
-      ExpressionKind::Object { properties } => {
+      ExpressionKind::Typed { expr, .. } => self.check_expression(expr)?,
+      ExpressionKind::Object { properties }
+      | ExpressionKind::StructConstruction { properties } => {
         for (key, value) in properties {
           self.check_expression(key)?;
           self.check_expression(value)?;
         }
       }
-      ExpressionKind::Try(expr) => {
-        self.check_expression(expr)?;
-      }
-      ExpressionKind::This => {}
-      ExpressionKind::StructConstruction { properties } => {
-        for (key, value) in properties {
-          self.check_expression(key)?;
-          self.check_expression(value)?;
-        }
-      }
+      ExpressionKind::Try(expr) => self.check_expression(expr)?,
+      _ => {}
     }
+    Ok(())
+  }
+
+  fn check_function_body(
+    &mut self,
+    body: &FunctionBody<'a>,
+  ) -> Result<(), Error<'a>> {
+    self.begin_scope();
+    match body {
+      FunctionBody::Block(block) => self.check_block_content(block)?,
+      FunctionBody::Expression(expr) => self.check_expression(expr)?,
+    }
+    self.end_scope();
     Ok(())
   }
 
@@ -359,13 +296,7 @@ impl<'a> Checker<'a> {
     self.scopes.pop();
   }
 
-  fn declare(&mut self, name: &'a str) {
-    if let Some(scope) = self.scopes.last_mut() {
-      scope.insert(name, false);
-    }
-  }
-
-  fn define(&mut self, name: &'a str) {
+  fn define_var(&mut self, name: &'a str) {
     if let Some(scope) = self.scopes.last_mut() {
       scope.insert(name, true);
     }

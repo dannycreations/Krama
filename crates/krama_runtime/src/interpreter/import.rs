@@ -1,9 +1,8 @@
-use std::{
-  path::{Path, PathBuf},
-  str,
-};
+use std::path::{Path, PathBuf};
 
-use krama_core::{Error, ErrorKind, Function, Object, Scope, Span};
+use ahash::AHashMap;
+use krama_core::{Error, ErrorKind, FunctionKind, ObjectKind, Scope, Span};
+use krama_std::MODULES;
 use path_clean::PathClean;
 use tokio::fs;
 
@@ -14,7 +13,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &'ast str,
     span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     if path.starts_with("std:") {
       self.eval_std_module(path, span)
     } else {
@@ -58,27 +57,29 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &'ast str,
     span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let module_name = self.arena.alloc_str(path.strip_prefix("std:").unwrap());
 
     if let Some(module) = self.modules.borrow().get(module_name) {
       return Ok(module.clone());
     }
 
-    krama_std::MODULES
+    MODULES
       .get(module_name)
       .map(|bindings| {
-        let mut scope_bindings = ahash::AHashMap::with_capacity(bindings.len());
+        let mut scope_bindings = AHashMap::with_capacity(bindings.len());
         for (name, native_fn) in bindings {
-          scope_bindings
-            .insert(*name, Object::Function(Function::Native(*native_fn)));
+          scope_bindings.insert(
+            *name,
+            ObjectKind::Function(FunctionKind::Native(*native_fn)),
+          );
         }
 
         let module = Scope {
           name: Some(module_name),
           bindings: scope_bindings,
         };
-        let object = Object::Scope(self.arena.alloc(module));
+        let object = ObjectKind::Scope(self.arena.alloc(module));
         self
           .modules
           .borrow_mut()
@@ -100,7 +101,7 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &'ast str,
     span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let (resolved_path, source) = self.resolve_import_path(path, &span).await?;
     let resolved_path_str = resolved_path.to_str().ok_or_else(|| {
       Error::new(
@@ -126,7 +127,7 @@ impl<'ast> Interpreter<'ast> {
       .into_iter()
       .collect();
 
-    let module = Object::Scope(self.arena.alloc(Scope {
+    let module = ObjectKind::Scope(self.arena.alloc(Scope {
       name: Some(resolved_path_key),
       bindings,
     }));

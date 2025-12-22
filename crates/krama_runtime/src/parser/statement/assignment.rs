@@ -1,7 +1,7 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  Binding, Destructure, ErrorKind, Precedence, Span, Statement, StatementKind,
-  TokenKind,
+  ConstBinding, Destructure, ErrorKind, PrecedenceKind, Span, Statement,
+  StatementKind, TokenKind,
 };
 
 use super::Parser;
@@ -18,7 +18,7 @@ where
 
     self.consume(TokenKind::Equal)?;
 
-    let value = self.parse_expression(Precedence::Lowest)?;
+    let value = self.parse_expression(PrecedenceKind::Lowest)?;
 
     Ok(Statement::new(
       StatementKind::Let {
@@ -43,7 +43,7 @@ where
 
     self.consume(TokenKind::Equal)?;
 
-    let value = self.parse_expression(Precedence::Lowest)?;
+    let value = self.parse_expression(PrecedenceKind::Lowest)?;
     Ok(Statement::new(
       StatementKind::Const {
         public,
@@ -55,12 +55,12 @@ where
     ))
   }
 
-  fn parse_binding(&mut self) -> Result<Binding<'ast>, ErrorKind> {
+  fn parse_binding(&mut self) -> Result<ConstBinding<'ast>, ErrorKind> {
     if self.current_token.kind == TokenKind::LBrace {
       self.consume(TokenKind::LBrace)?;
       let items = self.parse_destructured_items()?;
       self.consume(TokenKind::RBrace)?;
-      Ok(Binding::Destructure(items))
+      Ok(ConstBinding::Destructure(items))
     } else {
       let alias = self.parse_identifier()?;
       if self.current_token.kind == TokenKind::Comma {
@@ -68,9 +68,9 @@ where
         self.consume(TokenKind::LBrace)?;
         let items = self.parse_destructured_items()?;
         self.consume(TokenKind::RBrace)?;
-        Ok(Binding::ModuleAndDestructure { alias, items })
+        Ok(ConstBinding::ModuleAndDestructure { alias, items })
       } else {
-        Ok(Binding::Identifier(alias))
+        Ok(ConstBinding::Identifier(alias))
       }
     }
   }

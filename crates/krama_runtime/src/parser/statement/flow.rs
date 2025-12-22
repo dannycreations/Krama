@@ -1,4 +1,6 @@
-use krama_core::{ErrorKind, Precedence, Statement, StatementKind, TokenKind};
+use krama_core::{
+  ErrorKind, PrecedenceKind, Statement, StatementKind, TokenKind,
+};
 
 use super::Parser;
 
@@ -16,7 +18,7 @@ where
       self.current_token.kind,
       TokenKind::Semicolon | TokenKind::RBrace | TokenKind::Eof
     ) {
-      Some(self.parse_expression(Precedence::Lowest)?)
+      Some(self.parse_expression(PrecedenceKind::Lowest)?)
     } else {
       None
     };

@@ -1,90 +1,77 @@
-use std::{io::Error, path::Path, str};
+use std::{io::Error as IoError, path::Path, str};
 
 use bumpalo::{collections::Vec as BumpVec, Bump};
-use krama_core::{ErrorKind, Object, Span, Type, TypeKind};
+use krama_core::{ErrorKind, ObjectKind, Span, Type, TypeKind};
 use krama_macro::register_module;
 use parking_lot::RwLock;
 use tokio::fs;
 
-fn io_err_to_krama_err(e: Error) -> ErrorKind {
+/// Maps standard IO errors to Krama ReferenceErrors.
+fn error(e: IoError) -> ErrorKind {
   ErrorKind::ReferenceError(e.to_string())
 }
 
 #[register_module(name = "readFile", module = "fs")]
 async fn read_file<'ast>(
   arena: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  parse_args!(objects, "readFile"; path_str: Object::String(path_str));
-  let path = Path::new(*path_str);
-  let contents = fs::read(path).await.map_err(io_err_to_krama_err)?;
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  parse_path_arg!(objects, "readFile"; path_str);
+  let contents = fs::read(Path::new(*path_str)).await.map_err(error)?;
   let contents_str = str::from_utf8(&contents)
     .map_err(|e| ErrorKind::TypeError(e.to_string()))?;
-  Ok(Object::String(arena.alloc_str(contents_str)))
+  Ok(ObjectKind::String(arena.alloc_str(contents_str)))
 }
 
 #[register_module(name = "writeFile", module = "fs")]
 async fn write_file<'ast>(
   _arena: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  parse_args!(objects, "writeFile"; path_str: Object::String(path_str), contents: Object::String(contents));
-
-  fs::write(*path_str, *contents)
-    .await
-    .map_err(io_err_to_krama_err)?;
-
-  Ok(Object::Void)
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  parse_args!(objects, "writeFile"; path_str: ObjectKind::String(path_str), contents: ObjectKind::String(contents));
+  fs::write(*path_str, *contents).await.map_err(error)?;
+  Ok(ObjectKind::Void)
 }
 
 #[register_module(name = "exists", module = "fs")]
 async fn exists<'ast>(
   _arena: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  parse_args!(objects, "exists"; path_str: Object::String(path_str));
-  let path = Path::new(*path_str);
-
-  let metadata = fs::metadata(path).await;
-  Ok(Object::Boolean(metadata.is_ok()))
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  parse_path_arg!(objects, "exists"; path_str);
+  let metadata = fs::metadata(Path::new(*path_str)).await;
+  Ok(ObjectKind::Boolean(metadata.is_ok()))
 }
 
 #[register_module(name = "rm", module = "fs")]
 async fn rm<'ast>(
   _arena: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  parse_args!(objects, "rm"; path_str: Object::String(path_str));
-  fs::remove_file(*path_str)
-    .await
-    .map_err(io_err_to_krama_err)?;
-  Ok(Object::Void)
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  parse_path_arg!(objects, "rm"; path_str);
+  fs::remove_file(*path_str).await.map_err(error)?;
+  Ok(ObjectKind::Void)
 }
 
 #[register_module(name = "readDir", module = "fs")]
 async fn read_dir<'ast>(
   arena: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  parse_args!(objects, "readDir"; path_str: Object::String(path_str));
-
-  let mut paths = fs::read_dir(*path_str).await.map_err(io_err_to_krama_err)?;
-
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  parse_path_arg!(objects, "readDir"; path_str);
+  let mut paths = fs::read_dir(*path_str).await.map_err(error)?;
   let mut entries = BumpVec::new_in(arena);
-  while let Some(path) =
-    paths.next_entry().await.map_err(io_err_to_krama_err)?
-  {
+  while let Some(path) = paths.next_entry().await.map_err(error)? {
     let entry = path.file_name().into_string().map_err(|os_string| {
       ErrorKind::TypeError(format!(
         "Invalid UTF-8 sequence in file name: {:?}",
         os_string
       ))
     })?;
-    entries.push(Object::String(arena.alloc_str(&entry)));
+    entries.push(ObjectKind::String(arena.alloc_str(&entry)));
   }
 
-  Ok(Object::Array {
-    // Use arena-allocated RwLock as per Object definition update.
+  Ok(ObjectKind::Array {
     elements: arena.alloc(RwLock::new(entries)),
     kind: Type::new(TypeKind::Str, Span::empty()),
     constant: true,
@@ -94,36 +81,31 @@ async fn read_dir<'ast>(
 #[register_module(name = "mkdir", module = "fs")]
 async fn mkdir<'ast>(
   _arena: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  parse_args!(objects, "mkdir"; path_str: Object::String(path_str));
-  fs::create_dir_all(*path_str)
-    .await
-    .map_err(io_err_to_krama_err)?;
-  Ok(Object::Void)
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  parse_path_arg!(objects, "mkdir"; path_str);
+  fs::create_dir_all(*path_str).await.map_err(error)?;
+  Ok(ObjectKind::Void)
 }
 
 #[register_module(name = "rmdir", module = "fs")]
 async fn rmdir<'ast>(
   _arena: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  parse_args!(objects, "rmdir"; path_str: Object::String(path_str));
-  fs::remove_dir(*path_str)
-    .await
-    .map_err(io_err_to_krama_err)?;
-  Ok(Object::Void)
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  parse_path_arg!(objects, "rmdir"; path_str);
+  fs::remove_dir(*path_str).await.map_err(error)?;
+  Ok(ObjectKind::Void)
 }
 
 #[register_module(name = "isFile", module = "fs")]
 async fn is_file<'ast>(
   _arena: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  parse_args!(objects, "isFile"; path_str: Object::String(path_str));
-  let path = Path::new(*path_str);
-  let metadata = fs::metadata(path).await;
-  Ok(Object::Boolean(
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  parse_path_arg!(objects, "isFile"; path_str);
+  let metadata = fs::metadata(Path::new(*path_str)).await;
+  Ok(ObjectKind::Boolean(
     metadata.map(|m| m.is_file()).unwrap_or(false),
   ))
 }
@@ -131,12 +113,11 @@ async fn is_file<'ast>(
 #[register_module(name = "isDirectory", module = "fs")]
 async fn is_directory<'ast>(
   _arena: &'ast Bump,
-  objects: &'ast [Object<'ast>],
-) -> Result<Object<'ast>, ErrorKind> {
-  parse_args!(objects, "isDirectory"; path_str: Object::String(path_str));
-  let path = Path::new(*path_str);
-  let metadata = fs::metadata(path).await;
-  Ok(Object::Boolean(
+  objects: &'ast [ObjectKind<'ast>],
+) -> Result<ObjectKind<'ast>, ErrorKind> {
+  parse_path_arg!(objects, "isDirectory"; path_str);
+  let metadata = fs::metadata(Path::new(*path_str)).await;
+  Ok(ObjectKind::Boolean(
     metadata.map(|m| m.is_dir()).unwrap_or(false),
   ))
 }

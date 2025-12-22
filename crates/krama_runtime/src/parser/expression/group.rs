@@ -1,6 +1,6 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, Precedence, TokenKind,
+  ErrorKind, Expression, ExpressionKind, PrecedenceKind, TokenKind,
 };
 
 use super::{ParseResult, Parser};
@@ -52,7 +52,7 @@ where
       }
     }
 
-    let expression = self.parse_expression(Precedence::Lowest)?;
+    let expression = self.parse_expression(PrecedenceKind::Lowest)?;
     self.consume(TokenKind::RParen)?;
     Ok(expression)
   }

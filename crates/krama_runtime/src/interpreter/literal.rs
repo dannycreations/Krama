@@ -1,4 +1,4 @@
-use krama_core::{Error, Literal, Object};
+use krama_core::{Error, LiteralKind, ObjectKind};
 
 use crate::Interpreter;
 
@@ -8,14 +8,14 @@ impl<'ast> Interpreter<'ast> {
   #[inline]
   pub fn eval_literal(
     &self,
-    literal: Literal<'ast>,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+    literal: LiteralKind<'ast>,
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     Ok(match literal {
-      Literal::Integer(i) => Object::Integer(i),
-      Literal::Float(f) => Object::Float(f),
-      Literal::String(s) => Object::String(s),
-      Literal::Boolean(b) => Object::Boolean(b),
-      Literal::Null => Object::Null,
+      LiteralKind::Integer(i) => ObjectKind::Integer(i),
+      LiteralKind::Float(f) => ObjectKind::Float(f),
+      LiteralKind::String(s) => ObjectKind::String(s),
+      LiteralKind::Boolean(b) => ObjectKind::Boolean(b),
+      LiteralKind::Null => ObjectKind::Null,
     })
   }
 }

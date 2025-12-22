@@ -1,28 +1,28 @@
-use krama_core::{ErrorKind, Object};
+use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_ok};
 
 test_eval_ok!(
   eval_native_function_call,
   "print(\"hello world\")",
-  Object::Void
+  ObjectKind::Void
 );
 
 test_eval_ok!(
   eval_let_bound_function_call,
   "let a = fn(x) { x }; a = a(5)",
-  Object::Integer(5)
+  ObjectKind::Integer(5)
 );
 
 test_eval_ok!(
   eval_const_bound_function_call,
   "const a = fn(x) { x }; a(5)",
-  Object::Integer(5)
+  ObjectKind::Integer(5)
 );
 
 test_eval_ok!(
   eval_arrow_function_call,
   "const a = (x) => x; a(5)",
-  Object::Integer(5)
+  ObjectKind::Integer(5)
 );
 
 test_eval_err!(
@@ -40,43 +40,43 @@ test_eval_err!(
 test_eval_ok!(
   eval_function_with_statement,
   "fn a(x, y) { x + y }; a(5, 5)",
-  Object::Integer(10)
+  ObjectKind::Integer(10)
 );
 
 test_eval_ok!(
   eval_function_with_return_statement,
   "fn a(x, y) { return x + y }; a(5, 5)",
-  Object::Integer(10)
+  ObjectKind::Integer(10)
 );
 
 test_eval_ok!(
   eval_function_with_default_argument,
   "fn a(x = 0) { x }; a()",
-  Object::Integer(0)
+  ObjectKind::Integer(0)
 );
 
 test_eval_ok!(
   eval_function_with_passed_argument,
   "fn a(x = 10) { x }; a(1)",
-  Object::Integer(1)
+  ObjectKind::Integer(1)
 );
 
 test_eval_ok!(
   eval_arrow_function_with_default_argument,
   "const a = (x = 0) => x; a()",
-  Object::Integer(0)
+  ObjectKind::Integer(0)
 );
 
 test_eval_ok!(
   eval_arrow_function_with_passed_argument,
   "const a = (x = 0) => x; a(1)",
-  Object::Integer(1)
+  ObjectKind::Integer(1)
 );
 
 test_eval_ok!(
   eval_arrow_function_with_optional_argument,
   "const a = (x, y = 0) => x + 0; a(1)",
-  Object::Integer(1)
+  ObjectKind::Integer(1)
 );
 
 test_eval_err!(

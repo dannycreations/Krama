@@ -6,7 +6,6 @@ use std::{
 use anyhow::{Context, Result};
 use bumpalo::Bump;
 use clap::Parser;
-use krama_core::report_error;
 use krama_runtime::{Interpreter, TestResult};
 use tokio::fs;
 use walkdir::WalkDir;
@@ -71,7 +70,7 @@ impl Test {
     let program = match interpreter.parse_and_check(content_in_arena) {
       Ok(program) => program,
       Err(error) => {
-        report_error(error);
+        error.report();
         return Ok((0, 1));
       }
     };
@@ -86,7 +85,7 @@ impl Test {
         }
         TestResult::Failure(name, error) => {
           println!("  '{}'... failed", name);
-          report_error(error);
+          error.report();
           failed += 1;
         }
       }

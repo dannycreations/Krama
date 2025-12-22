@@ -1,3 +1,8 @@
+use std::{
+  fmt::{Display, Formatter, Result as FmtResult},
+  marker::PhantomData,
+};
+
 use crate::Span;
 
 /// A generic node in the AST, wrapping a kind with its source span.
@@ -5,9 +10,12 @@ use crate::Span;
 #[derive(Debug, Clone, PartialEq)]
 #[repr(C)]
 pub struct Node<'ast, T> {
+  /// The specific data for this node (e.g., ExpressionKind or StatementKind).
   pub kind: T,
+  /// The source code range this node covers.
   pub span: Span,
-  pub _marker: std::marker::PhantomData<&'ast ()>,
+  /// Ensures the lifetime 'ast is bound to the Node.
+  pub _marker: PhantomData<&'ast ()>,
 }
 
 impl<'ast, T> Node<'ast, T> {
@@ -17,7 +25,31 @@ impl<'ast, T> Node<'ast, T> {
     Self {
       kind,
       span,
-      _marker: std::marker::PhantomData,
+      _marker: PhantomData,
     }
+  }
+
+  /// Returns the span of this node.
+  #[inline(always)]
+  pub fn span(&self) -> Span {
+    self.span
+  }
+}
+
+/// Helper trait for types that can be wrapped in a Node.
+pub trait IntoNode<'ast>: Sized {
+  fn into_node(self, span: Span) -> Node<'ast, Self> {
+    Node::new(self, span)
+  }
+}
+
+impl<'ast, T> IntoNode<'ast> for T {}
+
+impl<'ast, T> Display for Node<'ast, T>
+where
+  T: Display,
+{
+  fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+    write!(f, "{}", self.kind)
   }
 }

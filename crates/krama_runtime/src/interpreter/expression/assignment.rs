@@ -1,98 +1,131 @@
+use bumpalo::collections::Vec as BumpVec;
+use indexmap::IndexMap;
 use krama_core::{
   AssignmentOperator, BinaryOperator, Error, ErrorKind, Expression,
-  ExpressionKind, Literal, Object, Span, TypeKind, UpdateOperator,
+  ExpressionKind, LiteralKind, ObjectKind, Span, TypeKind, UpdateOperator,
 };
+use parking_lot::RwLock;
 
 use crate::Interpreter;
 
+/// Represents a target that can be assigned to (L-Value).
+/// This abstraction centralizes the logic for identifying and modifying
+/// variables, properties, and array indices.
+pub enum LValue<'ast> {
+  Variable {
+    name: &'ast str,
+    distance: Option<usize>,
+  },
+  Property {
+    properties: &'ast RwLock<IndexMap<&'ast str, ObjectKind<'ast>>>,
+    name: &'ast str,
+  },
+  Index {
+    elements: &'ast RwLock<BumpVec<'ast, ObjectKind<'ast>>>,
+    index: i64,
+    fixed_size: Option<i64>,
+  },
+}
+
 impl<'ast> Interpreter<'ast> {
+  /// Evaluates an assignment expression by resolving the LValue and updating its value.
   pub async fn eval_assignment_expression(
     &self,
     left: &Expression<'ast>,
     operator: AssignmentOperator,
     right: &Expression<'ast>,
     span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let right_val = self.eval_expression(right, None).await?;
+    let target = self.resolve_lvalue(left, span).await?;
 
-    match &left.kind {
-      ExpressionKind::Identifier(ident) => {
-        let distance = self.get_resolved_distance(left);
+    let final_val = if operator == AssignmentOperator::Assign {
+      right_val
+    } else {
+      let left_val = self.get_lvalue_value(&target, left, span).await?;
+      // Map assignment operator to its binary equivalent (e.g., += -> +).
+      let binary_op = self.assignment_to_binary_op(operator);
+      left_val
+        .binary_op(binary_op, &right_val, self.arena)
+        .map_err(|k| k.at(span))?
+    };
 
-        let final_val = if operator == AssignmentOperator::Assign {
-          right_val
-        } else {
-          let left_val = self.eval_identifier(left, ident, span).await?;
-          let binary_op = self.assignment_to_binary_op(operator);
-          self.eval_binary_expression(binary_op, left_val, right_val, span)?
-        };
+    self.set_lvalue_value(target, final_val.clone(), span)?;
+    Ok(final_val)
+  }
 
-        if let Some(distance) = distance {
-          self.assign_at(distance, ident, final_val.clone(), span)?;
-        } else {
-          let mut env = self.env_mut(span)?;
-          if env.is_constant(ident) {
-            return Err(Error::new(
-              ErrorKind::TypeError(format!(
-                "Cannot assign to constant '{}'",
-                ident
-              )),
-              span,
-            ));
-          }
-          env.set(ident, final_val.clone(), false, false);
-        }
-        Ok(final_val)
-      }
+  /// Evaluates an update expression (++x, --x, x++, x--).
+  pub async fn eval_update_expression(
+    &self,
+    operator: UpdateOperator,
+    argument: &Expression<'ast>,
+    prefix: bool,
+    span: Span,
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    let target = self.resolve_lvalue(argument, span).await?;
+    let original_value = self.get_lvalue_value(&target, argument, span).await?;
+
+    let binary_op = match operator {
+      UpdateOperator::Increment => BinaryOperator::Add,
+      UpdateOperator::Decrement => BinaryOperator::Subtract,
+    };
+
+    // Update is always by 1.
+    let new_value = original_value
+      .binary_op(binary_op, &ObjectKind::Integer(1), self.arena)
+      .map_err(|k| k.at(span))?;
+
+    self.set_lvalue_value(target, new_value.clone(), span)?;
+    Ok(if prefix { new_value } else { original_value })
+  }
+
+  /// Resolves an expression into an LValue target.
+  pub async fn resolve_lvalue(
+    &self,
+    expr: &Expression<'ast>,
+    span: Span,
+  ) -> Result<LValue<'ast>, Error<'ast>> {
+    match &expr.kind {
+      ExpressionKind::Identifier(name) => Ok(LValue::Variable {
+        name,
+        distance: self.get_resolved_distance(expr),
+      }),
       ExpressionKind::Member { object, property } => {
         let obj_val = self.eval_expression(object, None).await?;
-        let property_name =
-          if let ExpressionKind::Identifier(name) = property.kind {
-            name
-          } else {
-            return Err(Error::new(
-              ErrorKind::TypeError("Invalid member for assignment".to_string()),
-              span,
-            ));
-          };
+        let name = if let ExpressionKind::Identifier(name) = property.kind {
+          name
+        } else {
+          return Err(
+            ErrorKind::TypeError("Invalid member for assignment".to_string())
+              .at(span),
+          );
+        };
 
         match obj_val {
-          Object::Object {
+          ObjectKind::Object {
             properties,
             constant,
           } => {
             if constant {
-              return Err(Error::new(
+              return Err(
                 ErrorKind::TypeError(
-                  "Cannot assign to property of constant object".to_string(),
-                ),
-                span,
-              ));
+                  "Cannot assign to property of constant object".into(),
+                )
+                .at(span),
+              );
             }
-
-            let final_val = if operator == AssignmentOperator::Assign {
-              right_val
-            } else {
-              let left_val = properties
-                .read()
-                .get(property_name)
-                .cloned()
-                .unwrap_or(Object::Void);
-              let binary_op = self.assignment_to_binary_op(operator);
-              self
-                .eval_binary_expression(binary_op, left_val, right_val, span)?
-            };
-
-            properties.write().insert(property_name, final_val.clone());
-            Ok(final_val)
+            Ok(LValue::Property { properties, name })
           }
-          _ => Err(Error::new(
+          ObjectKind::StructInstance {
+            fields: properties, ..
+          } => Ok(LValue::Property { properties, name }),
+          _ => Err(
             ErrorKind::TypeError(format!(
               "Cannot assign to property of type {}",
               obj_val.type_name()
-            )),
-            span,
-          )),
+            ))
+            .at(span),
+          ),
         }
       }
       ExpressionKind::Index { object, index } => {
@@ -102,142 +135,189 @@ impl<'ast> Interpreter<'ast> {
         )?;
 
         match obj_val {
-          Object::Object {
+          ObjectKind::Object {
             properties,
             constant,
           } => {
             if constant {
-              return Err(Error::new(
+              return Err(
                 ErrorKind::TypeError(
-                  "Cannot assign to index of constant object".to_string(),
-                ),
-                span,
-              ));
+                  "Cannot assign to index of constant object".into(),
+                )
+                .at(span),
+              );
             }
-
             let key = match index_val {
-              Object::String(s) => s,
+              ObjectKind::String(s) => s,
               _ => {
-                return Err(Error::new(
-                  ErrorKind::TypeError(
-                    "Object index must be a string".to_string(),
-                  ),
-                  span,
-                ))
+                return Err(
+                  ErrorKind::TypeError("Object index must be a string".into())
+                    .at(span),
+                )
               }
             };
-
-            let final_val = if operator == AssignmentOperator::Assign {
-              right_val
-            } else {
-              let left_val =
-                properties.read().get(key).cloned().unwrap_or(Object::Void);
-              let binary_op = self.assignment_to_binary_op(operator);
-              self
-                .eval_binary_expression(binary_op, left_val, right_val, span)?
-            };
-
-            properties.write().insert(key, final_val.clone());
-            Ok(final_val)
+            Ok(LValue::Property {
+              properties,
+              name: key,
+            })
           }
-          Object::Array {
+          ObjectKind::Array {
             elements,
             constant,
             kind,
             ..
           } => {
             if constant {
-              return Err(Error::new(
+              return Err(
                 ErrorKind::TypeError(
-                  "Cannot assign to index of constant array".to_string(),
-                ),
-                span,
-              ));
+                  "Cannot assign to index of constant array".into(),
+                )
+                .at(span),
+              );
             }
-
-            let idx = match index_val {
-              Object::Integer(i) => i,
+            let index = match index_val {
+              ObjectKind::Integer(i) => i,
               _ => {
-                return Err(Error::new(
-                  ErrorKind::TypeError(
-                    "Array index must be an integer".to_string(),
-                  ),
-                  span,
-                ))
+                return Err(
+                  ErrorKind::TypeError("Array index must be an integer".into())
+                    .at(span),
+                )
               }
             };
-
-            let mut elements_lock = elements.write();
-
-            // Enforce fixed size if specified in TypeKind
-            if let TypeKind::Array {
-              size: Some(Literal::Integer(size)),
+            let fixed_size = if let TypeKind::Array {
+              size: Some(LiteralKind::Integer(size)),
               ..
             } = &kind.kind
             {
-              let real_idx = if idx < 0 {
-                (elements_lock.len() as i64 + idx) as usize
-              } else {
-                idx as usize
-              };
-              if real_idx >= *size as usize {
-                return Err(Error::new(
-                  ErrorKind::TypeError(format!(
-                    "Index {} out of bounds for fixed array of size {}",
-                    idx, size
-                  )),
-                  span,
-                ));
-              }
-            }
-
-            let final_val = if operator == AssignmentOperator::Assign {
-              right_val
+              Some(*size)
             } else {
-              let left_val = if idx < 0 {
-                elements_lock.get((elements_lock.len() as i64 + idx) as usize)
-              } else {
-                elements_lock.get(idx as usize)
-              }
-              .cloned()
-              .unwrap_or(Object::Void);
-
-              let binary_op = self.assignment_to_binary_op(operator);
-              self
-                .eval_binary_expression(binary_op, left_val, right_val, span)?
+              None
             };
-
-            if idx < 0 {
-              let real_idx = (elements_lock.len() as i64 + idx) as usize;
-              if real_idx < elements_lock.len() {
-                elements_lock[real_idx] = final_val.clone();
-              }
-            } else {
-              let idx = idx as usize;
-              if idx >= elements_lock.len() {
-                elements_lock.resize(idx + 1, Object::Void);
-              }
-              elements_lock[idx] = final_val.clone();
-            }
-
-            Ok(final_val)
+            Ok(LValue::Index {
+              elements,
+              index,
+              fixed_size,
+            })
           }
-          _ => Err(Error::new(
+          _ => Err(
             ErrorKind::TypeError(format!(
               "Cannot assign to index of type {}",
               obj_val.type_name()
-            )),
-            span,
-          )),
+            ))
+            .at(span),
+          ),
         }
       }
-      _ => Err(Error::new(
-        ErrorKind::TypeError("Invalid assignment target".to_string()),
-        span,
-      )),
+      _ => Err(
+        ErrorKind::TypeError("Invalid assignment target".to_string()).at(span),
+      ),
     }
   }
 
+  /// Retrieves the current value of an LValue.
+  pub async fn get_lvalue_value(
+    &self,
+    target: &LValue<'ast>,
+    expr: &Expression<'ast>,
+    span: Span,
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    match target {
+      LValue::Variable { name, .. } => {
+        self.eval_identifier(expr, name, span).await
+      }
+      LValue::Property { properties, name } => Ok(
+        properties
+          .read()
+          .get(*name)
+          .cloned()
+          .unwrap_or(ObjectKind::Void),
+      ),
+      LValue::Index {
+        elements, index, ..
+      } => {
+        let elements = elements.read();
+        let idx = *index;
+        let real_idx = if idx < 0 {
+          elements.len() as i64 + idx
+        } else {
+          idx
+        };
+        Ok(if real_idx >= 0 && (real_idx as usize) < elements.len() {
+          elements[real_idx as usize].clone()
+        } else {
+          ObjectKind::Void
+        })
+      }
+    }
+  }
+
+  /// Updates the value of an LValue.
+  pub fn set_lvalue_value(
+    &self,
+    target: LValue<'ast>,
+    value: ObjectKind<'ast>,
+    span: Span,
+  ) -> Result<(), Error<'ast>> {
+    match target {
+      LValue::Variable { name, distance } => {
+        if let Some(distance) = distance {
+          self.assign_at(distance, name, value, span)
+        } else {
+          let mut env = self.env_mut(span)?;
+          if env.is_constant(name) {
+            return Err(
+              ErrorKind::TypeError(format!(
+                "Cannot assign to constant '{}'",
+                name
+              ))
+              .at(span),
+            );
+          }
+          env.set(name, value, false, false);
+          Ok(())
+        }
+      }
+      LValue::Property { properties, name } => {
+        properties.write().insert(name, value);
+        Ok(())
+      }
+      LValue::Index {
+        elements,
+        index,
+        fixed_size,
+      } => {
+        let mut elements = elements.write();
+        let real_idx = if index < 0 {
+          elements.len() as i64 + index
+        } else {
+          index
+        };
+
+        if let Some(size) = fixed_size {
+          if real_idx < 0 || real_idx >= size {
+            return Err(
+              ErrorKind::TypeError(format!(
+                "Index {} out of bounds for fixed array of size {}",
+                index, size
+              ))
+              .at(span),
+            );
+          }
+        }
+
+        if real_idx >= 0 {
+          let u_idx = real_idx as usize;
+          if u_idx >= elements.len() {
+            elements.resize(u_idx + 1, ObjectKind::Void);
+          }
+          elements[u_idx] = value;
+        }
+        Ok(())
+      }
+    }
+  }
+
+  /// Maps an assignment operator to its corresponding binary operator.
   fn assignment_to_binary_op(
     &self,
     operator: AssignmentOperator,
@@ -253,243 +333,9 @@ impl<'ast> Interpreter<'ast> {
       AssignmentOperator::BitwiseXorAssign => BinaryOperator::BitwiseXor,
       AssignmentOperator::LeftShiftAssign => BinaryOperator::LeftShift,
       AssignmentOperator::RightShiftAssign => BinaryOperator::RightShift,
-      AssignmentOperator::Assign => unreachable!(),
-    }
-  }
-
-  pub async fn eval_update_expression(
-    &self,
-    operator: UpdateOperator,
-    argument: &Expression<'ast>,
-    prefix: bool,
-    span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    match &argument.kind {
-      ExpressionKind::Identifier(ident) => {
-        let distance = self.get_resolved_distance(argument);
-        let original_value =
-          self.eval_identifier(argument, ident, span).await?;
-
-        let new_value = self.apply_update(operator, &original_value, span)?;
-
-        if let Some(distance) = distance {
-          self.assign_at(distance, ident, new_value.clone(), span)?;
-        } else {
-          let mut env = self.env_mut(span)?;
-          if env.is_constant(ident) {
-            return Err(Error::new(
-              ErrorKind::TypeError(format!(
-                "Cannot update constant '{}'",
-                ident
-              )),
-              span,
-            ));
-          }
-          env.set(ident, new_value.clone(), false, false);
-        }
-
-        Ok(if prefix { new_value } else { original_value })
+      AssignmentOperator::Assign => {
+        unreachable!("Assign should be handled separately")
       }
-      ExpressionKind::Member { object, property } => {
-        let obj_val = self.eval_expression(object, None).await?;
-        let property_name =
-          if let ExpressionKind::Identifier(name) = property.kind {
-            name
-          } else {
-            return Err(Error::new(
-              ErrorKind::TypeError("Invalid member for update".to_string()),
-              span,
-            ));
-          };
-
-        match obj_val {
-          Object::Object {
-            properties,
-            constant,
-          } => {
-            if constant {
-              return Err(Error::new(
-                ErrorKind::TypeError(
-                  "Cannot update property of constant object".to_string(),
-                ),
-                span,
-              ));
-            }
-
-            let original_value = properties
-              .read()
-              .get(property_name)
-              .cloned()
-              .unwrap_or(Object::Void);
-            let new_value =
-              self.apply_update(operator, &original_value, span)?;
-            properties.write().insert(property_name, new_value.clone());
-            Ok(if prefix { new_value } else { original_value })
-          }
-          _ => Err(Error::new(
-            ErrorKind::TypeError(
-              "Cannot update property of non-object".to_string(),
-            ),
-            span,
-          )),
-        }
-      }
-      ExpressionKind::Index { object, index } => {
-        let (obj_val, index_val) = futures::try_join!(
-          self.eval_expression(object, None),
-          self.eval_expression(index, None)
-        )?;
-
-        match obj_val {
-          Object::Object {
-            properties,
-            constant,
-          } => {
-            if constant {
-              return Err(Error::new(
-                ErrorKind::TypeError(
-                  "Cannot update index of constant object".to_string(),
-                ),
-                span,
-              ));
-            }
-
-            let key = match index_val {
-              Object::String(s) => s,
-              _ => {
-                return Err(Error::new(
-                  ErrorKind::TypeError(
-                    "Object index must be a string".to_string(),
-                  ),
-                  span,
-                ))
-              }
-            };
-
-            let original_value =
-              properties.read().get(key).cloned().unwrap_or(Object::Void);
-            let new_value =
-              self.apply_update(operator, &original_value, span)?;
-            properties.write().insert(key, new_value.clone());
-            Ok(if prefix { new_value } else { original_value })
-          }
-          Object::Array {
-            elements,
-            constant,
-            kind,
-            ..
-          } => {
-            if constant {
-              return Err(Error::new(
-                ErrorKind::TypeError(
-                  "Cannot update index of constant array".to_string(),
-                ),
-                span,
-              ));
-            }
-
-            let idx = match index_val {
-              Object::Integer(i) => i,
-              _ => {
-                return Err(Error::new(
-                  ErrorKind::TypeError(
-                    "Array index must be an integer".to_string(),
-                  ),
-                  span,
-                ))
-              }
-            };
-
-            let mut elements_lock = elements.write();
-
-            // Enforce fixed size if specified in TypeKind
-            if let TypeKind::Array {
-              size: Some(Literal::Integer(size)),
-              ..
-            } = &kind.kind
-            {
-              let real_idx = if idx < 0 {
-                (elements_lock.len() as i64 + idx) as usize
-              } else {
-                idx as usize
-              };
-              if real_idx >= *size as usize {
-                return Err(Error::new(
-                  ErrorKind::TypeError(format!(
-                    "Index {} out of bounds for fixed array of size {}",
-                    idx, size
-                  )),
-                  span,
-                ));
-              }
-            }
-
-            let original_value = if idx < 0 {
-              elements_lock.get((elements_lock.len() as i64 + idx) as usize)
-            } else {
-              elements_lock.get(idx as usize)
-            }
-            .cloned()
-            .unwrap_or(Object::Void);
-
-            let new_value =
-              self.apply_update(operator, &original_value, span)?;
-
-            if idx < 0 {
-              let real_idx = (elements_lock.len() as i64 + idx) as usize;
-              if real_idx < elements_lock.len() {
-                elements_lock[real_idx] = new_value.clone();
-              }
-            } else {
-              let idx = idx as usize;
-              if idx >= elements_lock.len() {
-                elements_lock.resize(idx + 1, Object::Void);
-              }
-              elements_lock[idx] = new_value.clone();
-            }
-
-            Ok(if prefix { new_value } else { original_value })
-          }
-          _ => Err(Error::new(
-            ErrorKind::TypeError(
-              "Cannot update index of non-object".to_string(),
-            ),
-            span,
-          )),
-        }
-      }
-      _ => Err(Error::new(
-        ErrorKind::TypeError("Invalid update target".to_string()),
-        span,
-      )),
-    }
-  }
-
-  fn apply_update(
-    &self,
-    operator: UpdateOperator,
-    value: &Object<'ast>,
-    span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    match (operator, value) {
-      (UpdateOperator::Increment, Object::Integer(i)) => {
-        Ok(Object::Integer(i + 1))
-      }
-      (UpdateOperator::Decrement, Object::Integer(i)) => {
-        Ok(Object::Integer(i - 1))
-      }
-      (UpdateOperator::Increment, Object::Float(f)) => {
-        Ok(Object::Float(f + 1.0))
-      }
-      (UpdateOperator::Decrement, Object::Float(f)) => {
-        Ok(Object::Float(f - 1.0))
-      }
-      _ => Err(Error::new(
-        ErrorKind::TypeError(
-          "Update operator can only be applied to numbers".to_string(),
-        ),
-        span,
-      )),
     }
   }
 }

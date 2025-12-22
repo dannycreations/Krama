@@ -1,4 +1,4 @@
-use krama_core::Object;
+use krama_core::ObjectKind;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
@@ -11,7 +11,7 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::Integer(15)
+  ObjectKind::Integer(15)
 );
 
 test_eval_ok!(
@@ -24,7 +24,7 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::Integer(60)
+  ObjectKind::Integer(60)
 );
 
 test_eval_ok!(
@@ -39,7 +39,7 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::Integer(3)
+  ObjectKind::Integer(3)
 );
 
 test_eval_ok!(
@@ -54,7 +54,7 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::Integer(9)
+  ObjectKind::Integer(9)
 );
 
 test_eval_ok!(
@@ -66,7 +66,7 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::Integer(15)
+  ObjectKind::Integer(15)
 );
 
 test_eval_ok!(
@@ -79,7 +79,7 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::Integer(10)
+  ObjectKind::Integer(10)
 );
 
 test_eval_ok!(
@@ -94,7 +94,7 @@ test_eval_ok!(
     }
     a == "ab" && sum == 3
   "#,
-  Object::Boolean(true)
+  ObjectKind::Boolean(true)
 );
 
 test_eval_ok!(
@@ -107,7 +107,7 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::String("ab")
+  ObjectKind::String("ab")
 );
 
 test_eval_ok!(
@@ -119,5 +119,5 @@ test_eval_ok!(
     }
     a
   "#,
-  Object::String("h-e-l-l-o-")
+  ObjectKind::String("h-e-l-l-o-")
 );

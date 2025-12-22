@@ -216,113 +216,113 @@ pub enum TokenKind<'a> {
 
 impl<'a> TokenKind<'a> {
   pub fn is_keyword(&self) -> bool {
+    use TokenKind::*;
     matches!(
       self,
-      TokenKind::Const
-        | TokenKind::Fn
-        | TokenKind::Pub
-        | TokenKind::Let
-        | TokenKind::Struct
-        | TokenKind::This
-        | TokenKind::If
-        | TokenKind::Elif
-        | TokenKind::Else
-        | TokenKind::Match
-        | TokenKind::While
-        | TokenKind::For
-        | TokenKind::In
-        | TokenKind::Return
-        | TokenKind::Break
-        | TokenKind::Continue
-        | TokenKind::Test
-        | TokenKind::True
-        | TokenKind::False
-        | TokenKind::Import
-        | TokenKind::As
-        | TokenKind::Null
-        | TokenKind::Enum
-        | TokenKind::Type
-        | TokenKind::I8
-        | TokenKind::I16
-        | TokenKind::I32
-        | TokenKind::I64
-        | TokenKind::I128
-        | TokenKind::Isize
-        | TokenKind::U8
-        | TokenKind::U16
-        | TokenKind::U32
-        | TokenKind::U64
-        | TokenKind::U128
-        | TokenKind::Usize
-        | TokenKind::F32
-        | TokenKind::F64
-        | TokenKind::Bool
-        | TokenKind::Str
+      Const
+        | Fn
+        | Pub
+        | Let
+        | Struct
+        | This
+        | If
+        | Elif
+        | Else
+        | Match
+        | While
+        | For
+        | In
+        | Return
+        | Break
+        | Continue
+        | Test
+        | True
+        | False
+        | Import
+        | As
+        | Null
+        | Enum
+        | Type
+        | I8
+        | I16
+        | I32
+        | I64
+        | I128
+        | Isize
+        | U8
+        | U16
+        | U32
+        | U64
+        | U128
+        | Usize
+        | F32
+        | F64
+        | Bool
+        | Str
     )
   }
 }
 
 impl<'a> fmt::Display for TokenKind<'a> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    if self.is_keyword() {
-      return f.write_str(self.as_ref());
+    match self {
+      Self::Plus => write!(f, "+"),
+      Self::PlusPlus => write!(f, "++"),
+      Self::Minus => write!(f, "-"),
+      Self::MinusMinus => write!(f, "--"),
+      Self::Star => write!(f, "*"),
+      Self::StarStar => write!(f, "**"),
+      Self::Slash => write!(f, "/"),
+      Self::Percent => write!(f, "%"),
+      Self::Equal => write!(f, "="),
+      Self::EqualEqual => write!(f, "=="),
+      Self::Bang => write!(f, "!"),
+      Self::BangEqual => write!(f, "!="),
+      Self::GreaterThan => write!(f, ">"),
+      Self::GreaterThanEqual => write!(f, ">="),
+      Self::LessThan => write!(f, "<"),
+      Self::LessThanEqual => write!(f, "<="),
+      Self::PlusEqual => write!(f, "+="),
+      Self::MinusEqual => write!(f, "-="),
+      Self::StarEqual => write!(f, "*="),
+      Self::SlashEqual => write!(f, "/="),
+      Self::PercentEqual => write!(f, "%="),
+      Self::Ampersand => write!(f, "&"),
+      Self::AmpersandAmpersand => write!(f, "&&"),
+      Self::Pipe => write!(f, "|"),
+      Self::PipePipe => write!(f, "||"),
+      Self::Caret => write!(f, "^"),
+      Self::Tilde => write!(f, "~"),
+      Self::LessLess => write!(f, "<<"),
+      Self::GreaterGreater => write!(f, ">>"),
+      Self::AmpersandEqual => write!(f, "&="),
+      Self::PipeEqual => write!(f, "|="),
+      Self::CaretEqual => write!(f, "^="),
+      Self::LessLessEqual => write!(f, "<<="),
+      Self::GreaterGreaterEqual => write!(f, ">>="),
+      Self::LParen => write!(f, "("),
+      Self::RParen => write!(f, ")"),
+      Self::LBrace => write!(f, "{{"),
+      Self::RBrace => write!(f, "}}"),
+      Self::LBracket => write!(f, "["),
+      Self::RBracket => write!(f, "]"),
+      Self::Comma => write!(f, ","),
+      Self::Dot => write!(f, "."),
+      Self::DotDot => write!(f, ".."),
+      Self::Arrow => write!(f, "=>"),
+      Self::Colon => write!(f, ":"),
+      Self::Semicolon => write!(f, ";"),
+      Self::Question => write!(f, "?"),
+      Self::Integer(s)
+      | Self::Float(s)
+      | Self::String(s)
+      | Self::Identifier(s) => {
+        write!(f, "{}", s)
+      }
+      Self::Unknown => write!(f, "Unknown"),
+      Self::Eof => write!(f, "Eof"),
+      // Keywords use strum's as_ref() for lowercase representation
+      _ => write!(f, "{}", self.as_ref()),
     }
-    let s: &dyn fmt::Display = match self {
-      TokenKind::Plus => &"+",
-      TokenKind::PlusPlus => &"++",
-      TokenKind::Minus => &"-",
-      TokenKind::MinusMinus => &"--",
-      TokenKind::Star => &"*",
-      TokenKind::StarStar => &"**",
-      TokenKind::Slash => &"/",
-      TokenKind::Percent => &"%",
-      TokenKind::Equal => &"=",
-      TokenKind::EqualEqual => &"==",
-      TokenKind::Bang => &"!",
-      TokenKind::BangEqual => &"!=",
-      TokenKind::GreaterThan => &">",
-      TokenKind::GreaterThanEqual => &">=",
-      TokenKind::LessThan => &"<",
-      TokenKind::LessThanEqual => &"<=",
-      TokenKind::PlusEqual => &"+=",
-      TokenKind::MinusEqual => &"-=",
-      TokenKind::StarEqual => &"*=",
-      TokenKind::SlashEqual => &"/=",
-      TokenKind::PercentEqual => &"%=",
-      TokenKind::Ampersand => &"&",
-      TokenKind::AmpersandAmpersand => &"&&",
-      TokenKind::Pipe => &"|",
-      TokenKind::PipePipe => &"||",
-      TokenKind::Caret => &"^",
-      TokenKind::Tilde => &"~",
-      TokenKind::LessLess => &"<<",
-      TokenKind::GreaterGreater => &">>",
-      TokenKind::AmpersandEqual => &"&=",
-      TokenKind::PipeEqual => &"|=",
-      TokenKind::CaretEqual => &"^=",
-      TokenKind::LessLessEqual => &"<<=",
-      TokenKind::GreaterGreaterEqual => &">>=",
-      TokenKind::LParen => &"(",
-      TokenKind::RParen => &")",
-      TokenKind::LBrace => &"{",
-      TokenKind::RBrace => &"}",
-      TokenKind::LBracket => &"[",
-      TokenKind::RBracket => &"]",
-      TokenKind::Comma => &",",
-      TokenKind::Dot => &".",
-      TokenKind::DotDot => &"..",
-      TokenKind::Arrow => &"=>",
-      TokenKind::Colon => &":",
-      TokenKind::Semicolon => &";",
-      TokenKind::Question => &"?",
-      TokenKind::Unknown => &"Unknown",
-      TokenKind::Eof => &"Eof",
-      TokenKind::Integer(s) => s,
-      TokenKind::Float(s) => s,
-      TokenKind::String(s) => s,
-      TokenKind::Identifier(s) => s,
-      _ => unreachable!(),
-    };
-    write!(f, "{}", s)
   }
 }

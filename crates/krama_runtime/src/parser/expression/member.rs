@@ -1,4 +1,4 @@
-use krama_core::{Expression, ExpressionKind, Precedence};
+use krama_core::{Expression, ExpressionKind, PrecedenceKind};
 
 use super::{ParseResult, Parser};
 
@@ -11,7 +11,7 @@ where
     object: Expression<'ast>,
   ) -> ParseResult<'a, 'ast> {
     self.advance();
-    let property = self.parse_expression(Precedence::Member)?;
+    let property = self.parse_expression(PrecedenceKind::Member)?;
     let span = object.span.merge(&property.span);
     Ok(Expression::new(
       ExpressionKind::Member {

@@ -1,8 +1,10 @@
 use ahash::AHashMap;
+use bumpalo::collections::Vec as BumpVec;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  Binding, BlockStatement, EnumConstructor, Error, ErrorKind, ForBinding,
-  Function, Object, Statement, StatementKind, StructDefinition, UserFunction,
+  ConstBinding, Destructure, Enum, Error, ErrorKind, Expression, ForBinding,
+  FunctionKind, ObjectKind, Span, Statement, StatementBlock, StatementKind,
+  Struct, Type,
 };
 use parking_lot::RwLock;
 
@@ -12,10 +14,12 @@ use super::{
 };
 
 impl<'ast> Interpreter<'ast> {
+  /// Evaluates a single statement.
+  /// Uses LocalBoxFuture to handle async recursion.
   pub fn eval_statement<'s>(
     &'s self,
     statement: &'s Statement<'ast>,
-  ) -> LocalBoxFuture<'s, Result<Object<'ast>, Error<'ast>>>
+  ) -> LocalBoxFuture<'s, Result<ObjectKind<'ast>, Error<'ast>>>
   where
     'ast: 's,
   {
@@ -26,31 +30,11 @@ impl<'ast> Interpreter<'ast> {
           self.eval_expression(expression, None).await
         }
         StatementKind::Let { name, value, kind } => {
-          let resolved_kind = if let Some(k) = kind {
-            Some(resolve_type(self, k)?)
-          } else {
-            None
-          };
-
-          let value = self.eval_expression(value, resolved_kind.as_ref()).await?;
-
-          if let Some(kind) = &resolved_kind {
-            check_type(kind, &value)?;
-          }
-
-          let mut value = value;
-          match &mut value {
-            Object::Array { constant, .. } => {
-              *constant = false;
-            }
-            Object::Object { constant, .. } => {
-              *constant = false;
-            }
-            _ => {}
-          }
-
+          let mut value =
+            self.eval_and_check_type(value, kind.as_ref()).await?;
+          value.set_constant(false);
           self.env_mut(span)?.set(name, value, false, false);
-          Ok(Object::Void)
+          Ok(ObjectKind::Void)
         }
         StatementKind::Test { name: _, body } => {
           self.eval_block_statement_with_new_scope(body).await
@@ -61,98 +45,11 @@ impl<'ast> Interpreter<'ast> {
           public,
           kind,
         } => {
-          let resolved_kind = if let Some(k) = kind {
-            Some(resolve_type(self, k)?)
-          } else {
-            None
-          };
-
-          let value = self.eval_expression(value, resolved_kind.as_ref()).await?;
-
-          if let Some(kind) = &resolved_kind {
-            check_type(kind, &value)?;
-          }
-
-          let mut value = value;
-          match &mut value {
-            Object::Array { constant, .. } => {
-              *constant = true;
-            }
-            Object::Object { constant, .. } => {
-              *constant = true;
-            }
-            _ => {}
-          }
-
-          match binding {
-            Binding::Identifier(name) => {
-              self.env_mut(span)?.set(name, value, *public, true);
-            }
-            Binding::Destructure(items) => {
-              if let Object::Scope(scope) = &value {
-                for item in items.iter() {
-                  if let Some(export) = scope.get_binding(item.name) {
-                    let name = item.alias.unwrap_or(item.name);
-                    self.env_mut(span)?.set(
-                      name,
-                      export.clone(),
-                      *public,
-                      true,
-                    );
-                  } else {
-                    return Err(Error::new(
-                      ErrorKind::ReferenceError(format!(
-                        "'{}' is not exported from module '{}'",
-                        item.name,
-                        scope.name.unwrap_or("<anonymous>")
-                      )),
-                      span,
-                    ));
-                  }
-                }
-              } else {
-                return Err(Error::new(
-                  ErrorKind::TypeError(
-                    "Destructuring can only be done on modules".to_string(),
-                  ),
-                  span,
-                ));
-              }
-            }
-            Binding::ModuleAndDestructure { alias, items } => {
-              if let Object::Scope(scope) = &value {
-                self.env_mut(span)?.set(alias, value.clone(), *public, true);
-                for item in items.iter() {
-                  if let Some(export) = scope.get_binding(item.name) {
-                    let name = item.alias.unwrap_or(item.name);
-                    self.env_mut(span)?.set(
-                      name,
-                      export.clone(),
-                      *public,
-                      true,
-                    );
-                  } else {
-                    return Err(Error::new(
-                      ErrorKind::ReferenceError(format!(
-                        "'{}' is not exported from module '{}'",
-                        item.name,
-                        scope.name.unwrap_or("<anonymous>")
-                      )),
-                      span,
-                    ));
-                  }
-                }
-              } else {
-                return Err(Error::new(
-                  ErrorKind::TypeError(
-                    "Destructuring can only be done on modules".to_string(),
-                  ),
-                  span,
-                ));
-              }
-            }
-          }
-          Ok(Object::Void)
+          let mut value =
+            self.eval_and_check_type(value, kind.as_ref()).await?;
+          value.set_constant(true);
+          self.apply_binding(binding, value, *public, span)?;
+          Ok(ObjectKind::Void)
         }
         StatementKind::Fn {
           name,
@@ -167,14 +64,13 @@ impl<'ast> Interpreter<'ast> {
             None
           };
 
-          let function =
-            Object::Function(Function::User(self.arena.alloc(UserFunction {
-              parameters: parameters.clone(),
-              body: body.clone(),
-              kind: resolved_kind,
-            })));
+          let function = self.alloc_user_function(
+            parameters.clone(),
+            body.clone(),
+            resolved_kind,
+          );
           self.env_mut(span)?.set(name, function, *public, true);
-          Ok(Object::Void)
+          Ok(ObjectKind::Void)
         }
         StatementKind::Enum {
           public,
@@ -186,30 +82,37 @@ impl<'ast> Interpreter<'ast> {
             let variant_name = variant.name;
 
             if let Some(fields) = &variant.fields {
-                let field_count = fields.len();
-                let constructor = self.arena.alloc(EnumConstructor {
-                    name,
-                    variant: variant_name,
-                    field_count,
-                });
-                properties.insert(variant_name, Object::Function(Function::Enum(constructor)));
+              let field_count = fields.len();
+              let constructor = self.arena.alloc(Enum {
+                name,
+                variant: variant_name,
+                field_count,
+              });
+              properties.insert(
+                variant_name,
+                ObjectKind::Function(FunctionKind::Enum(constructor)),
+              );
             } else {
-                properties.insert(variant_name, Object::Enum {
-                    name,
-                    variant: variant_name,
-                    fields: None,
-                });
+              properties.insert(
+                variant_name,
+                ObjectKind::Enum {
+                  name,
+                  variant: variant_name,
+                  fields: None,
+                },
+              );
             }
           }
 
-          let enum_obj = Object::Object {
-            // Use arena-allocated RwLock as per Object definition update.
-            properties: self.arena.alloc(RwLock::new(properties.into_iter().collect())),
+          let enum_obj = ObjectKind::Object {
+            properties: self
+              .arena
+              .alloc(RwLock::new(properties.into_iter().collect())),
             constant: true,
           };
 
           self.env_mut(span)?.set(name, enum_obj, *public, true);
-          Ok(Object::Void)
+          Ok(ObjectKind::Void)
         }
         StatementKind::Struct {
           public,
@@ -217,28 +120,38 @@ impl<'ast> Interpreter<'ast> {
           fields,
           methods,
         } => {
-          let struct_def = self.arena.alloc(StructDefinition {
+          let struct_def = self.arena.alloc(Struct {
             name,
             fields: fields.clone(),
             methods: methods.clone(),
           });
-          self.env_mut(span)?.set(name, Object::Struct(struct_def), *public, true);
-          Ok(Object::Void)
+          self.env_mut(span)?.set(
+            name,
+            ObjectKind::Struct(struct_def),
+            *public,
+            true,
+          );
+          Ok(ObjectKind::Void)
         }
         StatementKind::Type { public, name, kind } => {
           let resolved = resolve_type(self, kind)?;
-          self.env_mut(span)?.set(name, Object::Type(resolved), *public, true);
-          Ok(Object::Void)
+          self.env_mut(span)?.set(
+            name,
+            ObjectKind::Type(resolved),
+            *public,
+            true,
+          );
+          Ok(ObjectKind::Void)
         }
         StatementKind::Return { value } => {
           let value = match value {
             Some(expression) => self.eval_expression(expression, None).await?,
-            None => Object::Void,
+            None => ObjectKind::Void,
           };
-          Ok(Object::Return(self.arena.alloc(value)))
+          Ok(ObjectKind::Return(self.arena.alloc(value)))
         }
-        StatementKind::Break => Ok(Object::Break),
-        StatementKind::Continue => Ok(Object::Continue),
+        StatementKind::Break => Ok(ObjectKind::Break),
+        StatementKind::Continue => Ok(ObjectKind::Continue),
         StatementKind::While { condition, body } => {
           loop {
             let condition_result =
@@ -247,17 +160,17 @@ impl<'ast> Interpreter<'ast> {
               break;
             }
             let result = self.eval_block_statement(body).await?;
-            if matches!(result, Object::Return(_)) {
+            if matches!(result, ObjectKind::Return(_)) {
               return Ok(result);
             }
-            if matches!(result, Object::Break) {
+            if matches!(result, ObjectKind::Break) {
               break;
             }
-            if matches!(result, Object::Continue) {
+            if matches!(result, ObjectKind::Continue) {
               continue;
             }
           }
-          Ok(Object::Void)
+          Ok(ObjectKind::Void)
         }
         StatementKind::For {
           binding,
@@ -265,88 +178,176 @@ impl<'ast> Interpreter<'ast> {
           body,
         } => {
           let iterable_value = self.eval_expression(iterable, None).await?;
-          let elements = match &iterable_value {
-            Object::Array { elements, .. } => elements.read().to_vec(),
-            Object::Tuple { elements } => elements.to_vec(),
-            Object::String(s) => s
-              .chars()
-              .map(|c| Object::String(self.arena.alloc_str(&c.to_string())))
-              .collect(),
-            Object::Object { properties, .. } => {
-              let props = properties.read();
-              let mut yields = Vec::with_capacity(props.len());
-
-              match binding {
-                ForBinding::Identifier(_) => {
-                  // If single identifier, yield keys
-                  for &k in props.keys() {
-                    yields.push(Object::String(k));
-                  }
-                }
-                ForBinding::Array(bindings) if bindings.len() == 2 => {
-                  // If [k, v], yield [key, value] tuples
-                  for (k, v) in props.iter() {
-                    let key = Object::String(k);
-                    let value = v.clone();
-                    let mut elements =
-                      bumpalo::collections::Vec::with_capacity_in(2, self.arena);
-                    elements.push(key);
-                    elements.push(value);
-                    yields.push(Object::Tuple {
-                      elements: elements.into_bump_slice(),
-                    });
-                  }
-                }
-                _ => {
-                  // Default to keys for other patterns, or maybe error?
-                  // For now, let's yield keys.
-                  for &k in props.keys() {
-                    yields.push(Object::String(k));
-                  }
-                }
-              }
-              yields
-            }
-            _ => {
-              return Err(Error::new(
-                ErrorKind::TypeError(format!(
-                  "Expected array, tuple, string or object for for..in loop, found {}",
-                  iterable_value.type_name()
-                )),
-                span,
-              ));
-            }
-          };
+          let elements =
+            self.collect_iterable_elements(&iterable_value, binding, span)?;
 
           for element in elements {
             let new_interpreter = self.new_enclosed();
-            self.assign_for_binding(&new_interpreter, binding, element, span)?;
+            self.assign_for_binding(
+              &new_interpreter,
+              binding,
+              element,
+              span,
+            )?;
 
             let result = new_interpreter.eval_block_statement(body).await?;
 
-            if matches!(result, Object::Return(_)) {
+            if matches!(result, ObjectKind::Return(_)) {
               return Ok(result);
             }
-            if matches!(result, Object::Break) {
+            if matches!(result, ObjectKind::Break) {
               break;
             }
-            if matches!(result, Object::Continue) {
+            if matches!(result, ObjectKind::Continue) {
               continue;
             }
           }
-          Ok(Object::Void)
+          Ok(ObjectKind::Void)
         }
       }
     }
     .boxed_local()
   }
 
+  /// Helper to evaluate an expression and check its type if a hint is provided.
+  async fn eval_and_check_type(
+    &self,
+    value_expr: &Expression<'ast>,
+    kind_hint: Option<&Type<'ast>>,
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    let resolved_kind = if let Some(k) = kind_hint {
+      Some(resolve_type(self, k)?)
+    } else {
+      None
+    };
+
+    let value = self
+      .eval_expression(value_expr, resolved_kind.as_ref())
+      .await?;
+
+    if let Some(kind) = &resolved_kind {
+      check_type(kind, &value)?;
+    }
+    Ok(value)
+  }
+
+  /// Applies a binding to the environment.
+  fn apply_binding(
+    &self,
+    binding: &ConstBinding<'ast>,
+    value: ObjectKind<'ast>,
+    public: bool,
+    span: Span,
+  ) -> Result<(), Error<'ast>> {
+    match binding {
+      ConstBinding::Identifier(name) => {
+        self.env_mut(span)?.set(name, value, public, true);
+      }
+      ConstBinding::Destructure(items) => {
+        self.apply_destructuring(None, items, value, public, span)?;
+      }
+      ConstBinding::ModuleAndDestructure { alias, items } => {
+        self.apply_destructuring(Some(alias), items, value, public, span)?;
+      }
+    }
+    Ok(())
+  }
+
+  /// Handles destructuring logic for modules.
+  fn apply_destructuring(
+    &self,
+    alias: Option<&'ast str>,
+    items: &[Destructure<'ast>],
+    value: ObjectKind<'ast>,
+    public: bool,
+    span: Span,
+  ) -> Result<(), Error<'ast>> {
+    if let ObjectKind::Scope(scope) = &value {
+      if let Some(alias_name) = alias {
+        self
+          .env_mut(span)?
+          .set(alias_name, value.clone(), public, true);
+      }
+      for item in items {
+        if let Some(export) = scope.get_binding(item.name) {
+          let name = item.alias.unwrap_or(item.name);
+          self.env_mut(span)?.set(name, export.clone(), public, true);
+        } else {
+          return Err(Error::new(
+            ErrorKind::ReferenceError(format!(
+              "'{}' is not exported from module '{}'",
+              item.name,
+              scope.name.unwrap_or("<anonymous>")
+            )),
+            span,
+          ));
+        }
+      }
+      Ok(())
+    } else {
+      Err(Error::new(
+        ErrorKind::TypeError(
+          "Destructuring can only be done on modules".to_string(),
+        ),
+        span,
+      ))
+    }
+  }
+
+  /// Collects elements from an iterable for a for-loop.
+  fn collect_iterable_elements(
+    &self,
+    iterable: &ObjectKind<'ast>,
+    binding: &ForBinding<'ast>,
+    span: Span,
+  ) -> Result<Vec<ObjectKind<'ast>>, Error<'ast>> {
+    match iterable {
+      ObjectKind::Array { elements, .. } => Ok(elements.read().to_vec()),
+      ObjectKind::Tuple { elements } => Ok(elements.to_vec()),
+      ObjectKind::String(s) => Ok(
+        s.chars()
+          .map(|c| ObjectKind::String(self.arena.alloc_str(&c.to_string())))
+          .collect(),
+      ),
+      ObjectKind::Object { properties, .. } => {
+        let props = properties.read();
+        let mut yields = Vec::with_capacity(props.len());
+
+        match binding {
+          ForBinding::Array(bindings) if bindings.len() == 2 => {
+            for (k, v) in props.iter() {
+              let mut elements = BumpVec::with_capacity_in(2, self.arena);
+              elements.push(ObjectKind::String(k));
+              elements.push(v.clone());
+              yields.push(ObjectKind::Tuple {
+                elements: elements.into_bump_slice(),
+              });
+            }
+          }
+          _ => {
+            for &k in props.keys() {
+              yields.push(ObjectKind::String(k));
+            }
+          }
+        }
+        Ok(yields)
+      }
+      _ => Err(Error::new(
+        ErrorKind::TypeError(format!(
+          "Expected array, tuple, string or object for for..in loop, found {}",
+          iterable.type_name()
+        )),
+        span,
+      )),
+    }
+  }
+
   fn assign_for_binding(
     &self,
     interpreter: &Interpreter<'ast>,
     binding: &ForBinding<'ast>,
-    value: Object<'ast>,
-    span: krama_core::Span,
+    value: ObjectKind<'ast>,
+    span: Span,
   ) -> Result<(), Error<'ast>> {
     match binding {
       ForBinding::Identifier(name) => {
@@ -360,8 +361,8 @@ impl<'ast> Interpreter<'ast> {
       }
       ForBinding::Array(bindings) => {
         let elements = match &value {
-          Object::Array { elements, .. } => elements.read().to_vec(),
-          Object::Tuple { elements } => elements.to_vec(),
+          ObjectKind::Array { elements, .. } => elements.read().to_vec(),
+          ObjectKind::Tuple { elements } => elements.to_vec(),
           _ => {
             return Err(Error::new(
               ErrorKind::TypeError(format!(
@@ -374,7 +375,7 @@ impl<'ast> Interpreter<'ast> {
         };
 
         for (i, binding) in bindings.iter().enumerate() {
-          let val = elements.get(i).cloned().unwrap_or(Object::Void);
+          let val = elements.get(i).cloned().unwrap_or(ObjectKind::Void);
           self.assign_for_binding(interpreter, binding, val, span)?;
         }
         Ok(())
@@ -382,18 +383,19 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  async fn eval_statements<'s>(
+  /// Evaluates a sequence of statements.
+  pub async fn eval_statements<'s>(
     &'s self,
     statements: &'s [Statement<'ast>],
-  ) -> Result<Object<'ast>, Error<'ast>> {
-    let mut result = Object::Void;
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    let mut result = ObjectKind::Void;
 
     for statement in statements {
       result = self.eval_statement(statement).await?;
 
       if matches!(
         &result,
-        Object::Return(_) | Object::Break | Object::Continue
+        ObjectKind::Return(_) | ObjectKind::Break | ObjectKind::Continue
       ) {
         return Ok(result);
       }
@@ -402,17 +404,19 @@ impl<'ast> Interpreter<'ast> {
     Ok(result)
   }
 
+  /// Evaluates a statement block.
   pub async fn eval_block_statement(
     &self,
-    block: &BlockStatement<'ast>,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+    block: &StatementBlock<'ast>,
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     self.eval_statements(&block.statements).await
   }
 
+  /// Evaluates a statement block with a new enclosed scope.
   pub async fn eval_block_statement_with_new_scope(
     &self,
-    block: &BlockStatement<'ast>,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+    block: &StatementBlock<'ast>,
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let new_interpreter = self.new_enclosed();
     new_interpreter.eval_statements(&block.statements).await
   }

@@ -1,7 +1,7 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ErrorKind, FunctionBody, Parameter, Span, Statement, StatementKind,
-  StructField, StructMethod, TokenKind,
+  ErrorKind, FunctionBody, Parameter, PrecedenceKind, Span, Statement,
+  StatementKind, StructField, StructMethod, TokenKind,
 };
 
 use crate::parser::Parser;
@@ -66,9 +66,9 @@ where
     let default = if self.current_token.kind == TokenKind::Equal {
       self.advance();
       Some(
-        self
+        &*self
           .arena
-          .alloc(self.parse_expression(krama_core::Precedence::Lowest)?),
+          .alloc(self.parse_expression(PrecedenceKind::Lowest)?),
       )
     } else {
       None
@@ -83,13 +83,11 @@ where
       self.advance();
     }
 
-    let default_immutable = default.map(|x| &*x);
-
     Ok(StructField {
       public,
       name,
       kind,
-      default: default_immutable,
+      default,
       span: start_span.merge(&end_span),
     })
   }
@@ -114,19 +112,17 @@ where
         let mut param_span = param_start.merge(&param_kind.span);
         let default = if self.current_token.kind == TokenKind::Equal {
           self.advance();
-          let expr = self.parse_expression(krama_core::Precedence::Lowest)?;
+          let expr = self.parse_expression(PrecedenceKind::Lowest)?;
           param_span = param_span.merge(&expr.span);
-          Some(self.arena.alloc(expr))
+          Some(&*self.arena.alloc(expr))
         } else {
           None
         };
 
-        let default_immutable = default.map(|x| &*x);
-
         parameters.push(Parameter {
           name: param_name,
           kind: Some(param_kind),
-          default: default_immutable,
+          default,
           span: param_span,
         });
 
@@ -150,7 +146,7 @@ where
       FunctionBody::Expression(
         self
           .arena
-          .alloc(self.parse_expression(krama_core::Precedence::Lowest)?),
+          .alloc(self.parse_expression(PrecedenceKind::Lowest)?),
       )
     };
 

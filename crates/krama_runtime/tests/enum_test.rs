@@ -1,4 +1,4 @@
-use krama_core::Object;
+use krama_core::ObjectKind;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
@@ -11,7 +11,7 @@ test_eval_ok!(
 
     Status.Active
   "#,
-  Object::Enum {
+  ObjectKind::Enum {
     name: "Status",
     variant: "Active",
     fields: None,
@@ -28,10 +28,10 @@ test_eval_ok!(
 
     Message.Text("hello")
   "#,
-  Object::Enum {
+  ObjectKind::Enum {
     name: "Message",
     variant: "Text",
-    fields: Some(&[Object::String("hello")]),
+    fields: Some(&[ObjectKind::String("hello")]),
   }
 );
 
@@ -45,9 +45,13 @@ test_eval_ok!(
 
     Point.ThreeD(1, 2, 3)
   "#,
-  Object::Enum {
+  ObjectKind::Enum {
     name: "Point",
     variant: "ThreeD",
-    fields: Some(&[Object::Integer(1), Object::Integer(2), Object::Integer(3)]),
+    fields: Some(&[
+      ObjectKind::Integer(1),
+      ObjectKind::Integer(2),
+      ObjectKind::Integer(3)
+    ]),
   }
 );

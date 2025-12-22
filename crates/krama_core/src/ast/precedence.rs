@@ -1,7 +1,7 @@
 use crate::{Token, TokenKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Precedence {
+pub enum PrecedenceKind {
   Lowest = 0,
   Assignment,  // =
   Range,       // ..
@@ -24,8 +24,8 @@ pub enum Precedence {
   Colon,       // :
 }
 
-impl Precedence {
-  pub fn from_token(token: &Token) -> Precedence {
+impl PrecedenceKind {
+  pub fn from_token(token: &Token) -> PrecedenceKind {
     match token.kind {
       TokenKind::Equal
       | TokenKind::PlusEqual
@@ -37,33 +37,33 @@ impl Precedence {
       | TokenKind::PipeEqual
       | TokenKind::CaretEqual
       | TokenKind::LessLessEqual
-      | TokenKind::GreaterGreaterEqual => Precedence::Assignment,
-      TokenKind::DotDot => Precedence::Range,
-      TokenKind::PipePipe => Precedence::LogicalOr,
-      TokenKind::AmpersandAmpersand => Precedence::LogicalAnd,
-      TokenKind::EqualEqual | TokenKind::BangEqual => Precedence::Equals,
+      | TokenKind::GreaterGreaterEqual => PrecedenceKind::Assignment,
+      TokenKind::DotDot => PrecedenceKind::Range,
+      TokenKind::PipePipe => PrecedenceKind::LogicalOr,
+      TokenKind::AmpersandAmpersand => PrecedenceKind::LogicalAnd,
+      TokenKind::EqualEqual | TokenKind::BangEqual => PrecedenceKind::Equals,
       TokenKind::LessThan
       | TokenKind::LessThanEqual
       | TokenKind::GreaterThan
       | TokenKind::GreaterThanEqual
-      | TokenKind::In => Precedence::LessGreater,
-      TokenKind::Pipe => Precedence::BitwiseOr,
-      TokenKind::Caret => Precedence::BitwiseXor,
-      TokenKind::Ampersand => Precedence::BitwiseAnd,
-      TokenKind::LessLess | TokenKind::GreaterGreater => Precedence::Shift,
-      TokenKind::Plus | TokenKind::Minus => Precedence::Sum,
+      | TokenKind::In => PrecedenceKind::LessGreater,
+      TokenKind::Pipe => PrecedenceKind::BitwiseOr,
+      TokenKind::Caret => PrecedenceKind::BitwiseXor,
+      TokenKind::Ampersand => PrecedenceKind::BitwiseAnd,
+      TokenKind::LessLess | TokenKind::GreaterGreater => PrecedenceKind::Shift,
+      TokenKind::Plus | TokenKind::Minus => PrecedenceKind::Sum,
       TokenKind::Star | TokenKind::Slash | TokenKind::Percent => {
-        Precedence::Product
+        PrecedenceKind::Product
       }
-      TokenKind::StarStar => Precedence::Exponent,
+      TokenKind::StarStar => PrecedenceKind::Exponent,
       TokenKind::PlusPlus | TokenKind::MinusMinus | TokenKind::Question => {
-        Precedence::Postfix
+        PrecedenceKind::Postfix
       }
-      TokenKind::LParen => Precedence::Call,
-      TokenKind::Dot => Precedence::Member,
-      TokenKind::LBracket => Precedence::Index,
-      TokenKind::Colon => Precedence::Colon,
-      _ => Precedence::Lowest,
+      TokenKind::LParen => PrecedenceKind::Call,
+      TokenKind::Dot => PrecedenceKind::Member,
+      TokenKind::LBracket => PrecedenceKind::Index,
+      TokenKind::Colon => PrecedenceKind::Colon,
+      _ => PrecedenceKind::Lowest,
     }
   }
 }

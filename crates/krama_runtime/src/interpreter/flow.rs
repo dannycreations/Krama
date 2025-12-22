@@ -1,5 +1,5 @@
 use krama_core::{
-  Error, ErrorKind, ExpressionKind, MatchPattern, Object, Span,
+  Error, ErrorKind, ExpressionKind, MatchPattern, ObjectKind, Span,
 };
 
 use crate::Interpreter;
@@ -7,7 +7,7 @@ use crate::Interpreter;
 impl<'ast> Interpreter<'ast> {
   pub async fn eval_match_pattern<'s>(
     &'s self,
-    subject: &'s Object<'ast>,
+    subject: &'s ObjectKind<'ast>,
     pattern: &'s MatchPattern<'ast>,
     span: Span,
   ) -> Result<bool, Error<'ast>>
@@ -24,10 +24,10 @@ impl<'ast> Interpreter<'ast> {
           Ok(pattern_val == *subject)
         }
       }
-      (MatchPattern::Range(start, end), Object::Integer(i)) => {
+      (MatchPattern::Range(start, end), ObjectKind::Integer(i)) => {
         let start_val = self.eval_expression(start, None).await?;
         let end_val = self.eval_expression(end, None).await?;
-        if let (Object::Integer(start), Object::Integer(end)) =
+        if let (ObjectKind::Integer(start), ObjectKind::Integer(end)) =
           (start_val, end_val)
         {
           Ok(*i >= start && *i <= end)
@@ -40,10 +40,10 @@ impl<'ast> Interpreter<'ast> {
           ))
         }
       }
-      (MatchPattern::Range(start, end), Object::String(s)) => {
+      (MatchPattern::Range(start, end), ObjectKind::String(s)) => {
         let start_obj = self.eval_expression(start, None).await?;
         let end_obj = self.eval_expression(end, None).await?;
-        if let (Object::String(start_str), Object::String(end_str)) =
+        if let (ObjectKind::String(start_str), ObjectKind::String(end_str)) =
           (start_obj, end_obj)
         {
           Ok(*s >= start_str && *s <= end_str)

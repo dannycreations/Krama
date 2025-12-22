@@ -1,4 +1,4 @@
-use krama_core::{Error, ErrorKind, Expression, Object, Span};
+use krama_core::{Error, ErrorKind, Expression, ObjectKind, Span};
 
 use super::Interpreter;
 
@@ -10,7 +10,7 @@ impl<'ast> Interpreter<'ast> {
     expression: &Expression<'ast>,
     name: &'ast str,
     span: Span,
-  ) -> Result<Object<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     // Fast path: resolved locals.
     if let Some(distance) = self.get_resolved_distance(expression) {
       if let Some(value) = self.get_at(distance, name) {

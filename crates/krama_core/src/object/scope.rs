@@ -1,13 +1,13 @@
 use ahash::AHashMap;
 
-use super::Object;
+use super::ObjectKind;
 
 /// Scope represents a single level of variable bindings.
 /// Optimized with AHashMap for O(1) lookups and memory efficiency.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope<'ast> {
   pub name: Option<&'ast str>,
-  pub bindings: AHashMap<&'ast str, Object<'ast>>,
+  pub bindings: AHashMap<&'ast str, ObjectKind<'ast>>,
 }
 
 impl<'ast> Scope<'ast> {
@@ -22,7 +22,7 @@ impl<'ast> Scope<'ast> {
 
   /// Retrieves a binding from the scope.
   #[inline(always)]
-  pub fn get_binding(&self, name: &str) -> Option<&Object<'ast>> {
+  pub fn get_binding(&self, name: &str) -> Option<&ObjectKind<'ast>> {
     self.bindings.get(name)
   }
 }

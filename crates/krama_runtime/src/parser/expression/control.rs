@@ -1,7 +1,7 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, FunctionBody, MatchArm, MatchPattern,
-  Precedence, TokenKind,
+  ErrorKind, Expression, ExpressionKind, FunctionBody, Match, MatchPattern,
+  PrecedenceKind, TokenKind,
 };
 
 use super::{ParseResult, Parser};
@@ -16,7 +16,7 @@ where
 
     self.consume(TokenKind::LParen)?;
 
-    let condition = self.parse_expression(Precedence::Lowest)?;
+    let condition = self.parse_expression(PrecedenceKind::Lowest)?;
 
     self.consume(TokenKind::RParen)?;
 
@@ -56,7 +56,7 @@ where
 
     self.consume(TokenKind::LParen)?;
 
-    let subject = self.parse_expression(Precedence::Lowest)?;
+    let subject = self.parse_expression(PrecedenceKind::Lowest)?;
 
     self.consume(TokenKind::RParen)?;
     self.consume(TokenKind::LBrace)?;
@@ -86,7 +86,7 @@ where
     ))
   }
 
-  fn parse_match_arm(&mut self) -> Result<MatchArm<'ast>, ErrorKind> {
+  fn parse_match_arm(&mut self) -> Result<Match<'ast>, ErrorKind> {
     let mut patterns = BumpVec::new_in(self.arena);
     patterns.push(self.parse_match_pattern()?);
 
@@ -104,7 +104,7 @@ where
 
     let body = if self.current_token.kind == TokenKind::Arrow {
       self.advance();
-      let expr = self.parse_expression(Precedence::Lowest)?;
+      let expr = self.parse_expression(PrecedenceKind::Lowest)?;
       FunctionBody::Expression(self.arena.alloc(expr))
     } else if self.current_token.kind == TokenKind::LBrace {
       let block = self.arena.alloc(self.parse_block_statement()?);
@@ -121,7 +121,7 @@ where
       self.advance();
     }
 
-    Ok(MatchArm { patterns, body })
+    Ok(Match { patterns, body })
   }
 
   fn parse_match_pattern(&mut self) -> Result<MatchPattern<'ast>, ErrorKind> {
@@ -130,11 +130,11 @@ where
       return Ok(MatchPattern::Else);
     }
 
-    let left = self.parse_expression(Precedence::LessGreater)?;
+    let left = self.parse_expression(PrecedenceKind::LessGreater)?;
 
     if self.current_token.kind == TokenKind::DotDot {
       self.advance();
-      let right = self.parse_expression(Precedence::LessGreater)?;
+      let right = self.parse_expression(PrecedenceKind::LessGreater)?;
       Ok(MatchPattern::Range(left, right))
     } else {
       Ok(MatchPattern::Expression(left))
