@@ -21,7 +21,7 @@ impl<'ast> Interpreter<'ast> {
   {
     async move {
       let span = expression.span;
-      match &expression.kind {
+      let result = match &expression.kind {
         ExpressionKind::Literal(literal) => self.eval_literal(*literal),
         ExpressionKind::Identifier(name) => {
           self.eval_identifier(expression, name, span).await
@@ -72,6 +72,7 @@ impl<'ast> Interpreter<'ast> {
           condition,
           then_branch,
           else_branch,
+          ..
         } => {
           self
             .eval_if_expression(condition, then_branch, *else_branch, kind)
@@ -115,7 +116,15 @@ impl<'ast> Interpreter<'ast> {
           Ok(value)
         }
         ExpressionKind::Try(expr) => self.eval_try(expr, span).await,
+      }?;
+
+      if !matches!(expression.kind, ExpressionKind::Try(_)) {
+        if let ObjectKind::Err(_) = &result {
+          return Ok(ObjectKind::Return(self.arena.alloc(result)));
+        }
       }
+
+      Ok(result)
     }
     .boxed_local()
   }
@@ -199,21 +208,17 @@ impl<'ast> Interpreter<'ast> {
   async fn eval_try(
     &self,
     expr: &Expression<'ast>,
-    span: Span,
+    _span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let val = self.eval_expression(expr, None).await?;
-    match val {
-      ObjectKind::Ok(v) => Ok(v.clone()),
-      ObjectKind::Err(e) => {
-        Err(Error::new(ErrorKind::RuntimeError(format!("{}", e)), span))
+
+    if let ObjectKind::Return(inner) = val {
+      if let ObjectKind::Err(_) = inner {
+        return Ok(inner.clone());
       }
-      _ => Err(Error::new(
-        ErrorKind::TypeError(format!(
-          "Expected Result type for ? operator, found {}",
-          val.type_name()
-        )),
-        span,
-      )),
+      return Ok(ObjectKind::Return(inner));
     }
+
+    Ok(val)
   }
 }

@@ -165,6 +165,9 @@ impl<'ast> Interpreter<'ast> {
     }?;
 
     if let ObjectKind::Return(value) = result {
+      if let ObjectKind::Err(_) = value {
+        return Ok(ObjectKind::Return(value));
+      }
       Ok(value.clone())
     } else {
       Ok(result)

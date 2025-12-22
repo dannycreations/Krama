@@ -123,10 +123,25 @@ impl<'ast> Interpreter<'ast> {
     source: &'ast str,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let program = self.parse_and_check(source)?;
-    self
+    let result = self
       .eval_statements(&program.statements)
       .await
-      .map_err(|e| self.ensure_error_context(e, source))
+      .map_err(|e| self.ensure_error_context(e, source))?;
+
+    let final_val = if let ObjectKind::Return(inner) = &result {
+      inner
+    } else {
+      &result
+    };
+
+    if let ObjectKind::Err(e) = final_val {
+      return Err(self.ensure_error_context(
+        Error::new(ErrorKind::RuntimeError(format!("{}", e)), Span::empty()),
+        source,
+      ));
+    }
+
+    Ok(result)
   }
 
   /// Parses and runs semantic analysis (checking) on the source.

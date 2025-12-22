@@ -37,12 +37,19 @@ impl<'ast> Interpreter<'ast> {
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let right_val = self.eval_expression(right, None).await?;
+    if matches!(right_val, ObjectKind::Return(_)) {
+      return Ok(right_val);
+    }
+
     let target = self.resolve_lvalue(left, span).await?;
 
     let final_val = if operator == AssignmentOperator::Assign {
       right_val
     } else {
       let left_val = self.get_lvalue_value(&target, left, span).await?;
+      if matches!(left_val, ObjectKind::Return(_)) {
+        return Ok(left_val);
+      }
       // Map assignment operator to its binary equivalent (e.g., += -> +).
       let binary_op = self.assignment_to_binary_op(operator);
       left_val
@@ -64,6 +71,9 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let target = self.resolve_lvalue(argument, span).await?;
     let original_value = self.get_lvalue_value(&target, argument, span).await?;
+    if matches!(original_value, ObjectKind::Return(_)) {
+      return Ok(original_value);
+    }
 
     let binary_op = match operator {
       UpdateOperator::Increment => BinaryOperator::Add,
@@ -92,6 +102,13 @@ impl<'ast> Interpreter<'ast> {
       }),
       ExpressionKind::Member { object, property } => {
         let obj_val = self.eval_expression(object, None).await?;
+        if let ObjectKind::Return(_) = obj_val {
+          return Err(Error::new(
+            ErrorKind::RuntimeError("Early return in LValue".into()),
+            span,
+          ));
+        }
+
         let name = if let ExpressionKind::Identifier(name) = property.kind {
           name
         } else {
@@ -129,10 +146,20 @@ impl<'ast> Interpreter<'ast> {
         }
       }
       ExpressionKind::Index { object, index } => {
-        let (obj_val, index_val) = futures::try_join!(
-          self.eval_expression(object, None),
-          self.eval_expression(index, None)
-        )?;
+        let obj_val = self.eval_expression(object, None).await?;
+        if let ObjectKind::Return(_) = obj_val {
+          return Err(Error::new(
+            ErrorKind::RuntimeError("Early return in LValue".into()),
+            span,
+          ));
+        }
+        let index_val = self.eval_expression(index, None).await?;
+        if let ObjectKind::Return(_) = index_val {
+          return Err(Error::new(
+            ErrorKind::RuntimeError("Early return in LValue".into()),
+            span,
+          ));
+        }
 
         match obj_val {
           ObjectKind::Object {

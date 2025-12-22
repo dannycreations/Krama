@@ -390,13 +390,23 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let mut result = ObjectKind::Void;
 
-    for statement in statements {
+    for (i, statement) in statements.iter().enumerate() {
       result = self.eval_statement(statement).await?;
 
-      if matches!(
-        &result,
-        ObjectKind::Return(_) | ObjectKind::Break | ObjectKind::Continue
-      ) {
+      if let ObjectKind::Return(_inner) = &result {
+        return Ok(result);
+      }
+
+      if let ObjectKind::Err(e) = &result {
+        if i < statements.len() - 1 {
+          return Err(Error::new(
+            ErrorKind::RuntimeError(format!("{}", e)),
+            statement.span,
+          ));
+        }
+      }
+
+      if matches!(&result, ObjectKind::Break | ObjectKind::Continue) {
         return Ok(result);
       }
     }

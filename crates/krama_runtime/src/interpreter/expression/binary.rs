@@ -17,6 +17,9 @@ impl<'ast> Interpreter<'ast> {
       BinaryOperator::LogicalOr | BinaryOperator::LogicalAnd
     ) {
       let left_val = self.eval_expression(left, None).await?;
+      if matches!(left_val, ObjectKind::Return(_)) {
+        return Ok(left_val);
+      }
       let is_truthy = left_val.is_truthy();
       if (operator == BinaryOperator::LogicalOr && is_truthy)
         || (operator == BinaryOperator::LogicalAnd && !is_truthy)
@@ -31,6 +34,13 @@ impl<'ast> Interpreter<'ast> {
       self.eval_expression(left, None),
       self.eval_expression(right, None)
     )?;
+
+    if let ObjectKind::Return(_) = l {
+      return Ok(l);
+    }
+    if let ObjectKind::Return(_) = r {
+      return Ok(r);
+    }
 
     // Delegate to core ObjectKind logic for type-specific operations.
     l.binary_op(operator, &r, self.arena)
