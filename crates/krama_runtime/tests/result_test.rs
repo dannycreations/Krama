@@ -48,7 +48,7 @@ test_eval_err!(
     }
 
     fn main() {
-      const x = fail();
+      const x = fail()
       x + 1
     }
 
@@ -66,10 +66,38 @@ test_eval_ok!(
     }
 
     fn main() {
-      const _ = fail()?;
+      const _ = fail()?
     }
 
     main()
   "#,
   ObjectKind::Void
+);
+
+test_eval_ok!(
+  ok_if_pattern,
+  r#"
+    const a = Ok(42)
+    if (Ok(b) = a) {
+      b
+    } elif (Err(b) = a) {
+      b + 10
+    } else {
+      0
+    }
+  "#,
+  ObjectKind::Integer(42)
+);
+
+test_eval_ok!(
+  err_if_pattern,
+  r#"
+    const a = Err("error")?
+    if (Err(e) = a) {
+      e
+    } else {
+      "ok"
+    }
+  "#,
+  ObjectKind::String("error")
 );
