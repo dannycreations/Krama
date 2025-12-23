@@ -15,6 +15,7 @@ impl<'ast> Interpreter<'ast> {
     kind_hint: Option<&Type<'ast>>,
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    // 1. Determine element type hint from the parent collection hint.
     let mut el_hint = None;
     if let Some(hint) = kind_hint {
       if let TypeKind::Array { element, .. } = &hint.kind {
@@ -22,6 +23,7 @@ impl<'ast> Interpreter<'ast> {
       }
     }
 
+    // 2. Evaluate all elements concurrently.
     let results = if elements.is_empty() {
       Vec::new()
     } else {
@@ -29,6 +31,7 @@ impl<'ast> Interpreter<'ast> {
         .await?
     };
 
+    // 3. Construct the specific collection type if a hint is present.
     if let Some(hint) = kind_hint {
       match &hint.kind {
         TypeKind::Array { .. } => {
@@ -49,7 +52,7 @@ impl<'ast> Interpreter<'ast> {
       }
     }
 
-    // Default to array if empty, or tuple if non-empty and no hint.
+    // 4. Default to Array if empty, or Tuple if non-empty and no hint is available.
     if results.is_empty() {
       Ok(ObjectKind::Array {
         elements: self.arena.alloc(RwLock::new(BumpVec::new_in(self.arena))),
@@ -69,7 +72,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  /// Evaluates an object literal expression.
+  /// Evaluates an object literal expression by resolving its properties.
   pub async fn eval_object_literal(
     &self,
     properties: &[(Expression<'ast>, Expression<'ast>)],

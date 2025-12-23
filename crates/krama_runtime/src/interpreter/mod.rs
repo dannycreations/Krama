@@ -34,7 +34,7 @@ pub struct Interpreter<'ast> {
 }
 
 impl<'ast> Interpreter<'ast> {
-  /// Creates a new interpreter instance.
+  /// Creates a new interpreter instance with a global environment.
   pub fn new(arena: &'ast Bump, path: Option<&'ast str>) -> Self {
     let env = Environment::with_globals();
 
@@ -123,18 +123,20 @@ impl<'ast> Interpreter<'ast> {
     source: &'ast str,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let program = self.parse_and_check(source)?;
-    let result = self
-      .eval_statements(&program.statements)
-      .await
-      .map_err(|e| self.ensure_error_context(e, source))?;
+    let result = self.eval_statements(&program.statements).await?;
 
-    let final_val = if let ObjectKind::Return(inner) = &result {
-      inner
-    } else {
-      &result
-    };
+    // Handle early returns and error propagation from the top-level execution.
+    if let ObjectKind::Return(inner) = result {
+      if let ObjectKind::Err(e) = inner {
+        return Err(self.ensure_error_context(
+          Error::new(ErrorKind::RuntimeError(format!("{}", e)), Span::empty()),
+          source,
+        ));
+      }
+      return Ok(inner.clone());
+    }
 
-    if let ObjectKind::Err(e) = final_val {
+    if let ObjectKind::Err(e) = result {
       return Err(self.ensure_error_context(
         Error::new(ErrorKind::RuntimeError(format!("{}", e)), Span::empty()),
         source,
@@ -164,7 +166,7 @@ impl<'ast> Interpreter<'ast> {
     Ok(program)
   }
 
-  /// Ensures an error has source and file context.
+  /// Ensures an error has source and file context for better diagnostics.
   fn ensure_error_context(
     &self,
     e: Error<'ast>,

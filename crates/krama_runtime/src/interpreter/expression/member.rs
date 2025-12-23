@@ -6,12 +6,15 @@ use krama_std::PROPS;
 use crate::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
+  /// Evaluates a member access expression (e.g., object.property).
+  /// Supports objects, structs, modules, and built-in properties.
   pub async fn eval_member_expression(
     &self,
     object: ObjectKind<'ast>,
     property: &Expression<'ast>,
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    // 1. Extract property name from the identifier.
     let property_name = if let ExpressionKind::Identifier(name) = property.kind
     {
       name
@@ -23,6 +26,7 @@ impl<'ast> Interpreter<'ast> {
     };
 
     match object {
+      // 2. Handle Object literals.
       ObjectKind::Object { properties, .. } => Ok(
         properties
           .read()
@@ -30,8 +34,10 @@ impl<'ast> Interpreter<'ast> {
           .cloned()
           .unwrap_or(ObjectKind::Void),
       ),
+
+      // 3. Handle Struct instances (Fields and Methods).
       ObjectKind::StructInstance { definition, fields } => {
-        // 1. Check fields
+        // a. Check fields first.
         if let Some(value) = fields.read().get(property_name) {
           if let Some(field_def) =
             definition.fields.iter().find(|f| f.name == property_name)
@@ -46,7 +52,7 @@ impl<'ast> Interpreter<'ast> {
           return Ok(value.clone());
         }
 
-        // 2. Check methods
+        // b. Check methods if field not found.
         if let Some(method) =
           definition.methods.iter().find(|m| m.name == property_name)
         {
@@ -67,6 +73,8 @@ impl<'ast> Interpreter<'ast> {
           span,
         ))
       }
+
+      // 4. Handle Struct definitions (Static methods).
       ObjectKind::Struct(definition) => {
         if let Some(method) =
           definition.methods.iter().find(|m| m.name == property_name)
@@ -88,6 +96,8 @@ impl<'ast> Interpreter<'ast> {
           span,
         ))
       }
+
+      // 5. Handle Scopes (Modules).
       ObjectKind::Scope(scope) => {
         scope.get_binding(property_name).cloned().ok_or_else(|| {
           Error::new(
@@ -99,6 +109,8 @@ impl<'ast> Interpreter<'ast> {
           )
         })
       }
+
+      // 6. Handle Built-in properties (Standard library extensions).
       _ => {
         let type_name = object.type_name();
         if let Some(callback) = PROPS
@@ -121,6 +133,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
+  /// Verifies if a member is accessible based on its visibility and the current execution context.
   fn ensure_accessible(
     &self,
     public: bool,
@@ -132,6 +145,7 @@ impl<'ast> Interpreter<'ast> {
       return Ok(());
     }
 
+    // Check if the current scope is within the same struct definition.
     let env = self.environment.borrow();
     let current_struct = env.get("__current_struct__");
     let allowed = if let Some(ObjectKind::String(name)) = current_struct {

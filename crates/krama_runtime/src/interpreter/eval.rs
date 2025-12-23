@@ -11,6 +11,7 @@ use super::{types::check_type, Interpreter};
 
 impl<'ast> Interpreter<'ast> {
   /// Evaluates an expression and returns its resulting object.
+  /// This is the central dispatch for all expression types.
   pub fn eval_expression<'s>(
     &'s self,
     expression: &'s Expression<'ast>,
@@ -22,14 +23,25 @@ impl<'ast> Interpreter<'ast> {
     async move {
       let span = expression.span;
       let result = match &expression.kind {
+        // 1. Core Literals and Identifiers
         ExpressionKind::Literal(literal) => self.eval_literal(*literal),
         ExpressionKind::Identifier(name) => {
           self.eval_identifier(expression, name, span).await
         }
         ExpressionKind::This => self.get_this(span),
+
+        // 2. Structural Construction
         ExpressionKind::StructConstruction { properties } => {
           self.eval_struct_construction(properties, span).await
         }
+        ExpressionKind::Object { properties } => {
+          self.eval_object_literal(properties).await
+        }
+        ExpressionKind::Collection { elements } => {
+          self.eval_collection(elements, kind, span).await
+        }
+
+        // 3. Operators
         ExpressionKind::Unary { operator, right } => {
           let right = self.eval_expression(right, None).await?;
           self.eval_unary_expression(*operator, right, span)
@@ -61,13 +73,25 @@ impl<'ast> Interpreter<'ast> {
             .eval_update_expression(*operator, argument, *prefix, span)
             .await
         }
-        ExpressionKind::Import { path, .. } => {
-          self.eval_import(path, span).await
+
+        // 4. Access and Calls
+        ExpressionKind::Member { object, property } => {
+          let object = self.eval_expression(object, None).await?;
+          self.eval_member_expression(object, property, span).await
+        }
+        ExpressionKind::Index { object, index } => {
+          let (object, index) = try_join!(
+            self.eval_expression(object, None),
+            self.eval_expression(index, None)
+          )?;
+          self.eval_index_expression(object, index, span).await
         }
         ExpressionKind::Call {
           function,
           arguments,
         } => self.eval_call(function, arguments, span).await,
+
+        // 5. Control Flow Expressions
         ExpressionKind::If {
           condition,
           then_branch,
@@ -84,6 +108,8 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Block(block) => {
           self.eval_block_statement_with_new_scope(block).await
         }
+
+        // 6. Functions and Imports
         ExpressionKind::Fn {
           parameters,
           body,
@@ -93,23 +119,11 @@ impl<'ast> Interpreter<'ast> {
           body.clone(),
           kind.clone(),
         )),
-        ExpressionKind::Member { object, property } => {
-          let object = self.eval_expression(object, None).await?;
-          self.eval_member_expression(object, property, span).await
+        ExpressionKind::Import { path, .. } => {
+          self.eval_import(path, span).await
         }
-        ExpressionKind::Index { object, index } => {
-          let (object, index) = try_join!(
-            self.eval_expression(object, None),
-            self.eval_expression(index, None)
-          )?;
-          self.eval_index_expression(object, index, span).await
-        }
-        ExpressionKind::Collection { elements } => {
-          self.eval_collection(elements, kind, span).await
-        }
-        ExpressionKind::Object { properties } => {
-          self.eval_object_literal(properties).await
-        }
+
+        // 7. Advanced and Type-related
         ExpressionKind::Typed { expr, kind } => {
           let value = self.eval_expression(expr, Some(kind)).await?;
           check_type(kind, &value)?;
@@ -118,6 +132,9 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Try(expr) => self.eval_try(expr, span).await,
       }?;
 
+      // 8. Automatic Error Propagation
+      // Unless it's a Try expression (which handles errors explicitly),
+      // result errors are wrapped in Return to trigger early exit in statement blocks.
       if !matches!(expression.kind, ExpressionKind::Try(_)) {
         if let ObjectKind::Err(_) = &result {
           return Ok(ObjectKind::Return(self.arena.alloc(result)));
@@ -129,7 +146,7 @@ impl<'ast> Interpreter<'ast> {
     .boxed_local()
   }
 
-  /// Retrieves the 'this' object from the environment.
+  /// Retrieves the 'this' object from the current environment.
   pub(crate) fn get_this(
     &self,
     span: Span,
@@ -144,13 +161,14 @@ impl<'ast> Interpreter<'ast> {
     })
   }
 
-  /// Evaluates a function call expression.
+  /// Evaluates a function call, handling both direct calls and method calls (member access).
   async fn eval_call(
     &self,
     function: &Expression<'ast>,
     arguments: &[Expression<'ast>],
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    // 1. Resolve function and potential 'this' binding.
     let (func_obj, this_binding) =
       if let ExpressionKind::Member { object, property } = &function.kind {
         let obj_val = self.eval_expression(object, None).await?;
@@ -164,6 +182,7 @@ impl<'ast> Interpreter<'ast> {
         (self.eval_expression(function, None).await?, None)
       };
 
+    // 2. Evaluate all arguments concurrently.
     let evaluated_args = if arguments.is_empty() {
       &[] as &[ObjectKind]
     } else {
@@ -174,6 +193,7 @@ impl<'ast> Interpreter<'ast> {
       self.arena.alloc_slice_fill_iter(results)
     };
 
+    // 3. Dispatch call with or without 'this' context.
     if let Some(this) = this_binding {
       self
         .eval_call_expression_with_this(func_obj, evaluated_args, this, span)
@@ -204,7 +224,7 @@ impl<'ast> Interpreter<'ast> {
     Ok(fields)
   }
 
-  /// Evaluates the postfix '?' operator.
+  /// Evaluates the postfix '?' operator (Try expression).
   async fn eval_try(
     &self,
     expr: &Expression<'ast>,
@@ -212,6 +232,7 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let val = self.eval_expression(expr, None).await?;
 
+    // If result is Return(Err), unwrap it to Err to allow the '?' operator to catch it.
     if let ObjectKind::Return(inner) = val {
       if let ObjectKind::Err(_) = inner {
         return Ok(inner.clone());

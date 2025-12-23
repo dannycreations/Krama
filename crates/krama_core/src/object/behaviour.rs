@@ -53,7 +53,7 @@ impl<'ast> PartialEq for ObjectKind<'ast> {
       (Self::Return(l), Self::Return(r)) => ptr::eq(*l, *r),
       (Self::Break, Self::Break) | (Self::Continue, Self::Continue) => true,
       (Self::Ok(l), Self::Ok(r)) | (Self::Err(l), Self::Err(r)) => {
-        ptr::eq(*l, *r)
+        ptr::eq(*l, *r) || l == r
       }
       (
         Self::Enum {
@@ -134,6 +134,14 @@ impl<'ast> ObjectKind<'ast> {
     other: &Self,
     arena: &'ast Bump,
   ) -> Result<Self, ErrorKind> {
+    // Propagate early exits from either side.
+    if matches!(self, Self::Return(_) | Self::Break | Self::Continue) {
+      return Ok(self.clone());
+    }
+    if matches!(other, Self::Return(_) | Self::Break | Self::Continue) {
+      return Ok(other.clone());
+    }
+
     match (self, other) {
       (Self::Integer(l), Self::Integer(r)) => {
         Self::int_op(operator, *l, *r, arena)
@@ -208,8 +216,11 @@ impl<'ast> ObjectKind<'ast> {
       BinaryOperator::LessThan => Ok(Self::Boolean(l < r)),
       BinaryOperator::LessThanOrEqual => Ok(Self::Boolean(l <= r)),
       BinaryOperator::Range => {
-        let count = (r - l).max(-1) + 1;
-        let mut elements = BumpVec::with_capacity_in(count as usize, arena);
+        if r < l {
+          return Ok(Self::Tuple { elements: &[] });
+        }
+        let count = (r - l) as usize + 1;
+        let mut elements = BumpVec::with_capacity_in(count, arena);
         for i in l..=r {
           elements.push(Self::Integer(i));
         }

@@ -6,7 +6,6 @@ use krama_core::{FunctionKind, ObjectKind};
 use krama_std::GLOBALS;
 
 /// Represents a variable binding with its metadata.
-/// Packed into a struct to potentially allow for better cache locality and future bitfield optimizations.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Binding<'ast> {
   pub value: ObjectKind<'ast>,
@@ -14,14 +13,17 @@ pub struct Binding<'ast> {
   pub constant: bool,
 }
 
+/// Manages variable bindings and scope chains.
 #[derive(Debug, Default, Clone)]
 pub struct Environment<'ast> {
-  /// Store bindings directly using ahash for O(1) lookups.
+  /// Local bindings in the current scope.
   pub store: AHashMap<&'ast str, Binding<'ast>>,
+  /// Parent scope for delegation.
   pub outer: Option<&'ast RefCell<Environment<'ast>>>,
 }
 
 impl<'ast> Environment<'ast> {
+  /// Creates a new empty environment.
   pub fn new() -> Self {
     Self {
       store: AHashMap::with_capacity(0),
@@ -29,9 +31,10 @@ impl<'ast> Environment<'ast> {
     }
   }
 
+  /// Creates a new environment populated with standard library globals.
   pub fn with_globals() -> Self {
     let mut env = Environment::new();
-    // Static iteration avoids LazyLock overhead in tight loops.
+    // Populate environment with built-in functions.
     for (name, native_fn) in GLOBALS.iter() {
       let function = ObjectKind::Function(FunctionKind::Native(*native_fn));
       env.set(name, function, true, true);
@@ -39,21 +42,22 @@ impl<'ast> Environment<'ast> {
     env
   }
 
+  /// Creates a new environment that encloses an existing one.
   pub fn new_enclosed(outer: &'ast RefCell<Environment<'ast>>) -> Self {
     Environment {
-      store: AHashMap::with_capacity(4), // Small initial capacity for enclosed scopes
+      store: AHashMap::with_capacity(4), // Small initial capacity for efficiency.
       outer: Some(outer),
     }
   }
 
+  /// Retrieves a binding from the local scope only.
   #[inline(always)]
   pub fn get_local(&self, name: &str) -> Option<ObjectKind<'ast>> {
-    // Object is designed to be cheap to clone (references or small primitives).
     self.store.get(name).map(|b| b.value.clone())
   }
 
-  /// Retrieves a variable value, traversing the scope chain.
-  /// Uses a non-recursive approach to avoid stack overflow in deep scope chains.
+  /// Retrieves a variable value by traversing the scope chain.
+  /// Iterative approach avoids stack overflow in deep nesting.
   pub fn get(&self, name: &str) -> Option<ObjectKind<'ast>> {
     if let Some(obj) = self.get_local(name) {
       return Some(obj);
@@ -71,6 +75,7 @@ impl<'ast> Environment<'ast> {
     None
   }
 
+  /// Sets or updates a binding in the current scope.
   pub fn set(
     &mut self,
     name: &'ast str,
@@ -88,10 +93,12 @@ impl<'ast> Environment<'ast> {
     );
   }
 
+  /// Checks if a variable is marked as constant in the local scope.
   pub fn is_constant(&self, name: &str) -> bool {
     self.store.get(name).map(|b| b.constant).unwrap_or(false)
   }
 
+  /// Returns all public bindings from the current scope.
   pub fn get_public_bindings(&self) -> IndexMap<&'ast str, ObjectKind<'ast>> {
     self
       .store

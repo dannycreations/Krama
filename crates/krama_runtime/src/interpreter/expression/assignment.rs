@@ -36,27 +36,31 @@ impl<'ast> Interpreter<'ast> {
     right: &Expression<'ast>,
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    // 1. Evaluate right side first.
     let right_val = self.eval_expression(right, None).await?;
-    if matches!(right_val, ObjectKind::Return(_)) {
+    if let ObjectKind::Return(_) = &right_val {
       return Ok(right_val);
     }
 
+    // 2. Resolve the target (LValue).
     let target = self.resolve_lvalue(left, span).await?;
 
+    // 3. Calculate final value based on operator (Assign vs Compound Assign).
     let final_val = if operator == AssignmentOperator::Assign {
       right_val
     } else {
       let left_val = self.get_lvalue_value(&target, left, span).await?;
-      if matches!(left_val, ObjectKind::Return(_)) {
+      if let ObjectKind::Return(_) = &left_val {
         return Ok(left_val);
       }
-      // Map assignment operator to its binary equivalent (e.g., += -> +).
+
       let binary_op = self.assignment_to_binary_op(operator);
       left_val
         .binary_op(binary_op, &right_val, self.arena)
         .map_err(|k| k.at(span))?
     };
 
+    // 4. Update the target and return the new value.
     self.set_lvalue_value(target, final_val.clone(), span)?;
     Ok(final_val)
   }
@@ -69,9 +73,10 @@ impl<'ast> Interpreter<'ast> {
     prefix: bool,
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    // 1. Resolve target and get current value.
     let target = self.resolve_lvalue(argument, span).await?;
     let original_value = self.get_lvalue_value(&target, argument, span).await?;
-    if matches!(original_value, ObjectKind::Return(_)) {
+    if let ObjectKind::Return(_) = &original_value {
       return Ok(original_value);
     }
 
@@ -80,31 +85,36 @@ impl<'ast> Interpreter<'ast> {
       UpdateOperator::Decrement => BinaryOperator::Subtract,
     };
 
-    // Update is always by 1.
+    // 2. Perform increment/decrement by 1.
     let new_value = original_value
       .binary_op(binary_op, &ObjectKind::Integer(1), self.arena)
       .map_err(|k| k.at(span))?;
 
+    // 3. Update target and return appropriate value (pre vs post).
     self.set_lvalue_value(target, new_value.clone(), span)?;
     Ok(if prefix { new_value } else { original_value })
   }
 
   /// Resolves an expression into an LValue target.
+  /// Handles identifiers, member access, and indexing.
   pub async fn resolve_lvalue(
     &self,
     expr: &Expression<'ast>,
     span: Span,
   ) -> Result<LValue<'ast>, Error<'ast>> {
     match &expr.kind {
+      // 1. Resolve Variable target.
       ExpressionKind::Identifier(name) => Ok(LValue::Variable {
         name,
         distance: self.get_resolved_distance(expr),
       }),
+
+      // 2. Resolve Property target (Member access).
       ExpressionKind::Member { object, property } => {
         let obj_val = self.eval_expression(object, None).await?;
         if let ObjectKind::Return(_) = obj_val {
           return Err(Error::new(
-            ErrorKind::RuntimeError("Early return in LValue".into()),
+            ErrorKind::RuntimeError("Early return in LValue resolution".into()),
             span,
           ));
         }
@@ -113,7 +123,7 @@ impl<'ast> Interpreter<'ast> {
           name
         } else {
           return Err(
-            ErrorKind::TypeError("Invalid member for assignment".to_string())
+            ErrorKind::TypeError("Invalid property for assignment".to_string())
               .at(span),
           );
         };
@@ -145,18 +155,20 @@ impl<'ast> Interpreter<'ast> {
           ),
         }
       }
+
+      // 3. Resolve Index target (Array/Object indexing).
       ExpressionKind::Index { object, index } => {
         let obj_val = self.eval_expression(object, None).await?;
         if let ObjectKind::Return(_) = obj_val {
           return Err(Error::new(
-            ErrorKind::RuntimeError("Early return in LValue".into()),
+            ErrorKind::RuntimeError("Early return in LValue resolution".into()),
             span,
           ));
         }
         let index_val = self.eval_expression(index, None).await?;
         if let ObjectKind::Return(_) = index_val {
           return Err(Error::new(
-            ErrorKind::RuntimeError("Early return in LValue".into()),
+            ErrorKind::RuntimeError("Early return in LValue resolution".into()),
             span,
           ));
         }
@@ -278,7 +290,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  /// Updates the value of an LValue.
+  /// Updates the value of an LValue target.
   pub fn set_lvalue_value(
     &self,
     target: LValue<'ast>,
@@ -320,6 +332,7 @@ impl<'ast> Interpreter<'ast> {
           index
         };
 
+        // Check bounds for fixed-size arrays.
         if let Some(size) = fixed_size {
           if real_idx < 0 || real_idx >= size {
             return Err(
@@ -361,7 +374,7 @@ impl<'ast> Interpreter<'ast> {
       AssignmentOperator::LeftShiftAssign => BinaryOperator::LeftShift,
       AssignmentOperator::RightShiftAssign => BinaryOperator::RightShift,
       AssignmentOperator::Assign => {
-        unreachable!("Assign should be handled separately")
+        unreachable!("Direct assignment should be handled separately")
       }
     }
   }

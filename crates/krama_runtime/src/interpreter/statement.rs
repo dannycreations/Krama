@@ -2,9 +2,9 @@ use ahash::AHashMap;
 use bumpalo::collections::Vec as BumpVec;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  AssignmentOperator, ConstBinding, Destructure, Enum, Error, ErrorKind,
-  Expression, ExpressionKind, ForBinding, FunctionKind, ObjectKind, Span,
-  Statement, StatementBlock, StatementKind, Struct, Type,
+  ConstBinding, Destructure, Enum, Error, ErrorKind, Expression,
+  ExpressionKind, ForBinding, FunctionKind, ObjectKind, Span, Statement,
+  StatementBlock, StatementKind, Struct, Type,
 };
 use parking_lot::RwLock;
 
@@ -15,7 +15,6 @@ use super::{
 
 impl<'ast> Interpreter<'ast> {
   /// Evaluates a single statement.
-  /// Uses LocalBoxFuture to handle async recursion.
   pub fn eval_statement<'s>(
     &'s self,
     statement: &'s Statement<'ast>,
@@ -35,9 +34,6 @@ impl<'ast> Interpreter<'ast> {
           value.set_constant(false);
           self.env_mut(span)?.set(name, value, false, false);
           Ok(ObjectKind::Void)
-        }
-        StatementKind::Test { name: _, body } => {
-          self.eval_block_statement_with_new_scope(body).await
         }
         StatementKind::Const {
           binding,
@@ -82,11 +78,10 @@ impl<'ast> Interpreter<'ast> {
             let variant_name = variant.name;
 
             if let Some(fields) = &variant.fields {
-              let field_count = fields.len();
               let constructor = self.arena.alloc(Enum {
                 name,
                 variant: variant_name,
-                field_count,
+                field_count: fields.len(),
               });
               properties.insert(
                 variant_name,
@@ -154,166 +149,46 @@ impl<'ast> Interpreter<'ast> {
         StatementKind::Continue => Ok(ObjectKind::Continue),
         StatementKind::While { condition, body } => {
           loop {
-            // Check for pattern matching in while condition: while (Ok(v) = expr)
-            if let ExpressionKind::Assignment {
-              left,
-              operator: AssignmentOperator::Assign,
-              right,
-            } = &condition.kind
+            // Check for pattern matching in while condition (e.g. while (Ok(v) = expr)).
+            if let Some(bindings) = self.try_match_assignment(condition).await?
             {
-              // Evaluate the right side (the value being matched against)
-              let mut right_val = self.eval_expression(right, None).await?;
-
-              // If the right side is a propagated result (via ? operator), we need to extract the inner value
-              // and treat it as the value to match against.
-              if let ObjectKind::Return(inner) = &right_val {
-                if let ObjectKind::Err(_) = inner {
-                  // Extract the Err value from the Return wrapper so it can be matched
-                  right_val = (*inner).clone();
-                }
-              }
-
-              // Handle Result types specially for pattern matching
-              match &right_val {
-                ObjectKind::Ok(inner) => {
-                  if let ExpressionKind::Call {
-                    function,
-                    arguments,
-                  } = &left.kind
-                  {
-                    if let ExpressionKind::Identifier("Ok") = &function.kind {
-                      if arguments.len() == 1 {
-                        if let ExpressionKind::Identifier(var_name) =
-                          &arguments[0].kind
-                        {
-                          // Match: Ok(v) = Ok(val) -> bind v = val, continue loop
-                          self.env_mut(span)?.set(
-                            var_name,
-                            (*inner).clone(),
-                            false,
-                            false,
-                          );
-                          // Proceed to execute body
-                        } else {
-                          // Not a simple variable binding, treat as normal assignment/truthy check?
-                          // For now, only support Ok(var) pattern
-                          let condition_result =
-                            self.eval_expression(condition, None).await?;
-                          if !condition_result.is_truthy() {
-                            break;
-                          }
-                        }
-                      } else {
-                        // Ok() with wrong args count
-                        break;
-                      }
-                    } else if let ExpressionKind::Identifier("Err") =
-                      &function.kind
-                    {
-                      // Mismatch: Err(e) = Ok(v) -> break loop
-                      break;
-                    } else {
-                      // Normal assignment
-                      let condition_result =
-                        self.eval_expression(condition, None).await?;
-                      if !condition_result.is_truthy() {
-                        break;
-                      }
-                    }
-                  } else {
-                    // Normal assignment
-                    let condition_result =
-                      self.eval_expression(condition, None).await?;
-                    if !condition_result.is_truthy() {
-                      break;
-                    }
-                  }
-                }
-                ObjectKind::Err(inner) => {
-                  if let ExpressionKind::Call {
-                    function,
-                    arguments,
-                  } = &left.kind
-                  {
-                    if let ExpressionKind::Identifier("Err") = &function.kind {
-                      if arguments.len() == 1 {
-                        if let ExpressionKind::Identifier(var_name) =
-                          &arguments[0].kind
-                        {
-                          // Match: Err(e) = Err(val) -> bind e = val, continue loop
-                          self.env_mut(span)?.set(
-                            var_name,
-                            (*inner).clone(),
-                            false,
-                            false,
-                          );
-                          // Proceed to execute body
-                        } else {
-                          let condition_result =
-                            self.eval_expression(condition, None).await?;
-                          if !condition_result.is_truthy() {
-                            break;
-                          }
-                        }
-                      } else {
-                        break;
-                      }
-                    } else if let ExpressionKind::Identifier("Ok") =
-                      &function.kind
-                    {
-                      // Mismatch: Ok(v) = Err(e) -> break loop
-                      break;
-                    } else {
-                      let condition_result =
-                        self.eval_expression(condition, None).await?;
-                      if !condition_result.is_truthy() {
-                        break;
-                      }
-                    }
-                  } else {
-                    let condition_result =
-                      self.eval_expression(condition, None).await?;
-                    if !condition_result.is_truthy() {
-                      break;
-                    }
-                  }
-                }
-                _ => {
-                  // Normal while loop condition evaluation
-                  let condition_result =
-                    self.eval_expression(condition, None).await?;
-                  if !condition_result.is_truthy() {
-                    break;
-                  }
-                }
+              for (name, val) in bindings {
+                self.env_mut(span)?.set(name, val, false, false);
               }
             } else {
-              // Normal while loop condition evaluation
-              let condition_result =
-                self.eval_expression(condition, None).await?;
-              if !condition_result.is_truthy() {
+              // Handle special case where pattern match failed (break loop).
+              if let ExpressionKind::Assignment {
+                left,
+                operator: krama_core::AssignmentOperator::Assign,
+                ..
+              } = &condition.kind
+              {
+                if let ExpressionKind::Call { function, .. } = &left.kind {
+                  if let ExpressionKind::Identifier(name) = &function.kind {
+                    if *name == "Ok" || *name == "Err" {
+                      break;
+                    }
+                  }
+                }
+              }
+
+              // Fallback to normal truthy evaluation.
+              let condition_val = self.eval_expression(condition, None).await?;
+              if !condition_val.is_truthy() {
                 break;
               }
             }
 
             let result = self.eval_block_statement(body).await?;
 
-            if let ObjectKind::Return(ObjectKind::Err(_)) = &result {
-              if let ExpressionKind::Assignment { right, .. } = &condition.kind
-              {
-                if let ExpressionKind::Identifier(var_name) = &right.kind {
-                  if let Some(ObjectKind::Err(_)) =
-                    self.environment.borrow().get(var_name)
-                  {
-                    continue;
-                  }
-                }
+            // Propagate Return/Break/Continue signals.
+            if let ObjectKind::Return(inner) = &result {
+              if let ObjectKind::Err(_) = inner {
+                continue;
               }
+              return Ok(result.clone());
             }
 
-            if matches!(result, ObjectKind::Return(_)) {
-              return Ok(result);
-            }
             if matches!(result, ObjectKind::Break) {
               break;
             }
@@ -343,9 +218,13 @@ impl<'ast> Interpreter<'ast> {
 
             let result = new_interpreter.eval_block_statement(body).await?;
 
-            if matches!(result, ObjectKind::Return(_)) {
-              return Ok(result);
+            if let ObjectKind::Return(inner) = &result {
+              if let ObjectKind::Err(_) = inner {
+                continue;
+              }
+              return Ok(result.clone());
             }
+
             if matches!(result, ObjectKind::Break) {
               break;
             }
@@ -354,6 +233,9 @@ impl<'ast> Interpreter<'ast> {
             }
           }
           Ok(ObjectKind::Void)
+        }
+        StatementKind::Test { name: _, body } => {
+          self.eval_block_statement_with_new_scope(body).await
         }
       }
     }
@@ -382,7 +264,7 @@ impl<'ast> Interpreter<'ast> {
     Ok(value)
   }
 
-  /// Applies a binding to the environment.
+  /// Applies a binding (Identifier or Destructuring) to the environment.
   fn apply_binding(
     &self,
     binding: &ConstBinding<'ast>,
@@ -404,7 +286,7 @@ impl<'ast> Interpreter<'ast> {
     Ok(())
   }
 
-  /// Handles destructuring logic for modules.
+  /// Handles destructuring logic for module imports.
   fn apply_destructuring(
     &self,
     alias: Option<&'ast str>,
@@ -465,6 +347,7 @@ impl<'ast> Interpreter<'ast> {
         let mut yields = Vec::with_capacity(props.len());
 
         match binding {
+          // If destructuring key-value pairs: [k, v] in obj
           ForBinding::Array(bindings) if bindings.len() == 2 => {
             for (k, v) in props.iter() {
               let mut elements = BumpVec::with_capacity_in(2, self.arena);
@@ -475,6 +358,7 @@ impl<'ast> Interpreter<'ast> {
               });
             }
           }
+          // Default to iterating over keys.
           _ => {
             for &k in props.keys() {
               yields.push(ObjectKind::String(k));
@@ -493,6 +377,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
+  /// Assigns a loop element to the loop binding.
   fn assign_for_binding(
     &self,
     interpreter: &Interpreter<'ast>,
@@ -541,20 +426,12 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let mut result = ObjectKind::Void;
 
-    for (i, statement) in statements.iter().enumerate() {
+    for statement in statements {
       result = self.eval_statement(statement).await?;
 
-      if let ObjectKind::Return(_inner) = &result {
+      // Return/Break/Continue trigger early exits from statement sequences.
+      if let ObjectKind::Return(_) = &result {
         return Ok(result);
-      }
-
-      if let ObjectKind::Err(e) = &result {
-        if i < statements.len() - 1 {
-          return Err(Error::new(
-            ErrorKind::RuntimeError(format!("{}", e)),
-            statement.span,
-          ));
-        }
       }
 
       if matches!(&result, ObjectKind::Break | ObjectKind::Continue) {

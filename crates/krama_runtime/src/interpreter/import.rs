@@ -9,6 +9,7 @@ use tokio::fs;
 use super::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
+  /// Evaluates an import expression, supporting both standard library and file-based modules.
   pub async fn eval_import(
     &self,
     path: &'ast str,
@@ -21,11 +22,13 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
+  /// Resolves a relative import path to an absolute path and its content.
   async fn resolve_import_path(
     &self,
     path: &str,
     span: &Span,
   ) -> Result<(PathBuf, String), Error<'ast>> {
+    // 1. Determine base path for resolution.
     let base_path = self
       .path
       .and_then(|p| Path::new(p).parent())
@@ -33,12 +36,12 @@ impl<'ast> Interpreter<'ast> {
 
     let path_buf = base_path.join(path).clean();
 
-    // Fast path: check if file exists and read it.
+    // 2. Try reading the exact path.
     if let Ok(content) = fs::read_to_string(&path_buf).await {
       return Ok((path_buf, content));
     }
 
-    // Try with .km extension.
+    // 3. Try appending .km extension.
     let path_with_ext = path_buf.with_extension("km");
     if let Ok(content) = fs::read_to_string(&path_with_ext).await {
       return Ok((path_with_ext, content));
@@ -53,6 +56,7 @@ impl<'ast> Interpreter<'ast> {
     ))
   }
 
+  /// Loads and caches a standard library module.
   fn eval_std_module(
     &self,
     path: &'ast str,
@@ -60,10 +64,12 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let module_name = self.arena.alloc_str(path.strip_prefix("std:").unwrap());
 
+    // Check module cache.
     if let Some(module) = self.modules.borrow().get(module_name) {
       return Ok(module.clone());
     }
 
+    // Initialize module from krama_std definitions.
     MODULES
       .get(module_name)
       .map(|bindings| {
@@ -97,6 +103,7 @@ impl<'ast> Interpreter<'ast> {
       })
   }
 
+  /// Loads, executes, and caches a file-based module.
   async fn eval_file_module(
     &self,
     path: &'ast str,
@@ -111,15 +118,18 @@ impl<'ast> Interpreter<'ast> {
     })?;
     let resolved_path_key = self.alloc_str(resolved_path_str);
 
+    // Check module cache.
     if let Some(module) = self.modules.borrow().get(resolved_path_key) {
       return Ok(module.clone());
     }
 
     let source_str = self.arena.alloc_str(&source);
 
+    // 1. Create a fresh interpreter for the module.
     let new_interpreter = Interpreter::new(self.arena, Some(resolved_path_key));
     new_interpreter.eval(source_str).await?;
 
+    // 2. Extract public bindings from the module's environment.
     let bindings = new_interpreter
       .environment
       .borrow()
@@ -132,6 +142,7 @@ impl<'ast> Interpreter<'ast> {
       bindings,
     }));
 
+    // 3. Cache the module for future imports.
     self
       .modules
       .borrow_mut()
