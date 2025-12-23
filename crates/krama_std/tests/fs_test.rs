@@ -2,7 +2,7 @@ use krama_core::ObjectKind;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
-  eval_fs_read_and_write,
+  fs_read_and_write,
   r#"
     const fs = import("std:fs")
     const { assertEqual, assert } = import("std:assert")
@@ -26,7 +26,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_fs_mkdir_and_rmdir,
+  fs_mkdir_and_rmdir,
   r#"
     const fs = import("std:fs")
     const { assert } = import("std:assert")
@@ -45,7 +45,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_fs_read_dir,
+  fs_read_dir,
   r#"
     const fs = import("std:fs")
     const { assert, assertEqual } = import("std:assert")

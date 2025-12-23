@@ -2,7 +2,7 @@ use krama_core::ObjectKind;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
-  eval_for_in_array,
+  loop_for_in_array,
   r#"
     let a = 0
     const b: u32[] = [1, 2, 3, 4, 5]
@@ -15,7 +15,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_for_in_tuple,
+  loop_for_in_tuple,
   r#"
     let a = 0
     const b = [10, 20, 30]
@@ -28,7 +28,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_for_in_with_break,
+  loop_for_in_with_break,
   r#"
     let a = 0
     for (x in [1, 2, 3, 4, 5]) {
@@ -43,7 +43,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_for_in_with_continue,
+  loop_for_in_with_continue,
   r#"
     let a = 0
     for (x in [1, 2, 3, 4, 5]) {
@@ -58,7 +58,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_for_in_with_range,
+  loop_for_in_with_range,
   r#"
     let a = 0
     for (x in 1..5) {
@@ -70,7 +70,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_for_in_destructure,
+  loop_for_in_destructure,
   r#"
     let a = 0
     const b = [[1, 2], [3, 4]]
@@ -83,7 +83,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_for_in_object_kv,
+  loop_for_in_object_kv,
   r#"
     let a = ""
     let sum = 0
@@ -98,7 +98,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_for_in_object_keys,
+  loop_for_in_object_keys,
   r#"
     let a = ""
     const o = { a: 1, b: 2 }
@@ -111,7 +111,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_for_in_string,
+  loop_for_in_string,
   r#"
     let a = ""
     for (x in "hello") {

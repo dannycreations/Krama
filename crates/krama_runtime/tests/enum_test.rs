@@ -2,7 +2,7 @@ use krama_core::ObjectKind;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
-  eval_simple_enum,
+  enum_simple,
   r#"
     enum Status {
       Active,
@@ -19,7 +19,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_enum_with_fields,
+  enum_with_fields,
   r#"
     enum Message {
       Text(str),
@@ -36,7 +36,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_enum_with_multiple_fields,
+  enum_with_multiple_fields,
   r#"
     enum Point {
       TwoD(i64, i64),

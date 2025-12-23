@@ -2,7 +2,7 @@ use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_ok};
 
 test_eval_ok!(
-  eval_assert_module,
+  assert_module,
   r#"
     const { assert } = import("std:assert")
     assert(true)
@@ -11,7 +11,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_assert_equal_module,
+  assert_equal_module,
   r#"
     const { assertEqual } = import("std:assert")
     assertEqual(1, 1)
@@ -20,7 +20,7 @@ test_eval_ok!(
 );
 
 test_eval_err!(
-  eval_failing_assert,
+  assert_fail,
   r#"
     const { assert } = import("std:assert")
     assert(false)
@@ -29,7 +29,7 @@ test_eval_err!(
 );
 
 test_eval_err!(
-  eval_failing_assert_equal,
+  assert_equal_fail,
   r#"
     const { assertEqual } = import("std:assert")
     assertEqual(1, 2)

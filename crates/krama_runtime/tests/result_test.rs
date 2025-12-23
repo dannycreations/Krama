@@ -2,29 +2,29 @@ use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_match, test_eval_ok};
 
 test_eval_match!(
-  ok_result,
+  result_ok,
   "Ok(\"value\")",
   ObjectKind::Ok(val) if matches!(val, ObjectKind::String("value"))
 );
 
-test_eval_err!(err_result, "Err(\"error\")", ErrorKind::RuntimeError(_));
+test_eval_err!(result_err, "Err(\"error\")", ErrorKind::RuntimeError(_));
 
 test_eval_match!(
-  ok_result_as_value,
+  result_ok_as_value,
   "Ok(\"value\")?",
   ObjectKind::Ok(val) if matches!(val, ObjectKind::String("value"))
 );
 
 test_eval_err!(
-  err_result_as_value,
+  result_err_as_value,
   "Err(\"error\")?",
   ErrorKind::RuntimeError(_)
 );
 
-test_eval_ok!(non_result_try, "42?", ObjectKind::Integer(42));
+test_eval_ok!(result_non_try, "42?", ObjectKind::Integer(42));
 
 test_eval_match!(
-  ok_propagation,
+  result_ok_propagation,
   r#"
     fn success() {
       Ok("value")
@@ -40,7 +40,7 @@ test_eval_match!(
 );
 
 test_eval_err!(
-  err_propagation,
+  result_err_propagation,
   r#"
     fn fail() {
       Err("error")
@@ -58,7 +58,7 @@ test_eval_err!(
 );
 
 test_eval_ok!(
-  err_propagation_as_ignored_value,
+  result_err_propagation_as_ignored_value,
   r#"
     fn fail() {
       Err("error")
@@ -75,7 +75,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  ok_if_pattern,
+  result_ok_if_pattern,
   r#"
     const a = Ok(42)
     if (Ok(b) = a) {
@@ -90,7 +90,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  err_if_pattern,
+  result_err_if_pattern,
   r#"
     const a = Err("error")?
     if (Err(e) = a) {
@@ -103,7 +103,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  ok_match_pattern,
+  result_ok_match_pattern,
   r#"
     const a = Ok(100)
     match (a) {
@@ -115,7 +115,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  err_match_pattern,
+  result_err_match_pattern,
   r#"
     const a = Err(100)?
     match (a) {
@@ -127,7 +127,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  ok_while_pattern,
+  result_ok_while_pattern,
   r#"
     let sum = 0
     let a = Ok(5)
@@ -145,7 +145,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  err_while_pattern,
+  result_err_while_pattern,
   r#"
     let sum = 0
     let a = Err(5)?

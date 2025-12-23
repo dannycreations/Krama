@@ -2,7 +2,7 @@ use krama_core::ObjectKind;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
-  eval_while_loop,
+  loop_while,
   r#"
     let a = 0
     let b = 0
@@ -16,7 +16,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_while_loop_with_break,
+  loop_while_with_break,
   r#"
     let a = 0
     while (a < 10) {
@@ -31,7 +31,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_while_loop_with_continue,
+  loop_while_with_continue,
   r#"
     let a = 0
     let b = 0
@@ -48,7 +48,7 @@ test_eval_ok!(
 );
 
 test_eval_ok!(
-  eval_while_loop_with_return,
+  loop_while_with_return,
   r#"
     fn a() {
       let b = 0
