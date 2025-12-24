@@ -1,3 +1,5 @@
+use strum::EnumProperty;
+
 use super::ObjectKind;
 
 impl<'ast> ObjectKind<'ast> {
@@ -39,11 +41,13 @@ impl<'ast> ObjectKind<'ast> {
   /// Returns the type name of the object for diagnostics and type checking.
   #[inline(always)]
   pub fn type_name(&self) -> &str {
-    use strum::EnumProperty;
     match self {
       Self::Enum { name, .. } => name,
       Self::Struct(def) => def.name,
-      Self::StructInstance { definition, .. } => definition.name,
+      Self::Object {
+        definition: Some(def),
+        ..
+      } => def.name,
       Self::Scope(s) if s.name.is_some() => "module",
       Self::Scope(_) => "global",
       // Fallback to strum-generated property for primitive types.

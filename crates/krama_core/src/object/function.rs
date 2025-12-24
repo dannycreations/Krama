@@ -1,7 +1,7 @@
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use futures::future::LocalBoxFuture;
 
-use crate::{ErrorKind, FunctionBody, ObjectKind, Parameter, Type};
+use crate::{Enum, ErrorKind, FunctionBody, ObjectKind, Parameter, Type};
 
 /// Callback type for native functions implemented in Rust.
 pub type NativeFnCb =
@@ -36,5 +36,5 @@ pub struct UserFunction<'ast> {
 pub enum FunctionKind<'ast> {
   Native(NativeFunction),
   User(&'ast UserFunction<'ast>),
-  Enum(&'ast crate::Enum<'ast>),
+  Enum(&'ast Enum<'ast>),
 }

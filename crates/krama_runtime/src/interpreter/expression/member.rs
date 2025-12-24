@@ -28,52 +28,55 @@ impl<'ast> Interpreter<'ast> {
     };
 
     match object {
-      // 2. Handle Object literals.
-      ObjectKind::Object { properties, .. } => Ok(
-        properties
-          .read()
-          .get(property_name)
-          .cloned()
-          .unwrap_or(ObjectKind::Void),
-      ),
-
-      // 3. Handle Struct instances (Fields and Methods).
-      ObjectKind::StructInstance { definition, fields } => {
-        // a. Check fields first.
-        if let Some(value) = fields.read().get(property_name) {
-          if let Some(field_def) =
-            definition.fields.iter().find(|f| f.name == property_name)
-          {
-            self.ensure_accessible(
-              field_def.public,
-              property_name,
-              definition.name,
-              span,
-            )?;
+      // 2. Handle Object literals and Struct instances.
+      ObjectKind::Object {
+        properties,
+        definition,
+        ..
+      } => {
+        // a. Check properties (fields) first.
+        if let Some(value) = properties.read().get(property_name) {
+          if let Some(definition) = definition {
+            if let Some(field_def) =
+              definition.fields.iter().find(|f| f.name == property_name)
+            {
+              self.ensure_accessible(
+                field_def.public,
+                property_name,
+                definition.name,
+                span,
+              )?;
+            }
           }
           return Ok(value.clone());
         }
 
-        // b. Check methods if field not found.
-        if let Some(method) =
-          definition.methods.iter().find(|m| m.name == property_name)
-        {
-          self.ensure_accessible(
-            method.public,
-            property_name,
-            definition.name,
-            span,
-          )?;
-          return Ok(Self::from_method(method, self.arena));
+        // b. Check methods if it's a struct instance.
+        if let Some(definition) = definition {
+          if let Some(method) =
+            definition.methods.iter().find(|m| m.name == property_name)
+          {
+            self.ensure_accessible(
+              method.public,
+              property_name,
+              definition.name,
+              span,
+            )?;
+            return Ok(Self::from_method(method, self.arena));
+          }
         }
 
-        Err(Error::new(
-          ErrorKind::ReferenceError(format!(
-            "Property or method '{}' not found in struct '{}'",
-            property_name, definition.name
-          )),
-          span,
-        ))
+        if let Some(definition) = definition {
+          Err(Error::new(
+            ErrorKind::ReferenceError(format!(
+              "Property or method '{}' not found in struct '{}'",
+              property_name, definition.name
+            )),
+            span,
+          ))
+        } else {
+          Ok(ObjectKind::Void)
+        }
       }
 
       // 4. Handle Struct definitions (Static methods).

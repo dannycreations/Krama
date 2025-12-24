@@ -47,6 +47,7 @@ pub enum ObjectKind<'ast> {
   #[strum(props(name = "object"))]
   Object {
     properties: &'ast RwLock<IndexMap<&'ast str, ObjectKind<'ast>>>,
+    definition: Option<&'ast Struct<'ast>>,
     constant: bool,
   },
   Scope(&'ast Scope<'ast>),
@@ -70,11 +71,6 @@ pub enum ObjectKind<'ast> {
   },
   #[strum(props(name = "struct"))]
   Struct(&'ast Struct<'ast>),
-  #[strum(props(name = "struct_instance"))]
-  StructInstance {
-    definition: &'ast Struct<'ast>,
-    fields: &'ast RwLock<IndexMap<&'ast str, ObjectKind<'ast>>>,
-  },
   #[strum(props(name = "type"))]
   Type(Type<'ast>),
 }

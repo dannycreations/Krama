@@ -92,6 +92,7 @@ impl<'ast> Interpreter<'ast> {
             properties: self
               .arena
               .alloc(RwLock::new(properties.into_iter().collect())),
+            definition: None,
             constant: true,
           };
           self.env_mut(span)?.set(name, enum_obj, *public, true);

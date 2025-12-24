@@ -81,6 +81,7 @@ impl<'ast> Interpreter<'ast> {
     let object = self.eval_properties(properties).await?;
     Ok(ObjectKind::Object {
       properties: self.arena.alloc(RwLock::new(object)),
+      definition: None,
       constant: false,
     })
   }

@@ -125,7 +125,10 @@ impl<'ast> Interpreter<'ast> {
       env.set("this", this.clone(), false, true);
 
       let struct_name = match &this {
-        ObjectKind::StructInstance { definition, .. } => Some(definition.name),
+        ObjectKind::Object {
+          definition: Some(definition),
+          ..
+        } => Some(definition.name),
         ObjectKind::Struct(definition) => Some(definition.name),
         _ => None,
       };

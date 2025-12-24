@@ -68,10 +68,6 @@ impl<'ast> PartialEq for ObjectKind<'ast> {
         },
       ) => ln == rn && lv == rv && lf == rf,
       (Self::Struct(l), Self::Struct(r)) => ptr::eq(*l, *r),
-      (
-        Self::StructInstance { fields: lf, .. },
-        Self::StructInstance { fields: rf, .. },
-      ) => ptr::eq(*lf, *rf),
       (Self::Type(l), Self::Type(r)) => l == r,
       _ => false,
     }
@@ -334,8 +330,16 @@ impl<'ast> Display for ObjectKind<'ast> {
         }
         write!(f, ")")
       }
-      Self::Object { properties, .. } => {
-        write!(f, "{{")?;
+      Self::Object {
+        properties,
+        definition,
+        ..
+      } => {
+        if let Some(def) = definition {
+          write!(f, "{} {{", def.name)?;
+        } else {
+          write!(f, "{{")?;
+        }
         let properties = properties.read();
         for (i, (key, value)) in properties.iter().enumerate() {
           if i > 0 {
@@ -377,17 +381,6 @@ impl<'ast> Display for ObjectKind<'ast> {
         Ok(())
       }
       Self::Struct(s) => write!(f, "struct {}", s.name),
-      Self::StructInstance { definition, fields } => {
-        write!(f, "{} {{", definition.name)?;
-        let fields = fields.read();
-        for (i, (name, value)) in fields.iter().enumerate() {
-          if i > 0 {
-            write!(f, ", ")?;
-          }
-          write!(f, "{}: {}", name, value)?;
-        }
-        write!(f, "}}")
-      }
       Self::Type(t) => write!(f, "type {}", t),
     }
   }

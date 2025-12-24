@@ -41,9 +41,10 @@ impl<'ast> Interpreter<'ast> {
       final_fields.insert(field.name, value);
     }
 
-    Ok(ObjectKind::StructInstance {
-      definition,
-      fields: self.arena.alloc(RwLock::new(final_fields)),
+    Ok(ObjectKind::Object {
+      properties: self.arena.alloc(RwLock::new(final_fields)),
+      definition: Some(definition),
+      constant: false,
     })
   }
 }

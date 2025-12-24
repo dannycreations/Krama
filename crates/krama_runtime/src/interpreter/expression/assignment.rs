@@ -114,6 +114,7 @@ impl<'ast> Interpreter<'ast> {
           ObjectKind::Object {
             properties,
             constant,
+            ..
           } => {
             if constant {
               return Err(
@@ -125,9 +126,6 @@ impl<'ast> Interpreter<'ast> {
             }
             Ok(LValue::Property { properties, name })
           }
-          ObjectKind::StructInstance {
-            fields: properties, ..
-          } => Ok(LValue::Property { properties, name }),
           _ => Err(
             ErrorKind::TypeError(format!(
               "Cannot assign to property of type {}",
@@ -158,6 +156,7 @@ impl<'ast> Interpreter<'ast> {
           ObjectKind::Object {
             properties,
             constant,
+            ..
           } => {
             if constant {
               return Err(
