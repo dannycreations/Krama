@@ -1,7 +1,23 @@
 use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_ok};
 
+// --- Basic Function Calls ---
+
 test_eval_ok!(function_call, "print(\"hello world\")", ObjectKind::Void);
+
+test_eval_ok!(
+  function_with_statement,
+  "fn a(x, y) { x + y }; a(5, 5)",
+  ObjectKind::Integer(10)
+);
+
+test_eval_ok!(
+  function_with_return_statement,
+  "fn a(x, y) { return x + y }; a(5, 5)",
+  ObjectKind::Integer(10)
+);
+
+// --- Anonymous Functions & Arrows ---
 
 test_eval_ok!(
   function_let_bound,
@@ -33,17 +49,7 @@ test_eval_err!(
   ErrorKind::SyntaxError(_)
 );
 
-test_eval_ok!(
-  function_with_statement,
-  "fn a(x, y) { x + y }; a(5, 5)",
-  ObjectKind::Integer(10)
-);
-
-test_eval_ok!(
-  function_with_return_statement,
-  "fn a(x, y) { return x + y }; a(5, 5)",
-  ObjectKind::Integer(10)
-);
+// --- Arguments & Defaults ---
 
 test_eval_ok!(
   function_with_default_argument,
@@ -85,4 +91,40 @@ test_eval_err!(
   function_missing_argument_after_optional,
   "fn a(x = 0, y) { x }; a()",
   ErrorKind::TypeError(_)
+);
+
+// --- Closures & Scoping ---
+
+test_eval_ok!(
+  function_closure_capture,
+  r#"
+    let x = 10
+    const add_x = (y) => x + y
+    add_x(5)
+  "#,
+  ObjectKind::Integer(15)
+);
+
+test_eval_ok!(
+  function_closure_mutation,
+  r#"
+    let x = 10
+    const inc = fn() { x = x + 1; x }
+    inc()
+    x
+  "#,
+  ObjectKind::Integer(11)
+);
+
+// --- Recursion ---
+
+test_eval_ok!(
+  function_recursion,
+  r#"
+    fn fib(n) {
+      if (n <= 1) { n } else { fib(n - 1) + fib(n - 2) }
+    }
+    fib(7)
+  "#,
+  ObjectKind::Integer(13)
 );

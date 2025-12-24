@@ -1,6 +1,8 @@
 use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_match, test_eval_ok};
 
+// --- Basic Result Types ---
+
 test_eval_match!(
   result_ok,
   "Ok(\"value\")",
@@ -8,6 +10,8 @@ test_eval_match!(
 );
 
 test_eval_err!(result_err, "Err(\"error\")", ErrorKind::RuntimeError(_));
+
+// --- Try Operator (?) ---
 
 test_eval_match!(
   result_ok_as_value,
@@ -22,6 +26,8 @@ test_eval_err!(
 );
 
 test_eval_ok!(result_non_try, "42?", ObjectKind::Integer(42));
+
+// --- Error Propagation ---
 
 test_eval_match!(
   result_ok_propagation,
@@ -74,6 +80,43 @@ test_eval_ok!(
   ObjectKind::Void
 );
 
+// --- Advanced Chaining & Nested Try ---
+
+test_eval_match!(
+  result_nested_try_chain,
+  r#"
+    fn first(x) { Ok(x + 1) }
+    fn second(x) { Ok(x * 2) }
+    fn main() {
+      let val = first(1)?
+      if (Ok(v) = val) {
+        second(v)?
+      } else {
+        Err("unexpected")
+      }
+    }
+    main()
+  "#,
+  ObjectKind::Ok(val) if matches!(val, ObjectKind::Integer(4))
+);
+
+test_eval_err!(
+  result_chain_failure,
+  r#"
+    fn first() { Ok(1) }
+    fn second() { Err("fail") }
+    fn main() {
+      let a = first()?
+      let b = second()?
+      a + b
+    }
+    main()
+  "#,
+  ErrorKind::RuntimeError(_)
+);
+
+// --- Pattern Matching with Results ---
+
 test_eval_ok!(
   result_ok_if_pattern,
   r#"
@@ -125,6 +168,8 @@ test_eval_ok!(
   "#,
   ObjectKind::Integer(0)
 );
+
+// --- Control Flow with Results ---
 
 test_eval_ok!(
   result_ok_while_pattern,

@@ -1,5 +1,7 @@
-use krama_core::ObjectKind;
-use krama_runtime::test_eval_ok;
+use krama_core::{ErrorKind, ObjectKind};
+use krama_runtime::{test_eval_err, test_eval_ok};
+
+// --- Arithmetic Operators ---
 
 test_eval_ok!(operator_integer_addition, "5 + 5", ObjectKind::Integer(10));
 
@@ -53,6 +55,48 @@ test_eval_ok!(
   ObjectKind::Float(8.0)
 );
 
+// --- Precedence & Complex Expressions ---
+
+test_eval_ok!(
+  operator_precedence_multiplication_addition,
+  "2 + 3 * 4",
+  ObjectKind::Integer(14)
+);
+
+test_eval_ok!(
+  operator_precedence_parentheses,
+  "(2 + 3) * 4",
+  ObjectKind::Integer(20)
+);
+
+test_eval_ok!(
+  operator_precedence_exponentiation,
+  "2 * 3 ** 2",
+  ObjectKind::Integer(18)
+);
+
+test_eval_ok!(
+  operator_precedence_comparison_logical,
+  "1 + 2 == 3 && 4 > 5 == false",
+  ObjectKind::Boolean(true)
+);
+
+// --- Edge Cases ---
+
+test_eval_err!(
+  operator_division_by_zero_integer,
+  "1 / 0",
+  ErrorKind::RuntimeError(_)
+);
+
+test_eval_ok!(
+  operator_division_by_zero_float,
+  "1.0 / 0.0",
+  ObjectKind::Float(f64::INFINITY)
+);
+
+// --- Unary Operators ---
+
 test_eval_ok!(
   operator_prefix_increment,
   "let a = 5; ++a",
@@ -75,6 +119,56 @@ test_eval_ok!(
   operator_postfix_decrement,
   "let a = 5; a--",
   ObjectKind::Integer(5)
+);
+
+test_eval_ok!(
+  operator_logical_bang_true,
+  "!true",
+  ObjectKind::Boolean(false)
+);
+
+test_eval_ok!(
+  operator_logical_bang_false,
+  "!false",
+  ObjectKind::Boolean(true)
+);
+
+test_eval_ok!(
+  operator_logical_bang_number,
+  "!5",
+  ObjectKind::Boolean(false)
+);
+
+test_eval_ok!(
+  operator_logical_double_bang_true,
+  "!!true",
+  ObjectKind::Boolean(true)
+);
+
+test_eval_ok!(
+  operator_logical_double_bang_number,
+  "!!5",
+  ObjectKind::Boolean(true)
+);
+
+test_eval_err!(
+  operator_negate_non_numeric,
+  "-true",
+  ErrorKind::TypeError(_)
+);
+
+test_eval_err!(
+  operator_bitwise_not_non_integer,
+  "~true",
+  ErrorKind::TypeError(_)
+);
+
+// --- Assignment Operators ---
+
+test_eval_ok!(
+  operator_assignment,
+  "let a = 5; a = 2",
+  ObjectKind::Integer(2)
 );
 
 test_eval_ok!(
@@ -105,4 +199,48 @@ test_eval_ok!(
   operator_percent_equal_assignment,
   "let a = 5; a %= 2",
   ObjectKind::Integer(1)
+);
+
+test_eval_err!(
+  operator_assignment_to_unknown,
+  "y = 10",
+  ErrorKind::ReferenceError(_)
+);
+
+// --- Comparison Operators ---
+
+test_eval_ok!(
+  operator_string_equality,
+  "\"a\" == \"a\"",
+  ObjectKind::Boolean(true)
+);
+
+test_eval_ok!(
+  operator_string_inequality,
+  "\"a\" != \"b\"",
+  ObjectKind::Boolean(true)
+);
+
+test_eval_ok!(
+  operator_boolean_equality,
+  "true == true",
+  ObjectKind::Boolean(true)
+);
+
+test_eval_ok!(
+  operator_boolean_inequality,
+  "true != false",
+  ObjectKind::Boolean(true)
+);
+
+test_eval_err!(
+  operator_invalid_string_multiplication,
+  "\"a\" * \"b\"",
+  ErrorKind::TypeError(_)
+);
+
+test_eval_err!(
+  operator_invalid_boolean_addition,
+  "true + false",
+  ErrorKind::TypeError(_)
 );

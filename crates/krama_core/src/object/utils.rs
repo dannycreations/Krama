@@ -1,7 +1,7 @@
 use super::ObjectKind;
 
 impl<'ast> ObjectKind<'ast> {
-  /// Checks if the object is a control flow signal.
+  /// Checks if the object is a control flow signal (Return, Break, or Continue).
   #[inline(always)]
   pub fn is_control_signal(&self) -> bool {
     matches!(self, Self::Return(_) | Self::Break | Self::Continue)
@@ -13,7 +13,19 @@ impl<'ast> ObjectKind<'ast> {
     matches!(self, Self::Err(_))
   }
 
-  /// Helper to unwrap Return signals if they contain an Err variant.
+  /// Unwraps a Return signal to its inner value. If not a Return signal, returns self.
+  #[inline(always)]
+  pub fn unwrap_return(&self) -> &Self {
+    if let Self::Return(inner) = self {
+      inner
+    } else {
+      self
+    }
+  }
+
+  /// Specialized unwrap that converts Return(Err(e)) into Err(e).
+  /// This is used for implicit error propagation where errors are automatically returned
+  /// unless handled by a Try expression.
   #[inline(always)]
   pub fn unwrap_return_err(&self) -> &Self {
     if let Self::Return(inner) = self {
@@ -24,17 +36,7 @@ impl<'ast> ObjectKind<'ast> {
     self
   }
 
-  /// Helper to unwrap Return signals.
-  #[inline(always)]
-  pub fn unwrap_return(&self) -> &Self {
-    if let Self::Return(inner) = self {
-      inner
-    } else {
-      self
-    }
-  }
-
-  /// Returns the type name of the object.
+  /// Returns the type name of the object for diagnostics and type checking.
   #[inline(always)]
   pub fn type_name(&self) -> &str {
     use strum::EnumProperty;
@@ -44,11 +46,12 @@ impl<'ast> ObjectKind<'ast> {
       Self::StructInstance { definition, .. } => definition.name,
       Self::Scope(s) if s.name.is_some() => "module",
       Self::Scope(_) => "global",
+      // Fallback to strum-generated property for primitive types.
       _ => self.get_str("name").unwrap_or("unknown"),
     }
   }
 
-  /// Checks if the object is truthy.
+  /// Determines the truthiness of an object for logical operations and control flow.
   #[inline]
   pub fn is_truthy(&self) -> bool {
     match self {
@@ -58,12 +61,13 @@ impl<'ast> ObjectKind<'ast> {
       Self::String(s) => !s.is_empty(),
       Self::Array { elements, .. } => !elements.read().is_empty(),
       Self::Tuple { elements } => !elements.is_empty(),
+      // Null, Void, and Err are always falsy.
       Self::Null | Self::Void | Self::Err(_) => false,
       _ => true,
     }
   }
 
-  /// Sets the constant flag for containers.
+  /// Sets the constant flag for container types (Array, Object).
   #[inline]
   pub fn set_constant(&mut self, constant: bool) {
     if let Self::Array { constant: c, .. } | Self::Object { constant: c, .. } =

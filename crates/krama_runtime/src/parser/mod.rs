@@ -70,6 +70,22 @@ where
     }
   }
 
+  /// Speculatively attempts to parse using the provided closure.
+  /// If the closure returns an error, the parser state is restored.
+  pub fn try_parse<F, T>(&mut self, f: F) -> Result<T, ErrorKind>
+  where
+    F: FnOnce(&mut Self) -> Result<T, ErrorKind>,
+  {
+    let mut checkpoint = self.clone();
+    match f(&mut checkpoint) {
+      Ok(result) => {
+        *self = checkpoint;
+        Ok(result)
+      }
+      Err(e) => Err(e),
+    }
+  }
+
   /// Parses the entire program into an AST.
   pub fn parse(&mut self) -> Result<Program<'ast>, Error<'a>> {
     let mut statements = BumpVec::new_in(self.arena);

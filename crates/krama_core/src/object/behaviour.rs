@@ -150,6 +150,24 @@ impl<'ast> ObjectKind<'ast> {
     }
   }
 
+  /// Internal helper to unify comparison logic for numbers.
+  #[inline(always)]
+  fn compare_numbers<N: PartialOrd>(
+    l: N,
+    r: N,
+    op: BinaryOperator,
+  ) -> Option<bool> {
+    match op {
+      BinaryOperator::Equal => Some(l == r),
+      BinaryOperator::NotEqual => Some(l != r),
+      BinaryOperator::GreaterThan => Some(l > r),
+      BinaryOperator::GreaterThanOrEqual => Some(l >= r),
+      BinaryOperator::LessThan => Some(l < r),
+      BinaryOperator::LessThanOrEqual => Some(l <= r),
+      _ => None,
+    }
+  }
+
   fn perform_int_op(
     &self,
     op: BinaryOperator,
@@ -157,6 +175,10 @@ impl<'ast> ObjectKind<'ast> {
     r: i64,
     arena: &'ast Bump,
   ) -> Result<Self, ErrorKind> {
+    if let Some(res) = Self::compare_numbers(l, r, op) {
+      return Ok(Self::Boolean(res));
+    }
+
     match op {
       BinaryOperator::Add => Ok(Self::Integer(l.wrapping_add(r))),
       BinaryOperator::Subtract => Ok(Self::Integer(l.wrapping_sub(r))),
@@ -174,12 +196,6 @@ impl<'ast> ObjectKind<'ast> {
       BinaryOperator::BitwiseXor => Ok(Self::Integer(l.bitxor(r))),
       BinaryOperator::LeftShift => Ok(Self::Integer(l.shl(r))),
       BinaryOperator::RightShift => Ok(Self::Integer(l.shr(r))),
-      BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
-      BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
-      BinaryOperator::GreaterThan => Ok(Self::Boolean(l > r)),
-      BinaryOperator::GreaterThanOrEqual => Ok(Self::Boolean(l >= r)),
-      BinaryOperator::LessThan => Ok(Self::Boolean(l < r)),
-      BinaryOperator::LessThanOrEqual => Ok(Self::Boolean(l <= r)),
       BinaryOperator::Range => {
         if r < l {
           return Ok(Self::Tuple { elements: &[] });
@@ -206,6 +222,10 @@ impl<'ast> ObjectKind<'ast> {
     l: f64,
     r: f64,
   ) -> Result<Self, ErrorKind> {
+    if let Some(res) = Self::compare_numbers(l, r, op) {
+      return Ok(Self::Boolean(res));
+    }
+
     match op {
       BinaryOperator::Add => Ok(Self::Float(l.add(r))),
       BinaryOperator::Subtract => Ok(Self::Float(l.sub(r))),
@@ -213,12 +233,6 @@ impl<'ast> ObjectKind<'ast> {
       BinaryOperator::Divide => Ok(Self::Float(l.div(r))),
       BinaryOperator::Modulo => Ok(Self::Float(l.rem(r))),
       BinaryOperator::Exponent => Ok(Self::Float(l.powf(r))),
-      BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
-      BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
-      BinaryOperator::GreaterThan => Ok(Self::Boolean(l > r)),
-      BinaryOperator::GreaterThanOrEqual => Ok(Self::Boolean(l >= r)),
-      BinaryOperator::LessThan => Ok(Self::Boolean(l < r)),
-      BinaryOperator::LessThanOrEqual => Ok(Self::Boolean(l <= r)),
       _ => Err(ErrorKind::TypeError(format!(
         "Unsupported operator for floats: {:?}",
         op
@@ -233,10 +247,12 @@ impl<'ast> ObjectKind<'ast> {
     r: &str,
     arena: &'ast Bump,
   ) -> Result<Self, ErrorKind> {
+    if let Some(res) = Self::compare_numbers(l, r, op) {
+      return Ok(Self::Boolean(res));
+    }
+
     match op {
       BinaryOperator::Add => Ok(Self::concat_strings(l, r, arena)),
-      BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
-      BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
       _ => Err(ErrorKind::TypeError(format!(
         "Unsupported operator for strings: {:?}",
         op

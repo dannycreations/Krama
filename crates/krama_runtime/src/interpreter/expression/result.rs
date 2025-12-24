@@ -11,7 +11,10 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<ObjectKind<'ast>, krama_core::Error<'ast>> {
     let val = self.eval_expression(expr, None).await?;
 
-    // If result is Return(Err), unwrap it to Err to allow the '?' operator to catch it.
+    // The '?' operator unwraps Return(Err(e)) to Err(e).
+    // This allows it to "catch" implicit error propagation and continue execution.
+    // If it's a normal Return(Ok(v)), it remains Return(Ok(v)) which will eventually
+    // be propagated or unwrapped by the calling function.
     if let ObjectKind::Return(inner) = &val {
       if inner.is_result_err() {
         return Ok((*inner).clone());

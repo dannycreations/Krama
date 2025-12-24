@@ -82,9 +82,8 @@ where
     let span = self.current_token.span;
     self.advance();
     if self.current_token.kind == TokenKind::LBrace {
-      let mut obj_parser = self.clone();
-      if let Ok(expr) = obj_parser.parse_object_expression() {
-        *self = obj_parser;
+      // Use try_parse to avoid manual state cloning.
+      if let Ok(expr) = self.try_parse(|p| p.parse_object_expression()) {
         if let ExpressionKind::Object { properties } = expr.kind {
           return Ok(Expression::new(
             ExpressionKind::StructConstruction { properties },
@@ -99,9 +98,8 @@ where
 
   /// Parses a block or an object literal depending on content.
   fn parse_block_or_object_expression(&mut self) -> ParseResult<'a, 'ast> {
-    let mut obj_parser = self.clone();
-    if let Ok(expr) = obj_parser.parse_object_expression() {
-      *self = obj_parser;
+    // Use try_parse to distinguish between object literal and block statement.
+    if let Ok(expr) = self.try_parse(|p| p.parse_object_expression()) {
       return Ok(expr);
     }
     let block = self.arena.alloc(self.parse_block_statement()?);

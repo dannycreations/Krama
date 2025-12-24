@@ -84,12 +84,11 @@ impl<'ast> Interpreter<'ast> {
           };
 
           // 3. Handle Return signals and control flow.
-          if let ObjectKind::Return(_) = &result {
-            return Ok(result);
-          }
-
-          // Break/Continue in a match expression resolve to Void to allow the outer loop to handle the signal.
-          if matches!(result, ObjectKind::Break | ObjectKind::Continue) {
+          if result.is_control_signal() {
+            if let ObjectKind::Return(_) = &result {
+              return Ok(result);
+            }
+            // Break/Continue in a match expression resolve to Void to allow the outer loop to handle the signal.
             return Ok(ObjectKind::Void);
           }
 
@@ -113,7 +112,7 @@ impl<'ast> Interpreter<'ast> {
     'ast: 's,
   {
     match (pattern, subject) {
-      // 1. Expression-based patterns (Literals, Result variants).
+      // 1. Expression-based patterns (Result variants).
       (MatchPattern::Expression(expression), _) => {
         // Handle Result variant patterns: Ok(v) or Err(e)
         if let ExpressionKind::Call {

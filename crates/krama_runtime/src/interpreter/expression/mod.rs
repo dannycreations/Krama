@@ -131,8 +131,8 @@ impl<'ast> Interpreter<'ast> {
       }?;
 
       // Implicit error propagation: wrap Err in Return if not handled by Try.
-      // We skip this if the result is already a control signal (like Return/Break/Continue)
-      // or if it's the result of a Try expression which handles the error explicitly.
+      // Control signals (Return/Break/Continue) are propagated as-is.
+      // Try expressions handle errors explicitly, so we skip propagation for them.
       if !matches!(expression.kind, ExpressionKind::Try(_))
         && result.is_result_err()
         && !result.is_control_signal()

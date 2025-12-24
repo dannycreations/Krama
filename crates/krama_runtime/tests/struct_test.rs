@@ -1,6 +1,8 @@
 use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::{test_eval_err, test_eval_ok};
 
+// --- Struct Initialization ---
+
 test_eval_ok! {
   struct_init,
   r#"
@@ -18,6 +20,8 @@ test_eval_ok! {
   "#,
   ObjectKind::Float(1.0)
 }
+
+// --- Struct Methods & "this" Context ---
 
 test_eval_ok! {
   struct_methods,
@@ -42,6 +46,8 @@ test_eval_ok! {
   ObjectKind::Float(6.0)
 }
 
+// --- Default Field Values ---
+
 test_eval_ok! {
   struct_defaults,
   r#"
@@ -60,6 +66,8 @@ test_eval_ok! {
   ObjectKind::Integer(8080)
 }
 
+// --- Visibility Control ---
+
 test_eval_err! {
   struct_private_field,
   r#"
@@ -75,4 +83,34 @@ test_eval_err! {
     b.value
   "#,
   ErrorKind::TypeError(_)
+}
+
+test_eval_ok! {
+  struct_private_field_internal_access,
+  r#"
+    struct Box {
+      value: i32,
+      pub fn new(v: i32): this { this { value: v } }
+      pub fn get(): i32 { this.value }
+    }
+    const b = Box.new(42)
+    b.get()
+  "#,
+  ObjectKind::Integer(42)
+}
+
+// --- Recursion & Self-Reference ---
+
+test_eval_ok! {
+  struct_recursive_method,
+  r#"
+    struct Factorial {
+      pub fn calc(n: i64): i64 {
+        if (n <= 1) { 1 } else { n * this.calc(n - 1) }
+      }
+    }
+    const f = Factorial {}
+    f.calc(5)
+  "#,
+  ObjectKind::Integer(120)
 }

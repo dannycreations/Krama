@@ -274,8 +274,15 @@ impl<'ast> Interpreter<'ast> {
           }
           // We use get_mut here because resolve_lvalue already verified the variable exists
           // and we already checked for constant.
-          env.store.get_mut(name).unwrap().value = value;
-          Ok(())
+          if let Some(binding) = env.store.get_mut(name) {
+            binding.value = value;
+            Ok(())
+          } else {
+            Err(Error::new(
+              ErrorKind::ReferenceError(format!("Unknown variable '{}'", name)),
+              span,
+            ))
+          }
         }
       }
       LValue::Property { properties, name } => {

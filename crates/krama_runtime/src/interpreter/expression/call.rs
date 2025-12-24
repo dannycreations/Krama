@@ -169,6 +169,7 @@ impl<'ast> Interpreter<'ast> {
       }
     }?;
 
+    // Functions always unwrap Return signals to return the underlying value.
     Ok(result.unwrap_return().clone())
   }
 }
