@@ -10,6 +10,7 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
+  /// Parses a function expression (`fn(...) {...}`).
   pub fn parse_fn_expression(&mut self) -> ParseResult<'a, 'ast> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::Fn)?;
@@ -30,6 +31,7 @@ where
     ))
   }
 
+  /// Parses function parameters, handling optional types and default values.
   pub fn parse_fn_parameters(
     &mut self,
   ) -> Result<BumpVec<'ast, Parameter<'ast>>, ErrorKind> {
@@ -40,15 +42,7 @@ where
 
     loop {
       let param_span_start = self.current_token.span;
-      let name = if let TokenKind::Identifier(name) = self.current_token.kind {
-        self.arena.alloc_str(name)
-      } else {
-        return Err(ErrorKind::SyntaxError(
-          "Expected parameter name".to_string(),
-        ));
-      };
-      self.advance();
-
+      let name = self.parse_identifier()?;
       let kind = self.parse_optional_type()?;
 
       let default = if self.current_token.kind == TokenKind::Equal {
@@ -62,12 +56,11 @@ where
         None
       };
 
-      let span = param_span_start;
       parameters.push(Parameter {
         name,
         kind,
         default,
-        span,
+        span: param_span_start,
       });
 
       if self.current_token.kind != TokenKind::Comma {
@@ -79,6 +72,7 @@ where
     Ok(parameters)
   }
 
+  /// Parses the body and return type of an arrow function (`(...) : T => expr`).
   pub fn parse_arrow_fn_body_and_return_type(
     &mut self,
   ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), ErrorKind> {
@@ -96,7 +90,8 @@ where
     Ok((body, kind))
   }
 
-  fn parse_classic_fn_body_and_return_type(
+  /// Parses the body and return type of a classic function (`fn(...) : T {...}`).
+  pub fn parse_classic_fn_body_and_return_type(
     &mut self,
   ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), ErrorKind> {
     let kind = self.parse_optional_type()?;

@@ -1,11 +1,11 @@
 mod assignment;
 mod block;
 mod control;
-mod r#enum;
+mod enums;
 mod flow;
 mod function;
 mod public;
-mod r#struct;
+mod structs;
 mod test;
 mod types;
 

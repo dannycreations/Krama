@@ -1,7 +1,7 @@
 use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
-  ErrorKind, FunctionBody, Parameter, PrecedenceKind, Span, Statement,
-  StatementKind, StructField, StructMethod, TokenKind,
+  ErrorKind, FunctionBody, PrecedenceKind, Span, Statement, StatementKind,
+  StructField, StructMethod, TokenKind,
 };
 
 use crate::parser::Parser;
@@ -10,6 +10,7 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
+  /// Parses a struct definition (`struct Name { ... }`).
   pub fn parse_struct_statement(
     &mut self,
     public: bool,
@@ -54,6 +55,7 @@ where
     ))
   }
 
+  /// Parses a single field within a struct.
   fn parse_struct_field(
     &mut self,
     public: bool,
@@ -92,6 +94,7 @@ where
     })
   }
 
+  /// Parses a method definition within a struct.
   fn parse_struct_method(
     &mut self,
     public: bool,
@@ -101,54 +104,11 @@ where
     let name = self.parse_identifier()?;
     self.consume(TokenKind::LParen)?;
 
-    let mut parameters = BumpVec::new_in(self.arena);
-    if self.current_token.kind != TokenKind::RParen {
-      loop {
-        let param_start = self.current_token.span;
-        let param_name = self.parse_identifier()?;
-        self.consume(TokenKind::Colon)?;
-        let param_kind = self.parse_type()?;
-
-        let mut param_span = param_start.merge(&param_kind.span);
-        let default = if self.current_token.kind == TokenKind::Equal {
-          self.advance();
-          let expr = self.parse_expression(PrecedenceKind::Lowest)?;
-          param_span = param_span.merge(&expr.span);
-          Some(&*self.arena.alloc(expr))
-        } else {
-          None
-        };
-
-        parameters.push(Parameter {
-          name: param_name,
-          kind: Some(param_kind),
-          default,
-          span: param_span,
-        });
-
-        if self.current_token.kind == TokenKind::RParen {
-          break;
-        }
-        self.consume(TokenKind::Comma)?;
-        if self.current_token.kind == TokenKind::RParen {
-          break;
-        }
-      }
-    }
+    // Reuse parse_fn_parameters for consistency and to reduce duplication.
+    let parameters = self.parse_fn_parameters()?;
     self.consume(TokenKind::RParen)?;
 
-    let kind = self.parse_optional_type()?;
-
-    let body = if self.current_token.kind == TokenKind::LBrace {
-      FunctionBody::Block(self.arena.alloc(self.parse_block_statement()?))
-    } else {
-      self.consume(TokenKind::Arrow)?;
-      FunctionBody::Expression(
-        self
-          .arena
-          .alloc(self.parse_expression(PrecedenceKind::Lowest)?),
-      )
-    };
+    let (body, kind) = self.parse_classic_fn_body_and_return_type()?;
 
     let end_span = match &body {
       FunctionBody::Block(b) => b.span,

@@ -1,14 +1,15 @@
+mod binding;
+mod iteration;
+
 use ahash::AHashMap;
-use bumpalo::collections::Vec as BumpVec;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  ConstBinding, Destructure, Enum, Error, ErrorKind, Expression,
-  ExpressionKind, ForBinding, FunctionKind, ObjectKind, Span, Statement,
+  Enum, Error, Expression, ExpressionKind, FunctionKind, ObjectKind, Statement,
   StatementBlock, StatementKind, Struct, Type,
 };
 use parking_lot::RwLock;
 
-use super::{
+use crate::interpreter::{
   types::{check_type, resolve_type},
   Interpreter,
 };
@@ -243,7 +244,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   /// Helper to evaluate an expression and check its type if a hint is provided.
-  async fn eval_and_check_type(
+  pub(crate) async fn eval_and_check_type(
     &self,
     value_expr: &Expression<'ast>,
     kind_hint: Option<&Type<'ast>>,
@@ -262,161 +263,6 @@ impl<'ast> Interpreter<'ast> {
       check_type(kind, &value)?;
     }
     Ok(value)
-  }
-
-  /// Applies a binding (Identifier or Destructuring) to the environment.
-  fn apply_binding(
-    &self,
-    binding: &ConstBinding<'ast>,
-    value: ObjectKind<'ast>,
-    public: bool,
-    span: Span,
-  ) -> Result<(), Error<'ast>> {
-    match binding {
-      ConstBinding::Identifier(name) => {
-        self.env_mut(span)?.set(name, value, public, true);
-      }
-      ConstBinding::Destructure(items) => {
-        self.apply_destructuring(None, items, value, public, span)?;
-      }
-      ConstBinding::ModuleAndDestructure { alias, items } => {
-        self.apply_destructuring(Some(alias), items, value, public, span)?;
-      }
-    }
-    Ok(())
-  }
-
-  /// Handles destructuring logic for module imports.
-  fn apply_destructuring(
-    &self,
-    alias: Option<&'ast str>,
-    items: &[Destructure<'ast>],
-    value: ObjectKind<'ast>,
-    public: bool,
-    span: Span,
-  ) -> Result<(), Error<'ast>> {
-    if let ObjectKind::Scope(scope) = &value {
-      if let Some(alias_name) = alias {
-        self
-          .env_mut(span)?
-          .set(alias_name, value.clone(), public, true);
-      }
-      for item in items {
-        if let Some(export) = scope.get_binding(item.name) {
-          let name = item.alias.unwrap_or(item.name);
-          self.env_mut(span)?.set(name, export.clone(), public, true);
-        } else {
-          return Err(Error::new(
-            ErrorKind::ReferenceError(format!(
-              "'{}' is not exported from module '{}'",
-              item.name,
-              scope.name.unwrap_or("<anonymous>")
-            )),
-            span,
-          ));
-        }
-      }
-      Ok(())
-    } else {
-      Err(Error::new(
-        ErrorKind::TypeError(
-          "Destructuring can only be done on modules".to_string(),
-        ),
-        span,
-      ))
-    }
-  }
-
-  /// Collects elements from an iterable for a for-loop.
-  fn collect_iterable_elements(
-    &self,
-    iterable: &ObjectKind<'ast>,
-    binding: &ForBinding<'ast>,
-    span: Span,
-  ) -> Result<Vec<ObjectKind<'ast>>, Error<'ast>> {
-    match iterable {
-      ObjectKind::Array { elements, .. } => Ok(elements.read().to_vec()),
-      ObjectKind::Tuple { elements } => Ok(elements.to_vec()),
-      ObjectKind::String(s) => Ok(
-        s.chars()
-          .map(|c| ObjectKind::String(self.arena.alloc_str(&c.to_string())))
-          .collect(),
-      ),
-      ObjectKind::Object { properties, .. } => {
-        let props = properties.read();
-        let mut yields = Vec::with_capacity(props.len());
-
-        match binding {
-          // If destructuring key-value pairs: [k, v] in obj
-          ForBinding::Array(bindings) if bindings.len() == 2 => {
-            for (k, v) in props.iter() {
-              let mut elements = BumpVec::with_capacity_in(2, self.arena);
-              elements.push(ObjectKind::String(k));
-              elements.push(v.clone());
-              yields.push(ObjectKind::Tuple {
-                elements: elements.into_bump_slice(),
-              });
-            }
-          }
-          // Default to iterating over keys.
-          _ => {
-            for &k in props.keys() {
-              yields.push(ObjectKind::String(k));
-            }
-          }
-        }
-        Ok(yields)
-      }
-      _ => Err(Error::new(
-        ErrorKind::TypeError(format!(
-          "Expected array, tuple, string or object for for..in loop, found {}",
-          iterable.type_name()
-        )),
-        span,
-      )),
-    }
-  }
-
-  /// Assigns a loop element to the loop binding.
-  fn assign_for_binding(
-    &self,
-    interpreter: &Interpreter<'ast>,
-    binding: &ForBinding<'ast>,
-    value: ObjectKind<'ast>,
-    span: Span,
-  ) -> Result<(), Error<'ast>> {
-    match binding {
-      ForBinding::Identifier(name) => {
-        interpreter.environment.borrow_mut().set(
-          name,
-          value.clone(),
-          false,
-          false,
-        );
-        Ok(())
-      }
-      ForBinding::Array(bindings) => {
-        let elements = match &value {
-          ObjectKind::Array { elements, .. } => elements.read().to_vec(),
-          ObjectKind::Tuple { elements } => elements.to_vec(),
-          _ => {
-            return Err(Error::new(
-              ErrorKind::TypeError(format!(
-                "Expected array or tuple for destructuring, found {}",
-                value.type_name()
-              )),
-              span,
-            ));
-          }
-        };
-
-        for (i, binding) in bindings.iter().enumerate() {
-          let val = elements.get(i).cloned().unwrap_or(ObjectKind::Void);
-          self.assign_for_binding(interpreter, binding, val, span)?;
-        }
-        Ok(())
-      }
-    }
   }
 
   /// Evaluates a sequence of statements.
