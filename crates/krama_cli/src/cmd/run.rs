@@ -4,10 +4,10 @@ use clap::Parser;
 use krama_runtime::Interpreter;
 use tokio::fs;
 
-/// Command to run or check a Krama source file.
+/// Command to run or check a source file.
 #[derive(Parser)]
 pub struct Run {
-  /// Path to the Krama file to execute.
+  /// Path to the source file to execute.
   #[clap(default_value = "src/main.km")]
   pub file: String,
 }

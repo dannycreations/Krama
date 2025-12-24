@@ -11,12 +11,9 @@ macro_rules! parse_args {
     if $objects.len() != EXPECTED_ARGS {
       return Err(krama_core::ErrorKind::ArgumentError(format!(
         "{} expected {} arguments, but got {}",
-        $fn_name,
-        EXPECTED_ARGS,
-        $objects.len()
+        $fn_name, EXPECTED_ARGS, $objects.len()
       )));
     }
-
     let mut arg_iter = $objects.iter();
     $(
       let $arg = match arg_iter.next() {
@@ -25,13 +22,10 @@ macro_rules! parse_args {
         Some(other) => {
           return Err(krama_core::ErrorKind::ArgumentError(format!(
             "Expected argument '{}' for function '{}' to be of type '{}', but got '{}'",
-            stringify!($arg),
-            $fn_name,
-            stringify!($type),
-            other.type_name()
+            stringify!($arg), $fn_name, stringify!($type), other.type_name()
           )));
         }
-        None => unreachable!(),
+        _ => unreachable!(),
       };
     )*
   };

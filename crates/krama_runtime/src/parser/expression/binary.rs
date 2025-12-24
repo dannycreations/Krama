@@ -16,9 +16,9 @@ where
     let precedence = self.current_precedence();
     let token = self.current_token.clone();
 
-    // Consolidate operator mapping using the core methods to reduce duplication.
     if let Some(op) = AssignmentOperator::from_token(token.kind) {
       self.advance();
+      let left_span = left.span;
       let right = self.parse_expression(precedence)?;
       return Ok(Expression::new(
         ExpressionKind::Assignment {
@@ -26,25 +26,25 @@ where
           operator: op,
           right: self.arena.alloc(right),
         },
-        token.span,
+        token.span.merge(&left_span),
       ));
     }
 
     if let Some(op) = BinaryOperator::from_token(token.kind) {
       self.advance();
+      let left_span = left.span;
       let right = self.parse_expression(precedence)?;
-      let span = left.span.merge(&right.span);
+      let right_span = right.span;
       return Ok(Expression::new(
         ExpressionKind::Binary {
           left: self.arena.alloc(left),
           operator: op,
           right: self.arena.alloc(right),
         },
-        span,
+        left_span.merge(&right_span),
       ));
     }
 
-    // This should theoretically not be reached if the precedence table is correct.
-    Err(ErrorKind::SyntaxError("Invalid infix operator".to_string()))
+    Err(ErrorKind::SyntaxError("Invalid infix operator".into()))
   }
 }

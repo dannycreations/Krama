@@ -82,9 +82,9 @@ where
     let span = self.current_token.span;
     self.advance();
     if self.current_token.kind == TokenKind::LBrace {
-      let mut object_parser = self.clone();
-      if let Ok(expr) = object_parser.parse_object_expression() {
-        *self = object_parser;
+      let mut obj_parser = self.clone();
+      if let Ok(expr) = obj_parser.parse_object_expression() {
+        *self = obj_parser;
         if let ExpressionKind::Object { properties } = expr.kind {
           return Ok(Expression::new(
             ExpressionKind::StructConstruction { properties },
@@ -92,22 +92,18 @@ where
           ));
         }
       }
-      Err(ErrorKind::SyntaxError(
-        "Invalid struct construction".to_string(),
-      ))
-    } else {
-      Ok(Expression::new(ExpressionKind::This, span))
+      return Err(ErrorKind::SyntaxError("Invalid struct construction".into()));
     }
+    Ok(Expression::new(ExpressionKind::This, span))
   }
 
   /// Parses a block or an object literal depending on content.
   fn parse_block_or_object_expression(&mut self) -> ParseResult<'a, 'ast> {
-    let mut object_parser = self.clone();
-    if let Ok(expr) = object_parser.parse_object_expression() {
-      *self = object_parser;
+    let mut obj_parser = self.clone();
+    if let Ok(expr) = obj_parser.parse_object_expression() {
+      *self = obj_parser;
       return Ok(expr);
     }
-
     let block = self.arena.alloc(self.parse_block_statement()?);
     Ok(Expression::new(ExpressionKind::Block(block), block.span))
   }
@@ -137,28 +133,20 @@ where
     let token = self.current_token.clone();
     self.advance();
     let span = left.span.merge(&token.span);
-    match token.kind {
-      TokenKind::PlusPlus => Ok(Expression::new(
-        ExpressionKind::Update {
-          operator: UpdateOperator::Increment,
-          argument: self.arena.alloc(left),
-          prefix: false,
-        },
-        span,
-      )),
-      TokenKind::MinusMinus => Ok(Expression::new(
-        ExpressionKind::Update {
-          operator: UpdateOperator::Decrement,
-          argument: self.arena.alloc(left),
-          prefix: false,
-        },
-        span,
-      )),
-      TokenKind::Question => Ok(Expression::new(
-        ExpressionKind::Try(self.arena.alloc(left)),
-        span,
-      )),
+    let kind = match token.kind {
+      TokenKind::PlusPlus => ExpressionKind::Update {
+        operator: UpdateOperator::Increment,
+        argument: self.arena.alloc(left),
+        prefix: false,
+      },
+      TokenKind::MinusMinus => ExpressionKind::Update {
+        operator: UpdateOperator::Decrement,
+        argument: self.arena.alloc(left),
+        prefix: false,
+      },
+      TokenKind::Question => ExpressionKind::Try(self.arena.alloc(left)),
       _ => unreachable!(),
-    }
+    };
+    Ok(Expression::new(kind, span))
   }
 }

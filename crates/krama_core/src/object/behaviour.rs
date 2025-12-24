@@ -158,16 +158,16 @@ impl<'ast> ObjectKind<'ast> {
     arena: &'ast Bump,
   ) -> Result<Self, ErrorKind> {
     match op {
-      BinaryOperator::Add => Ok(Self::Integer(l.add(r))),
-      BinaryOperator::Subtract => Ok(Self::Integer(l.sub(r))),
-      BinaryOperator::Multiply => Ok(Self::Integer(l.mul(r))),
+      BinaryOperator::Add => Ok(Self::Integer(l.wrapping_add(r))),
+      BinaryOperator::Subtract => Ok(Self::Integer(l.wrapping_sub(r))),
+      BinaryOperator::Multiply => Ok(Self::Integer(l.wrapping_mul(r))),
       BinaryOperator::Divide => {
         if r == 0 {
           return Err(ErrorKind::RuntimeError("Division by zero".into()));
         }
-        Ok(Self::Integer(l.div(r)))
+        Ok(Self::Integer(l.wrapping_div(r)))
       }
-      BinaryOperator::Modulo => Ok(Self::Integer(l.rem(r))),
+      BinaryOperator::Modulo => Ok(Self::Integer(l.wrapping_rem(r))),
       BinaryOperator::Exponent => Ok(Self::Integer(l.pow(r as u32))),
       BinaryOperator::BitwiseAnd => Ok(Self::Integer(l.bitand(r))),
       BinaryOperator::BitwiseOr => Ok(Self::Integer(l.bitor(r))),
@@ -184,7 +184,7 @@ impl<'ast> ObjectKind<'ast> {
         if r < l {
           return Ok(Self::Tuple { elements: &[] });
         }
-        let count = (r - l) as usize + 1;
+        let count = (r.wrapping_sub(l)) as usize + 1;
         let mut elements = BumpVec::with_capacity_in(count, arena);
         for i in l..=r {
           elements.push(Self::Integer(i));
@@ -265,7 +265,7 @@ impl<'ast> ObjectKind<'ast> {
     match operator {
       UnaryOperator::Not => Ok(Self::Boolean(!self.is_truthy())),
       UnaryOperator::Negate => match self {
-        Self::Integer(i) => Ok(Self::Integer(i.neg())),
+        Self::Integer(i) => Ok(Self::Integer(i.wrapping_neg())),
         Self::Float(f) => Ok(Self::Float(f.neg())),
         _ => Err(ErrorKind::TypeError(
           "Unary '-' operator can only be applied to numbers".into(),

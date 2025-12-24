@@ -15,7 +15,7 @@ pub use types::*;
 
 use crate::{Checker, Environment, Lexer, Parser};
 
-/// The Krama interpreter responsible for executing the AST.
+/// The interpreter responsible for executing the AST.
 /// Manages execution state, including environment, modules, and local variable resolution.
 #[derive(Clone)]
 pub struct Interpreter<'ast> {
@@ -169,7 +169,7 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  /// Safely borrows the environment mutably, wrapping borrow errors in Krama errors.
+  /// Safely borrows the environment mutably, wrapping borrow errors in errors.
   pub fn env_mut(
     &self,
     span: Span,

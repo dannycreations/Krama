@@ -13,7 +13,7 @@ use crate::Lexer;
 
 type ParseResult<'a, 'ast> = Result<Expression<'ast>, ErrorKind>;
 
-/// Recursive descent parser for the Krama language.
+/// Recursive descent parser for the language.
 /// Uses a Bump arena for efficient AST allocation.
 #[derive(Clone)]
 pub struct Parser<'a, 'ast>

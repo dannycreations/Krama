@@ -6,7 +6,7 @@ use krama_macro::register_module;
 use parking_lot::RwLock;
 use tokio::fs;
 
-/// Maps standard IO errors to Krama ReferenceErrors.
+/// Maps standard IO errors to ReferenceErrors.
 fn error(e: IoError) -> ErrorKind {
   ErrorKind::ReferenceError(e.to_string())
 }

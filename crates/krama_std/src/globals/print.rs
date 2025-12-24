@@ -3,8 +3,14 @@ use krama_core::{ErrorKind, ObjectKind};
 use krama_macro::register_global;
 use tokio::io::{self, AsyncWrite, AsyncWriteExt};
 
-/// Internal helper to handle asynchronous output to any writer.
-/// Consolidates the logic for printing multiple objects separated by spaces.
+macro_rules! io_try {
+  ($expr:expr) => {
+    $expr
+      .await
+      .map_err(|e| krama_core::ErrorKind::RuntimeError(e.to_string()))?
+  };
+}
+
 async fn write_objects<'ast, W>(
   mut writer: W,
   objects: &'ast [ObjectKind<'ast>],
@@ -14,24 +20,12 @@ where
 {
   for (i, obj) in objects.iter().enumerate() {
     if i > 0 {
-      writer
-        .write_all(b" ")
-        .await
-        .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
+      io_try!(writer.write_all(b" "));
     }
-    writer
-      .write_all(obj.to_string().as_bytes())
-      .await
-      .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
+    io_try!(writer.write_all(obj.to_string().as_bytes()));
   }
-  writer
-    .write_all(b"\n")
-    .await
-    .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
-  writer
-    .flush()
-    .await
-    .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?;
+  io_try!(writer.write_all(b"\n"));
+  io_try!(writer.flush());
   Ok(())
 }
 

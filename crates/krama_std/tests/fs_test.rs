@@ -8,7 +8,7 @@ test_eval_ok!(
     const { assertEqual, assert } = import("std:assert")
 
     const filePath = "test.txt"
-    const fileContent = "Hello, Krama!"
+    const fileContent = "Hello, World!"
 
     fs.writeFile(filePath, fileContent)
     assert(fs.exists(filePath))

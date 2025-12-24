@@ -17,7 +17,7 @@ pub use function::*;
 pub use scope::*;
 pub use standard::*;
 
-/// The fundamental value type in the Krama language.
+/// The fundamental value type in the language.
 /// Uses `ObjectKind` to represent everything from primitives to complex structures.
 #[derive(Debug, Clone, EnumPropertyMacro)]
 #[repr(C, u8)]

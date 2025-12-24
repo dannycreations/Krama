@@ -272,6 +272,8 @@ impl<'ast> Interpreter<'ast> {
               .at(span),
             );
           }
+          // We use get_mut here because resolve_lvalue already verified the variable exists
+          // and we already checked for constant.
           env.store.get_mut(name).unwrap().value = value;
           Ok(())
         }

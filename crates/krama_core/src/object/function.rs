@@ -23,7 +23,7 @@ pub struct NativeFunction {
   pub callback: NativeFnCb,
 }
 
-/// Represents a function defined by the user in Krama source code.
+/// Represents a function defined by the user in source code.
 #[derive(Debug, Clone, PartialEq)]
 pub struct UserFunction<'ast> {
   pub parameters: BumpVec<'ast, Parameter<'ast>>,
@@ -31,7 +31,7 @@ pub struct UserFunction<'ast> {
   pub kind: Option<Type<'ast>>,
 }
 
-/// Categorizes the different types of callable objects in Krama.
+/// Categorizes the different types of callable objects.
 #[derive(Debug, Copy, Clone)]
 pub enum FunctionKind<'ast> {
   Native(NativeFunction),

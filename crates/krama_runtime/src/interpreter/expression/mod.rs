@@ -40,7 +40,6 @@ impl<'ast> Interpreter<'ast> {
           self.eval_identifier(expression, name, span).await
         }
         ExpressionKind::This => self.get_this(span),
-
         ExpressionKind::StructConstruction { properties } => {
           self.eval_struct_construction(properties, span).await
         }
@@ -50,7 +49,6 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Collection { elements } => {
           self.eval_collection(elements, kind, span).await
         }
-
         ExpressionKind::Unary { operator, right } => {
           let right = self.eval_expression(right, None).await?;
           self.eval_unary_expression(*operator, right, span)
@@ -82,7 +80,6 @@ impl<'ast> Interpreter<'ast> {
             .eval_update_expression(*operator, argument, *prefix, span)
             .await
         }
-
         ExpressionKind::Member { object, property } => {
           let object = self.eval_expression(object, None).await?;
           self.eval_member_expression(object, property, span).await
@@ -98,12 +95,10 @@ impl<'ast> Interpreter<'ast> {
           function,
           arguments,
         } => self.eval_call(function, arguments, span).await,
-
         ExpressionKind::If {
           condition,
           then_branch,
           else_branch,
-          ..
         } => {
           self
             .eval_if_expression(condition, then_branch, *else_branch, kind)
@@ -115,7 +110,6 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Block(block) => {
           self.eval_block_statement_with_new_scope(block).await
         }
-
         ExpressionKind::Fn {
           parameters,
           body,
@@ -128,7 +122,6 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Import { path, .. } => {
           self.eval_import(path, span).await
         }
-
         ExpressionKind::Typed { expr, kind } => {
           let value = self.eval_expression(expr, Some(kind)).await?;
           check_type(kind, &value)?;
@@ -137,8 +130,9 @@ impl<'ast> Interpreter<'ast> {
         ExpressionKind::Try(expr) => self.eval_result(expr, span).await,
       }?;
 
-      // Auto-wrap Err variants into Return signals for implicit propagation.
-      // Avoid wrapping if we are already in a Try or if the result is already a control signal.
+      // Implicit error propagation: wrap Err in Return if not handled by Try.
+      // We skip this if the result is already a control signal (like Return/Break/Continue)
+      // or if it's the result of a Try expression which handles the error explicitly.
       if !matches!(expression.kind, ExpressionKind::Try(_))
         && result.is_result_err()
         && !result.is_control_signal()

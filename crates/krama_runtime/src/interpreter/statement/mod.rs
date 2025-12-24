@@ -55,12 +55,8 @@ impl<'ast> Interpreter<'ast> {
           public,
           kind,
         } => {
-          let resolved_kind = if let Some(k) = kind {
-            Some(resolve_type(self, k)?)
-          } else {
-            None
-          };
-
+          let resolved_kind =
+            kind.as_ref().map(|k| resolve_type(self, k)).transpose()?;
           let function = self.alloc_user_function(
             parameters.clone(),
             body.clone(),
@@ -77,36 +73,27 @@ impl<'ast> Interpreter<'ast> {
           let mut properties = AHashMap::with_capacity(variants.len());
           for variant in variants {
             let variant_name = variant.name;
-
-            if let Some(fields) = &variant.fields {
-              let constructor = self.arena.alloc(Enum {
+            let obj = if let Some(fields) = &variant.fields {
+              ObjectKind::Function(FunctionKind::Enum(self.arena.alloc(Enum {
                 name,
                 variant: variant_name,
                 field_count: fields.len(),
-              });
-              properties.insert(
-                variant_name,
-                ObjectKind::Function(FunctionKind::Enum(constructor)),
-              );
+              })))
             } else {
-              properties.insert(
-                variant_name,
-                ObjectKind::Enum {
-                  name,
-                  variant: variant_name,
-                  fields: None,
-                },
-              );
-            }
+              ObjectKind::Enum {
+                name,
+                variant: variant_name,
+                fields: None,
+              }
+            };
+            properties.insert(variant_name, obj);
           }
-
           let enum_obj = ObjectKind::Object {
             properties: self
               .arena
               .alloc(RwLock::new(properties.into_iter().collect())),
             constant: true,
           };
-
           self.env_mut(span)?.set(name, enum_obj, *public, true);
           Ok(ObjectKind::Void)
         }
@@ -141,7 +128,7 @@ impl<'ast> Interpreter<'ast> {
         }
         StatementKind::Return { value } => {
           let value = match value {
-            Some(expression) => self.eval_expression(expression, None).await?,
+            Some(expr) => self.eval_expression(expr, None).await?,
             None => ObjectKind::Void,
           };
           Ok(ObjectKind::Return(self.arena.alloc(value)))
@@ -150,14 +137,13 @@ impl<'ast> Interpreter<'ast> {
         StatementKind::Continue => Ok(ObjectKind::Continue),
         StatementKind::While { condition, body } => {
           loop {
-            // Check for pattern matching in while condition (e.g. while (Ok(v) = expr)).
             if let Some(bindings) = self.try_match_assignment(condition).await?
             {
               for (name, val) in bindings {
                 self.env_mut(span)?.set(name, val, false, false);
               }
             } else {
-              // Handle special case where pattern match failed (break loop).
+              // Special case for pattern matching in while
               if let ExpressionKind::Assignment {
                 left,
                 operator: AssignmentOperator::Assign,
@@ -172,30 +158,19 @@ impl<'ast> Interpreter<'ast> {
                   }
                 }
               }
-
-              // Fallback to normal truthy evaluation.
-              let condition_val = self.eval_expression(condition, None).await?;
-              if !condition_val.is_truthy() {
+              if !self.eval_expression(condition, None).await?.is_truthy() {
                 break;
               }
             }
 
             let result = self.eval_block_statement(body).await?;
-
-            // Propagate Return/Break/Continue signals.
             if result.is_control_signal() {
-              if let ObjectKind::Return(inner) = &result {
-                if inner.is_result_err() {
-                  continue;
-                }
+              match result {
+                ObjectKind::Break => break,
+                ObjectKind::Continue => continue,
+                ObjectKind::Return(inner) if inner.is_result_err() => continue,
+                _ => return Ok(result),
               }
-              if matches!(result, ObjectKind::Break) {
-                break;
-              }
-              if matches!(result, ObjectKind::Continue) {
-                continue;
-              }
-              return Ok(result);
             }
           }
           Ok(ObjectKind::Void)
@@ -205,39 +180,25 @@ impl<'ast> Interpreter<'ast> {
           iterable,
           body,
         } => {
-          let iterable_value = self.eval_expression(iterable, None).await?;
+          let iterable_val = self.eval_expression(iterable, None).await?;
           let elements =
-            self.collect_iterable_elements(&iterable_value, binding, span)?;
-
+            self.collect_iterable_elements(&iterable_val, binding, span)?;
           for element in elements {
-            let new_interpreter = self.new_enclosed();
-            self.assign_for_binding(
-              &new_interpreter,
-              binding,
-              element,
-              span,
-            )?;
-
-            let result = new_interpreter.eval_block_statement(body).await?;
-
+            let enclosed = self.new_enclosed();
+            self.assign_for_binding(&enclosed, binding, element, span)?;
+            let result = enclosed.eval_block_statement(body).await?;
             if result.is_control_signal() {
-              if let ObjectKind::Return(inner) = &result {
-                if inner.is_result_err() {
-                  continue;
-                }
+              match result {
+                ObjectKind::Break => break,
+                ObjectKind::Continue => continue,
+                ObjectKind::Return(inner) if inner.is_result_err() => continue,
+                _ => return Ok(result),
               }
-              if matches!(result, ObjectKind::Break) {
-                break;
-              }
-              if matches!(result, ObjectKind::Continue) {
-                continue;
-              }
-              return Ok(result);
             }
           }
           Ok(ObjectKind::Void)
         }
-        StatementKind::Test { name: _, body } => {
+        StatementKind::Test { body, .. } => {
           self.eval_block_statement_with_new_scope(body).await
         }
       }
@@ -245,23 +206,15 @@ impl<'ast> Interpreter<'ast> {
     .boxed_local()
   }
 
-  /// Helper to evaluate an expression and check its type if a hint is provided.
+  /// Helper to evaluate an expression and check its type.
   pub async fn eval_and_check_type(
     &self,
-    value_expr: &Expression<'ast>,
+    expr: &Expression<'ast>,
     kind_hint: Option<&Type<'ast>>,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
-    let resolved_kind = if let Some(k) = kind_hint {
-      Some(resolve_type(self, k)?)
-    } else {
-      None
-    };
-
-    let value = self
-      .eval_expression(value_expr, resolved_kind.as_ref())
-      .await?;
-
-    if let Some(kind) = &resolved_kind {
+    let resolved = kind_hint.map(|k| resolve_type(self, k)).transpose()?;
+    let value = self.eval_expression(expr, resolved.as_ref()).await?;
+    if let Some(kind) = &resolved {
       check_type(kind, &value)?;
     }
     Ok(value)
@@ -273,16 +226,12 @@ impl<'ast> Interpreter<'ast> {
     statements: &'s [Statement<'ast>],
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let mut result = ObjectKind::Void;
-
     for statement in statements {
       result = self.eval_statement(statement).await?;
-
-      // Return/Break/Continue trigger early exits from statement sequences.
       if result.is_control_signal() {
         return Ok(result);
       }
     }
-
     Ok(result)
   }
 
@@ -299,7 +248,6 @@ impl<'ast> Interpreter<'ast> {
     &self,
     block: &StatementBlock<'ast>,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
-    let new_interpreter = self.new_enclosed();
-    new_interpreter.eval_statements(&block.statements).await
+    self.new_enclosed().eval_statements(&block.statements).await
   }
 }

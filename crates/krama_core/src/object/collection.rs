@@ -2,7 +2,7 @@ use bumpalo::collections::Vec as BumpVec;
 
 use crate::{StructField, StructMethod};
 
-/// Represents an Enum definition in Krama.
+/// Represents an Enum definition.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Enum<'ast> {
   pub name: &'ast str,
@@ -10,7 +10,7 @@ pub struct Enum<'ast> {
   pub field_count: usize,
 }
 
-/// Represents a Struct definition in Krama.
+/// Represents a Struct definition.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Struct<'ast> {
   pub name: &'ast str,

@@ -106,15 +106,13 @@ impl<'a> Checker<'a> {
         body,
       } => {
         self.check_expression(iterable)?;
-        self.begin_scope();
-        self.declare_for_binding(binding);
-        self.check_block_content(body)?;
-        self.end_scope();
+        self.with_scope(|this| {
+          this.declare_for_binding(binding);
+          this.check_block_content(body)
+        })?;
       }
       StatementKind::Test { body, .. } => {
-        self.begin_scope();
-        self.check_block_content(body)?;
-        self.end_scope();
+        self.with_scope(|this| this.check_block_content(body))?;
       }
       StatementKind::Break | StatementKind::Continue => {}
     }
@@ -126,26 +124,26 @@ impl<'a> Checker<'a> {
     params: &[krama_core::Parameter<'a>],
     body: &FunctionBody<'a>,
   ) -> Result<(), Error<'a>> {
-    self.begin_scope();
-    for param in params {
-      self.define_var(param.name);
-    }
+    self.with_scope(|this| {
+      for param in params {
+        this.define_var(param.name);
+      }
+      this.check_body(body)
+    })
+  }
+
+  fn check_body(&mut self, body: &FunctionBody<'a>) -> Result<(), Error<'a>> {
     match body {
-      FunctionBody::Block(block) => self.check_block_content(block)?,
-      FunctionBody::Expression(expr) => self.check_expression(expr)?,
+      FunctionBody::Block(block) => self.check_block_content(block),
+      FunctionBody::Expression(expr) => self.check_expression(expr),
     }
-    self.end_scope();
-    Ok(())
   }
 
   fn check_block(
     &mut self,
     block: &krama_core::StatementBlock<'a>,
   ) -> Result<(), Error<'a>> {
-    self.begin_scope();
-    self.check_block_content(block)?;
-    self.end_scope();
-    Ok(())
+    self.with_scope(|this| this.check_block_content(block))
   }
 
   fn check_block_content(
@@ -238,7 +236,7 @@ impl<'a> Checker<'a> {
               self.check_expression(end)?;
             }
           }
-          self.check_function_body(&arm.body)?;
+          self.with_scope(|this| this.check_body(&arm.body))?;
         }
       }
       ExpressionKind::Block(block) => self.check_block(block)?,
@@ -264,19 +262,6 @@ impl<'a> Checker<'a> {
     Ok(())
   }
 
-  fn check_function_body(
-    &mut self,
-    body: &FunctionBody<'a>,
-  ) -> Result<(), Error<'a>> {
-    self.begin_scope();
-    match body {
-      FunctionBody::Block(block) => self.check_block_content(block)?,
-      FunctionBody::Expression(expr) => self.check_expression(expr)?,
-    }
-    self.end_scope();
-    Ok(())
-  }
-
   fn check_local(&mut self, expression: &Expression<'a>, name: &str) {
     for (i, scope) in self.scopes.iter().enumerate().rev() {
       if scope.contains_key(name) {
@@ -288,12 +273,14 @@ impl<'a> Checker<'a> {
     }
   }
 
-  fn begin_scope(&mut self) {
+  fn with_scope<F, R>(&mut self, f: F) -> R
+  where
+    F: FnOnce(&mut Self) -> R,
+  {
     self.scopes.push(IndexMap::default());
-  }
-
-  fn end_scope(&mut self) {
+    let result = f(self);
     self.scopes.pop();
+    result
   }
 
   fn define_var(&mut self, name: &'a str) {

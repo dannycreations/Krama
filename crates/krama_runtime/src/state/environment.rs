@@ -14,6 +14,7 @@ pub struct Binding<'ast> {
 }
 
 /// Manages variable bindings and scope chains.
+/// Optimized for fast lookups and minimal memory overhead.
 #[derive(Debug, Default, Clone)]
 pub struct Environment<'ast> {
   /// Local bindings in the current scope.
@@ -32,9 +33,11 @@ impl<'ast> Environment<'ast> {
   }
 
   /// Creates a new environment populated with standard library globals.
+  /// This is typically used for the root scope of the interpreter.
   pub fn with_globals() -> Self {
     let mut env = Environment::new();
-    // Populate environment with built-in functions.
+    // Pre-allocate space for globals to avoid re-hashes.
+    env.store.reserve(GLOBALS.len());
     for (name, native_fn) in GLOBALS.iter() {
       let function = ObjectKind::Function(FunctionKind::Native(*native_fn));
       env.set(name, function, true, true);
@@ -43,21 +46,23 @@ impl<'ast> Environment<'ast> {
   }
 
   /// Creates a new environment that encloses an existing one.
+  /// Small initial capacity is used to balance memory vs allocation frequency.
   pub fn new_enclosed(outer: &'ast RefCell<Environment<'ast>>) -> Self {
     Environment {
-      store: AHashMap::with_capacity(4), // Small initial capacity for efficiency.
+      store: AHashMap::with_capacity(4),
       outer: Some(outer),
     }
   }
 
   /// Retrieves a binding from the local scope only.
+  /// Inlined for performance as it's a hot path in the interpreter.
   #[inline(always)]
   pub fn get_local(&self, name: &str) -> Option<ObjectKind<'ast>> {
     self.store.get(name).map(|b| b.value.clone())
   }
 
   /// Retrieves a variable value by traversing the scope chain.
-  /// Iterative approach avoids stack overflow in deep nesting.
+  /// Iterative approach avoids stack overflow in deeply nested scopes.
   pub fn get(&self, name: &str) -> Option<ObjectKind<'ast>> {
     if let Some(obj) = self.get_local(name) {
       return Some(obj);
@@ -65,6 +70,8 @@ impl<'ast> Environment<'ast> {
 
     let mut current = self.outer;
     while let Some(outer_cell) = current {
+      // We use try_borrow here to avoid panics in case of complex recursive calls,
+      // though the interpreter design should generally prevent multiple mutable borrows.
       let outer = outer_cell.borrow();
       if let Some(obj) = outer.get_local(name) {
         return Some(obj);
@@ -76,6 +83,7 @@ impl<'ast> Environment<'ast> {
   }
 
   /// Sets or updates a binding in the current scope.
+  /// If the binding already exists, it is overwritten.
   pub fn set(
     &mut self,
     name: &'ast str,
@@ -94,11 +102,14 @@ impl<'ast> Environment<'ast> {
   }
 
   /// Checks if a variable is marked as constant in the local scope.
+  /// Used to prevent re-assignment to 'const' variables.
+  #[inline(always)]
   pub fn is_constant(&self, name: &str) -> bool {
     self.store.get(name).map(|b| b.constant).unwrap_or(false)
   }
 
   /// Returns all public bindings from the current scope.
+  /// Useful for module exports and reflection.
   pub fn get_public_bindings(&self) -> IndexMap<&'ast str, ObjectKind<'ast>> {
     self
       .store

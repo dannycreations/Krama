@@ -24,11 +24,13 @@ pub fn resolve_type<'ast>(
   let resolved_kind = match &kind.kind {
     // 1. Resolve type aliases from the environment.
     TypeKind::Identifier(name) => {
+      // We look up in the environment to see if the identifier refers to a type definition.
       if let Some(ObjectKind::Type(resolved)) =
         interpreter.environment.borrow().get(name)
       {
         return Ok(resolved.clone());
       }
+      // If not found, we keep it as an identifier (might be resolved later or used as a nominal type).
       return Ok(kind.clone());
     }
     // 2. Recursively resolve array element types.

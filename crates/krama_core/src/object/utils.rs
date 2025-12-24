@@ -14,7 +14,6 @@ impl<'ast> ObjectKind<'ast> {
   }
 
   /// Helper to unwrap Return signals if they contain an Err variant.
-  /// Used to simplify error propagation logic in the interpreter.
   #[inline(always)]
   pub fn unwrap_return_err(&self) -> &Self {
     if let Self::Return(inner) = self {

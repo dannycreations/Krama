@@ -5,7 +5,7 @@ mod span;
 
 pub use span::*;
 
-/// Represents a diagnostic error in the Krama compiler/interpreter.
+/// Represents a diagnostic error in the compiler/interpreter.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Error<'a> {
   pub kind: ErrorKind,

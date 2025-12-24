@@ -13,13 +13,9 @@ where
   pub fn parse_let_statement(&mut self) -> Result<Statement<'ast>, ErrorKind> {
     let start_span = self.consume(TokenKind::Let)?.span;
     let name = self.parse_identifier()?;
-
     let kind = self.parse_optional_type()?;
-
     self.consume(TokenKind::Equal)?;
-
     let value = self.parse_expression(PrecedenceKind::Lowest)?;
-
     Ok(Statement::new(
       StatementKind::Let {
         name,
@@ -36,13 +32,9 @@ where
     start_span: Span,
   ) -> Result<Statement<'ast>, ErrorKind> {
     self.consume(TokenKind::Const)?;
-
     let binding = self.parse_binding()?;
-
     let kind = self.parse_optional_type()?;
-
     self.consume(TokenKind::Equal)?;
-
     let value = self.parse_expression(PrecedenceKind::Lowest)?;
     Ok(Statement::new(
       StatementKind::Const {
@@ -84,24 +76,21 @@ where
     }
     loop {
       let name = self.parse_identifier()?;
-
       let alias = if self.current_token.kind == TokenKind::As {
-        self.consume(TokenKind::As)?;
-        let alias_name = self.parse_identifier()?;
-        Some(self.arena.alloc_str(alias_name))
+        self.advance();
+        Some(self.arena.alloc_str(self.parse_identifier()?))
       } else {
         None
       };
-
+      // Convert &mut str to &str for the Destructure struct.
       items.push(Destructure {
         name,
         alias: alias.map(|s| s as &str),
       });
-
       if self.current_token.kind != TokenKind::Comma {
         break;
       }
-      self.consume(TokenKind::Comma)?;
+      self.advance();
     }
     Ok(items)
   }

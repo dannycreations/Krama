@@ -17,9 +17,7 @@ where
     while self.current_token.kind != TokenKind::RBrace
       && self.current_token.kind != TokenKind::Eof
     {
-      if self.current_token.kind != TokenKind::RBrace {
-        statements.push(self.parse_statement()?);
-      }
+      statements.push(self.parse_statement()?);
     }
 
     if self.current_token.kind == TokenKind::Eof {

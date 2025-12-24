@@ -16,12 +16,13 @@ impl<'ast> Interpreter<'ast> {
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     // 1. Determine element type hint from the parent collection hint.
-    let mut el_hint = None;
-    if let Some(hint) = kind_hint {
+    let el_hint = kind_hint.and_then(|hint| {
       if let TypeKind::Array { element, .. } = &hint.kind {
-        el_hint = Some(*element);
+        Some(*element)
+      } else {
+        None
       }
-    }
+    });
 
     // 2. Evaluate all elements concurrently.
     let results = if elements.is_empty() {
