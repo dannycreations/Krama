@@ -35,6 +35,27 @@ impl AssignmentOperator {
   }
 }
 
+/// Allows direct conversion from AssignmentOperator to BinaryOperator for compound assignments.
+impl From<AssignmentOperator> for BinaryOperator {
+  fn from(op: AssignmentOperator) -> Self {
+    match op {
+      AssignmentOperator::AddAssign => BinaryOperator::Add,
+      AssignmentOperator::SubtractAssign => BinaryOperator::Subtract,
+      AssignmentOperator::MultiplyAssign => BinaryOperator::Multiply,
+      AssignmentOperator::DivideAssign => BinaryOperator::Divide,
+      AssignmentOperator::ModuloAssign => BinaryOperator::Modulo,
+      AssignmentOperator::BitwiseAndAssign => BinaryOperator::BitwiseAnd,
+      AssignmentOperator::BitwiseOrAssign => BinaryOperator::BitwiseOr,
+      AssignmentOperator::BitwiseXorAssign => BinaryOperator::BitwiseXor,
+      AssignmentOperator::LeftShiftAssign => BinaryOperator::LeftShift,
+      AssignmentOperator::RightShiftAssign => BinaryOperator::RightShift,
+      AssignmentOperator::Assign => {
+        unreachable!("Direct assignment has no binary equivalent")
+      }
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum BinaryOperator {
   Add,
@@ -122,6 +143,16 @@ impl UpdateOperator {
       TokenKind::PlusPlus => Some(Self::Increment),
       TokenKind::MinusMinus => Some(Self::Decrement),
       _ => None,
+    }
+  }
+}
+
+/// Allows direct conversion from UpdateOperator to BinaryOperator.
+impl From<UpdateOperator> for BinaryOperator {
+  fn from(op: UpdateOperator) -> Self {
+    match op {
+      UpdateOperator::Increment => BinaryOperator::Add,
+      UpdateOperator::Decrement => BinaryOperator::Subtract,
     }
   }
 }

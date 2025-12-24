@@ -1,5 +1,6 @@
 use std::{
   fmt::{Display, Formatter, Result as FmtResult},
+  ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Rem, Shl, Shr, Sub},
   ptr,
 };
 
@@ -7,7 +8,6 @@ use bumpalo::{
   collections::{String as BumpString, Vec as BumpVec},
   Bump,
 };
-use strum::EnumProperty;
 
 use super::{FunctionKind, NativeFunction, ObjectKind};
 use crate::{BinaryOperator, ErrorKind, UnaryOperator};
@@ -79,46 +79,6 @@ impl<'ast> PartialEq for ObjectKind<'ast> {
 }
 
 impl<'ast> ObjectKind<'ast> {
-  #[inline(always)]
-  pub fn type_name(&self) -> &str {
-    match self {
-      Self::Enum { name, .. } => name,
-      Self::Struct(def) => def.name,
-      Self::StructInstance { definition, .. } => definition.name,
-      Self::Scope(s) if s.name.is_some() => "module",
-      Self::Scope(_) => "global",
-      _ => self.get_str_prop("name").unwrap_or("unknown"),
-    }
-  }
-
-  #[inline(always)]
-  pub fn get_str_prop(&self, prop: &str) -> Option<&'static str> {
-    self.get_str(prop)
-  }
-
-  #[inline]
-  pub fn is_truthy(&self) -> bool {
-    match self {
-      Self::Boolean(b) => *b,
-      Self::Integer(i) => *i != 0,
-      Self::Float(f) => *f != 0.0,
-      Self::String(s) => !s.is_empty(),
-      Self::Array { elements, .. } => !elements.read().is_empty(),
-      Self::Tuple { elements } => !elements.is_empty(),
-      Self::Null | Self::Void | Self::Err(_) => false,
-      _ => true,
-    }
-  }
-
-  #[inline]
-  pub fn set_constant(&mut self, constant: bool) {
-    if let Self::Array { constant: c, .. } | Self::Object { constant: c, .. } =
-      self
-    {
-      *c = constant;
-    }
-  }
-
   /// Helper for string concatenation.
   fn concat_strings(l: &str, r: &str, arena: &'ast Bump) -> Self {
     let mut s = BumpString::with_capacity_in(l.len() + r.len(), arena);
@@ -144,17 +104,19 @@ impl<'ast> ObjectKind<'ast> {
 
     match (self, other) {
       (Self::Integer(l), Self::Integer(r)) => {
-        Self::int_op(operator, *l, *r, arena)
+        self.perform_int_op(operator, *l, *r, arena)
       }
-      (Self::Float(l), Self::Float(r)) => Self::float_op(operator, *l, *r),
+      (Self::Float(l), Self::Float(r)) => {
+        self.perform_float_op(operator, *l, *r)
+      }
       (Self::Integer(l), Self::Float(r)) => {
-        Self::float_op(operator, *l as f64, *r)
+        self.perform_float_op(operator, *l as f64, *r)
       }
       (Self::Float(l), Self::Integer(r)) => {
-        Self::float_op(operator, *l, *r as f64)
+        self.perform_float_op(operator, *l, *r as f64)
       }
       (Self::String(l), Self::String(r)) => {
-        Self::string_op(operator, l, r, arena)
+        self.perform_string_op(operator, l, r, arena)
       }
       (Self::String(l), r) if operator == BinaryOperator::Add => {
         Ok(Self::concat_strings(l, &r.to_string(), arena))
@@ -162,7 +124,9 @@ impl<'ast> ObjectKind<'ast> {
       (l, Self::String(r)) if operator == BinaryOperator::Add => {
         Ok(Self::concat_strings(&l.to_string(), r, arena))
       }
-      (Self::Boolean(l), Self::Boolean(r)) => Self::bool_op(operator, *l, *r),
+      (Self::Boolean(l), Self::Boolean(r)) => {
+        self.perform_bool_op(operator, *l, *r)
+      }
       (l, r) => match operator {
         BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
         BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
@@ -186,29 +150,30 @@ impl<'ast> ObjectKind<'ast> {
     }
   }
 
-  fn int_op(
+  fn perform_int_op(
+    &self,
     op: BinaryOperator,
     l: i64,
     r: i64,
     arena: &'ast Bump,
   ) -> Result<Self, ErrorKind> {
     match op {
-      BinaryOperator::Add => Ok(Self::Integer(l + r)),
-      BinaryOperator::Subtract => Ok(Self::Integer(l - r)),
-      BinaryOperator::Multiply => Ok(Self::Integer(l * r)),
+      BinaryOperator::Add => Ok(Self::Integer(l.add(r))),
+      BinaryOperator::Subtract => Ok(Self::Integer(l.sub(r))),
+      BinaryOperator::Multiply => Ok(Self::Integer(l.mul(r))),
       BinaryOperator::Divide => {
         if r == 0 {
           return Err(ErrorKind::RuntimeError("Division by zero".into()));
         }
-        Ok(Self::Integer(l / r))
+        Ok(Self::Integer(l.div(r)))
       }
-      BinaryOperator::Modulo => Ok(Self::Integer(l % r)),
+      BinaryOperator::Modulo => Ok(Self::Integer(l.rem(r))),
       BinaryOperator::Exponent => Ok(Self::Integer(l.pow(r as u32))),
-      BinaryOperator::BitwiseAnd => Ok(Self::Integer(l & r)),
-      BinaryOperator::BitwiseOr => Ok(Self::Integer(l | r)),
-      BinaryOperator::BitwiseXor => Ok(Self::Integer(l ^ r)),
-      BinaryOperator::LeftShift => Ok(Self::Integer(l << r)),
-      BinaryOperator::RightShift => Ok(Self::Integer(l >> r)),
+      BinaryOperator::BitwiseAnd => Ok(Self::Integer(l.bitand(r))),
+      BinaryOperator::BitwiseOr => Ok(Self::Integer(l.bitor(r))),
+      BinaryOperator::BitwiseXor => Ok(Self::Integer(l.bitxor(r))),
+      BinaryOperator::LeftShift => Ok(Self::Integer(l.shl(r))),
+      BinaryOperator::RightShift => Ok(Self::Integer(l.shr(r))),
       BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
       BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
       BinaryOperator::GreaterThan => Ok(Self::Boolean(l > r)),
@@ -235,13 +200,18 @@ impl<'ast> ObjectKind<'ast> {
     }
   }
 
-  fn float_op(op: BinaryOperator, l: f64, r: f64) -> Result<Self, ErrorKind> {
+  fn perform_float_op(
+    &self,
+    op: BinaryOperator,
+    l: f64,
+    r: f64,
+  ) -> Result<Self, ErrorKind> {
     match op {
-      BinaryOperator::Add => Ok(Self::Float(l + r)),
-      BinaryOperator::Subtract => Ok(Self::Float(l - r)),
-      BinaryOperator::Multiply => Ok(Self::Float(l * r)),
-      BinaryOperator::Divide => Ok(Self::Float(l / r)),
-      BinaryOperator::Modulo => Ok(Self::Float(l % r)),
+      BinaryOperator::Add => Ok(Self::Float(l.add(r))),
+      BinaryOperator::Subtract => Ok(Self::Float(l.sub(r))),
+      BinaryOperator::Multiply => Ok(Self::Float(l.mul(r))),
+      BinaryOperator::Divide => Ok(Self::Float(l.div(r))),
+      BinaryOperator::Modulo => Ok(Self::Float(l.rem(r))),
       BinaryOperator::Exponent => Ok(Self::Float(l.powf(r))),
       BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
       BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
@@ -256,7 +226,8 @@ impl<'ast> ObjectKind<'ast> {
     }
   }
 
-  fn string_op(
+  fn perform_string_op(
+    &self,
     op: BinaryOperator,
     l: &str,
     r: &str,
@@ -273,7 +244,12 @@ impl<'ast> ObjectKind<'ast> {
     }
   }
 
-  fn bool_op(op: BinaryOperator, l: bool, r: bool) -> Result<Self, ErrorKind> {
+  fn perform_bool_op(
+    &self,
+    op: BinaryOperator,
+    l: bool,
+    r: bool,
+  ) -> Result<Self, ErrorKind> {
     match op {
       BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
       BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
@@ -289,14 +265,14 @@ impl<'ast> ObjectKind<'ast> {
     match operator {
       UnaryOperator::Not => Ok(Self::Boolean(!self.is_truthy())),
       UnaryOperator::Negate => match self {
-        Self::Integer(i) => Ok(Self::Integer(-i)),
-        Self::Float(f) => Ok(Self::Float(-f)),
+        Self::Integer(i) => Ok(Self::Integer(i.neg())),
+        Self::Float(f) => Ok(Self::Float(f.neg())),
         _ => Err(ErrorKind::TypeError(
           "Unary '-' operator can only be applied to numbers".into(),
         )),
       },
       UnaryOperator::BitwiseNot => match self {
-        Self::Integer(i) => Ok(Self::Integer(!i)),
+        Self::Integer(i) => Ok(Self::Integer(i.not())),
         _ => Err(ErrorKind::TypeError(
           "Bitwise not operator can only be applied to integers".into(),
         )),

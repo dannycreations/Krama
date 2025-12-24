@@ -20,35 +20,29 @@ pub fn resolve_type<'ast>(
   interpreter: &Interpreter<'ast>,
   kind: &Type<'ast>,
 ) -> Result<Type<'ast>, Error<'ast>> {
-  match &kind.kind {
+  // Use a helper to avoid re-wrapping identical types.
+  let resolved_kind = match &kind.kind {
     // 1. Resolve type aliases from the environment.
     TypeKind::Identifier(name) => {
       if let Some(ObjectKind::Type(resolved)) =
         interpreter.environment.borrow().get(name)
       {
-        Ok(resolved.clone())
-      } else {
-        Ok(kind.clone())
+        return Ok(resolved.clone());
       }
+      return Ok(kind.clone());
     }
     // 2. Recursively resolve array element types.
-    TypeKind::Array { element, size } => {
-      let resolved_element = resolve_type(interpreter, element)?;
-      Ok(Type::new(
-        TypeKind::Array {
-          element: interpreter.arena.alloc(resolved_element),
-          size: *size,
-        },
-        kind.span,
-      ))
-    }
+    TypeKind::Array { element, size } => TypeKind::Array {
+      element: interpreter.arena.alloc(resolve_type(interpreter, element)?),
+      size: *size,
+    },
     // 3. Recursively resolve tuple component types.
     TypeKind::Tuple(types) => {
       let mut resolved_types = BumpVec::new_in(interpreter.arena);
       for t in types {
         resolved_types.push(resolve_type(interpreter, t)?);
       }
-      Ok(Type::new(TypeKind::Tuple(resolved_types), kind.span))
+      TypeKind::Tuple(resolved_types)
     }
     // 4. Recursively resolve object property types.
     TypeKind::Object(properties) => {
@@ -62,9 +56,11 @@ pub fn resolve_type<'ast>(
           },
         );
       }
-      Ok(Type::new(TypeKind::Object(resolved_properties), kind.span))
+      TypeKind::Object(resolved_properties)
     }
     // 5. Primitives and other types remain unchanged.
-    _ => Ok(kind.clone()),
-  }
+    _ => return Ok(kind.clone()),
+  };
+
+  Ok(Type::new(resolved_kind, kind.span))
 }

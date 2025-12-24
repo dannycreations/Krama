@@ -47,16 +47,8 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     let subject_val = self.eval_expression(subject, None).await?;
 
-    // Unwrap Return(Err) for matching, as eval_expression automatically wraps errors in Return signals.
-    let effective_val = if let ObjectKind::Return(inner) = &subject_val {
-      if let ObjectKind::Err(_) = inner {
-        inner
-      } else {
-        &subject_val
-      }
-    } else {
-      &subject_val
-    };
+    // Use centralized unwrap_return_err to simplify error handling logic.
+    let effective_val = subject_val.unwrap_return_err();
 
     // Iterate through each arm and its patterns.
     for arm in arms {

@@ -12,11 +12,10 @@ impl<'ast> Interpreter<'ast> {
     let val = self.eval_expression(expr, None).await?;
 
     // If result is Return(Err), unwrap it to Err to allow the '?' operator to catch it.
-    if let ObjectKind::Return(inner) = val {
-      if let ObjectKind::Err(_) = inner {
-        return Ok(inner.clone());
+    if let ObjectKind::Return(inner) = &val {
+      if inner.is_result_err() {
+        return Ok((*inner).clone());
       }
-      return Ok(ObjectKind::Return(inner));
     }
 
     Ok(val)

@@ -3,6 +3,7 @@ mod expression;
 mod function;
 mod statement;
 mod types;
+mod utils;
 
 use std::cell::{RefCell, RefMut};
 
@@ -99,7 +100,7 @@ impl<'ast> Interpreter<'ast> {
         span,
       ));
     }
-    env.set(name, value, false, false);
+    env.store.get_mut(name).unwrap().value = value;
     Ok(())
   }
 
@@ -122,25 +123,17 @@ impl<'ast> Interpreter<'ast> {
     let program = self.parse_and_check(source)?;
     let result = self.eval_statements(&program.statements).await?;
 
-    // Handle early returns and error propagation from the top-level execution.
-    if let ObjectKind::Return(inner) = result {
-      if let ObjectKind::Err(e) = inner {
-        return Err(self.ensure_error_context(
-          Error::new(ErrorKind::RuntimeError(format!("{}", e)), Span::empty()),
-          source,
-        ));
-      }
-      return Ok(inner.clone());
-    }
-
-    if let ObjectKind::Err(e) = result {
+    // Use centralized unwrap_return_err to simplify error handling logic.
+    let effective_result = result.unwrap_return_err();
+    if let ObjectKind::Err(e) = effective_result {
       return Err(self.ensure_error_context(
         Error::new(ErrorKind::RuntimeError(format!("{}", e)), Span::empty()),
         source,
       ));
     }
 
-    Ok(result)
+    // Handle normal return signals.
+    Ok(result.unwrap_return().clone())
   }
 
   /// Parses and runs semantic analysis (checking) on the source.

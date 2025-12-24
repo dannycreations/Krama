@@ -1,16 +1,14 @@
 use bumpalo::collections::Vec as BumpVec;
 use indexmap::IndexMap;
 use krama_core::{
-  AssignmentOperator, BinaryOperator, Error, ErrorKind, Expression,
-  ExpressionKind, LiteralKind, ObjectKind, Span, TypeKind, UpdateOperator,
+  AssignmentOperator, Error, ErrorKind, Expression, ExpressionKind,
+  LiteralKind, ObjectKind, Span, TypeKind, UpdateOperator,
 };
 use parking_lot::RwLock;
 
 use crate::Interpreter;
 
 /// Represents a target that can be assigned to (L-Value).
-/// This abstraction centralizes the logic for identifying and modifying
-/// variables, properties, and array indices.
 pub enum LValue<'ast> {
   Variable {
     name: &'ast str,
@@ -28,7 +26,7 @@ pub enum LValue<'ast> {
 }
 
 impl<'ast> Interpreter<'ast> {
-  /// Evaluates an assignment expression by resolving the LValue and updating its value.
+  /// Evaluates an assignment expression.
   pub async fn eval_assignment_expression(
     &self,
     left: &Expression<'ast>,
@@ -36,16 +34,13 @@ impl<'ast> Interpreter<'ast> {
     right: &Expression<'ast>,
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
-    // 1. Evaluate right side first.
     let right_val = self.eval_expression(right, None).await?;
     if right_val.is_control_signal() {
       return Ok(right_val);
     }
 
-    // 2. Resolve the target (LValue).
     let target = self.resolve_lvalue(left, span).await?;
 
-    // 3. Calculate final value based on operator (Assign vs Compound Assign).
     let final_val = if operator == AssignmentOperator::Assign {
       right_val
     } else {
@@ -54,13 +49,11 @@ impl<'ast> Interpreter<'ast> {
         return Ok(left_val);
       }
 
-      let binary_op = self.assignment_to_binary_op(operator);
       left_val
-        .binary_op(binary_op, &right_val, self.arena)
+        .binary_op(operator.into(), &right_val, self.arena)
         .map_err(|k| k.at(span))?
     };
 
-    // 4. Update the target and return the new value.
     self.set_lvalue_value(target, final_val.clone(), span)?;
     Ok(final_val)
   }
@@ -73,43 +66,32 @@ impl<'ast> Interpreter<'ast> {
     prefix: bool,
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
-    // 1. Resolve target and get current value.
     let target = self.resolve_lvalue(argument, span).await?;
     let original_value = self.get_lvalue_value(&target, argument, span).await?;
     if original_value.is_control_signal() {
       return Ok(original_value);
     }
 
-    let binary_op = match operator {
-      UpdateOperator::Increment => BinaryOperator::Add,
-      UpdateOperator::Decrement => BinaryOperator::Subtract,
-    };
-
-    // 2. Perform increment/decrement by 1.
     let new_value = original_value
-      .binary_op(binary_op, &ObjectKind::Integer(1), self.arena)
+      .binary_op(operator.into(), &ObjectKind::Integer(1), self.arena)
       .map_err(|k| k.at(span))?;
 
-    // 3. Update target and return appropriate value (pre vs post).
     self.set_lvalue_value(target, new_value.clone(), span)?;
     Ok(if prefix { new_value } else { original_value })
   }
 
   /// Resolves an expression into an LValue target.
-  /// Handles identifiers, member access, and indexing.
   pub async fn resolve_lvalue(
     &self,
     expr: &Expression<'ast>,
     span: Span,
   ) -> Result<LValue<'ast>, Error<'ast>> {
     match &expr.kind {
-      // 1. Resolve Variable target.
       ExpressionKind::Identifier(name) => Ok(LValue::Variable {
         name,
         distance: self.get_resolved_distance(expr),
       }),
 
-      // 2. Resolve Property target (Member access).
       ExpressionKind::Member { object, property } => {
         let obj_val = self.eval_expression(object, None).await?;
         if obj_val.is_control_signal() {
@@ -156,7 +138,6 @@ impl<'ast> Interpreter<'ast> {
         }
       }
 
-      // 3. Resolve Index target (Array/Object indexing).
       ExpressionKind::Index { object, index } => {
         let obj_val = self.eval_expression(object, None).await?;
         if obj_val.is_control_signal() {
@@ -214,15 +195,7 @@ impl<'ast> Interpreter<'ast> {
                 .at(span),
               );
             }
-            let index = match index_val {
-              ObjectKind::Integer(i) => i,
-              _ => {
-                return Err(
-                  ErrorKind::TypeError("Array index must be an integer".into())
-                    .at(span),
-                )
-              }
-            };
+            let index = self.ensure_int_index(&index_val, span)?;
             let fixed_size = if let TypeKind::Array {
               size: Some(LiteralKind::Integer(size)),
               ..
@@ -273,20 +246,7 @@ impl<'ast> Interpreter<'ast> {
       ),
       LValue::Index {
         elements, index, ..
-      } => {
-        let elements = elements.read();
-        let idx = *index;
-        let real_idx = if idx < 0 {
-          elements.len() as i64 + idx
-        } else {
-          idx
-        };
-        Ok(if real_idx >= 0 && (real_idx as usize) < elements.len() {
-          elements[real_idx as usize].clone()
-        } else {
-          ObjectKind::Void
-        })
-      }
+      } => Ok(self.get_by_index(&elements.read(), *index)),
     }
   }
 
@@ -312,7 +272,7 @@ impl<'ast> Interpreter<'ast> {
               .at(span),
             );
           }
-          env.set(name, value, false, false);
+          env.store.get_mut(name).unwrap().value = value;
           Ok(())
         }
       }
@@ -326,15 +286,12 @@ impl<'ast> Interpreter<'ast> {
         fixed_size,
       } => {
         let mut elements = elements.write();
-        let real_idx = if index < 0 {
-          elements.len() as i64 + index
-        } else {
-          index
-        };
+        let len = elements.len();
+        let real_idx = self.resolve_index(index, len);
 
-        // Check bounds for fixed-size arrays.
         if let Some(size) = fixed_size {
-          if real_idx < 0 || real_idx >= size {
+          let check_idx = if index < 0 { size + index } else { index };
+          if check_idx < 0 || check_idx >= size {
             return Err(
               ErrorKind::TypeError(format!(
                 "Index {} out of bounds for fixed array of size {}",
@@ -345,36 +302,14 @@ impl<'ast> Interpreter<'ast> {
           }
         }
 
-        if real_idx >= 0 {
-          let u_idx = real_idx as usize;
-          if u_idx >= elements.len() {
-            elements.resize(u_idx + 1, ObjectKind::Void);
-          }
+        if let Some(i) = real_idx {
+          elements[i] = value;
+        } else if index >= 0 {
+          let u_idx = index as usize;
+          elements.resize(u_idx + 1, ObjectKind::Void);
           elements[u_idx] = value;
         }
         Ok(())
-      }
-    }
-  }
-
-  /// Maps an assignment operator to its corresponding binary operator.
-  fn assignment_to_binary_op(
-    &self,
-    operator: AssignmentOperator,
-  ) -> BinaryOperator {
-    match operator {
-      AssignmentOperator::AddAssign => BinaryOperator::Add,
-      AssignmentOperator::SubtractAssign => BinaryOperator::Subtract,
-      AssignmentOperator::MultiplyAssign => BinaryOperator::Multiply,
-      AssignmentOperator::DivideAssign => BinaryOperator::Divide,
-      AssignmentOperator::ModuloAssign => BinaryOperator::Modulo,
-      AssignmentOperator::BitwiseAndAssign => BinaryOperator::BitwiseAnd,
-      AssignmentOperator::BitwiseOrAssign => BinaryOperator::BitwiseOr,
-      AssignmentOperator::BitwiseXorAssign => BinaryOperator::BitwiseXor,
-      AssignmentOperator::LeftShiftAssign => BinaryOperator::LeftShift,
-      AssignmentOperator::RightShiftAssign => BinaryOperator::RightShift,
-      AssignmentOperator::Assign => {
-        unreachable!("Direct assignment should be handled separately")
       }
     }
   }

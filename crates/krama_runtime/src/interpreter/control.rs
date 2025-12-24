@@ -29,16 +29,8 @@ impl<'ast> Interpreter<'ast> {
           if (*name == "Ok" || *name == "Err") && arguments.len() == 1 {
             let right_val = self.eval_expression(right, None).await?;
 
-            // Unwrap Return(Err) for pattern matching.
-            let effective_val = if let ObjectKind::Return(inner) = &right_val {
-              if let ObjectKind::Err(_) = inner {
-                inner
-              } else {
-                &right_val
-              }
-            } else {
-              &right_val
-            };
+            // Unwrap Return(Err) for pattern matching using centralized unwrap_return_err.
+            let effective_val = right_val.unwrap_return_err();
 
             // 2. Verify variant match.
             let is_match = matches!(

@@ -1,6 +1,7 @@
 use std::{
   fmt::{Display, Formatter, Result as FmtResult},
   marker::PhantomData,
+  ops::Deref,
 };
 
 use crate::Span;
@@ -36,8 +37,9 @@ impl<'ast, T> Node<'ast, T> {
   }
 }
 
-/// Helper trait for types that can be wrapped in a Node.
+// Simplified IntoNode trait to reduce boilerplate during AST creation.
 pub trait IntoNode<'ast>: Sized {
+  #[inline(always)]
   fn into_node(self, span: Span) -> Node<'ast, Self> {
     Node::new(self, span)
   }
@@ -51,5 +53,14 @@ where
 {
   fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     write!(f, "{}", self.kind)
+  }
+}
+
+impl<'ast, T> Deref for Node<'ast, T> {
+  type Target = T;
+
+  #[inline(always)]
+  fn deref(&self) -> &Self::Target {
+    &self.kind
   }
 }

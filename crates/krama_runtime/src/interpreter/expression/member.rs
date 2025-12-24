@@ -1,5 +1,7 @@
+use bumpalo::Bump;
 use krama_core::{
-  Error, ErrorKind, Expression, ExpressionKind, ObjectKind, Span,
+  Error, ErrorKind, Expression, ExpressionKind, FunctionKind, ObjectKind, Span,
+  StructMethod, UserFunction,
 };
 use krama_std::PROPS;
 
@@ -62,7 +64,7 @@ impl<'ast> Interpreter<'ast> {
             definition.name,
             span,
           )?;
-          return Ok(ObjectKind::from_method(method, self.arena));
+          return Ok(Self::from_method(method, self.arena));
         }
 
         Err(Error::new(
@@ -85,7 +87,7 @@ impl<'ast> Interpreter<'ast> {
             definition.name,
             span,
           )?;
-          return Ok(ObjectKind::from_method(method, self.arena));
+          return Ok(Self::from_method(method, self.arena));
         }
 
         Err(Error::new(
@@ -133,33 +135,15 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
-  /// Verifies if a member is accessible based on its visibility and the current execution context.
-  fn ensure_accessible(
-    &self,
-    public: bool,
-    member_name: &str,
-    struct_name: &str,
-    span: Span,
-  ) -> Result<(), Error<'ast>> {
-    if public {
-      return Ok(());
-    }
-
-    // Check if the current scope is within the same struct definition.
-    let env = self.environment.borrow();
-    let current_struct = env.get("__current_struct__");
-    let allowed = if let Some(ObjectKind::String(name)) = current_struct {
-      name == struct_name
-    } else {
-      false
-    };
-
-    if !allowed {
-      return Err(Error::new(
-        ErrorKind::TypeError(format!("Member '{}' is private", member_name)),
-        span,
-      ));
-    }
-    Ok(())
+  /// Allocates a new UserFunction from a StructMethod.
+  fn from_method(
+    method: &StructMethod<'ast>,
+    arena: &'ast Bump,
+  ) -> ObjectKind<'ast> {
+    ObjectKind::Function(FunctionKind::User(arena.alloc(UserFunction {
+      parameters: method.parameters.clone(),
+      body: method.body.clone(),
+      kind: method.kind.clone(),
+    })))
   }
 }

@@ -20,13 +20,11 @@ impl<'ast> Interpreter<'ast> {
       }
       ObjectKind::String(s) => {
         let idx = self.ensure_int_index(&index, span)?;
-        let real_idx = if idx < 0 { s.len() as i64 + idx } else { idx };
+        let real_idx = self.resolve_index(idx, s.len());
 
-        Ok(if real_idx >= 0 && (real_idx as usize) < s.len() {
+        Ok(if let Some(i) = real_idx {
           ObjectKind::String(
-            self.arena.alloc_str(
-              &s.chars().nth(real_idx as usize).unwrap().to_string(),
-            ),
+            self.arena.alloc_str(&s.chars().nth(i).unwrap().to_string()),
           )
         } else {
           ObjectKind::Void
@@ -64,7 +62,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   #[inline]
-  fn ensure_int_index(
+  pub fn ensure_int_index(
     &self,
     index: &ObjectKind<'ast>,
     span: Span,
@@ -82,20 +80,26 @@ impl<'ast> Interpreter<'ast> {
     }
   }
 
+  /// Resolves a potentially negative index into a valid absolute index.
   #[inline]
-  fn get_by_index(
+  pub fn resolve_index(&self, idx: i64, len: usize) -> Option<usize> {
+    let real_idx = if idx < 0 { len as i64 + idx } else { idx };
+
+    if real_idx >= 0 && (real_idx as usize) < len {
+      Some(real_idx as usize)
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  pub fn get_by_index(
     &self,
     elements: &[ObjectKind<'ast>],
     idx: i64,
   ) -> ObjectKind<'ast> {
-    let real_idx = if idx < 0 {
-      elements.len() as i64 + idx
-    } else {
-      idx
-    };
-
-    if real_idx >= 0 && (real_idx as usize) < elements.len() {
-      elements[real_idx as usize].clone()
+    if let Some(i) = self.resolve_index(idx, elements.len()) {
+      elements[i].clone()
     } else {
       ObjectKind::Void
     }

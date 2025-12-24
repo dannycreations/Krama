@@ -4,8 +4,8 @@ mod iteration;
 use ahash::AHashMap;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  Enum, Error, Expression, ExpressionKind, FunctionKind, ObjectKind, Statement,
-  StatementBlock, StatementKind, Struct, Type,
+  AssignmentOperator, Enum, Error, Expression, ExpressionKind, FunctionKind,
+  ObjectKind, Statement, StatementBlock, StatementKind, Struct, Type,
 };
 use parking_lot::RwLock;
 
@@ -160,7 +160,7 @@ impl<'ast> Interpreter<'ast> {
               // Handle special case where pattern match failed (break loop).
               if let ExpressionKind::Assignment {
                 left,
-                operator: krama_core::AssignmentOperator::Assign,
+                operator: AssignmentOperator::Assign,
                 ..
               } = &condition.kind
               {
@@ -183,18 +183,19 @@ impl<'ast> Interpreter<'ast> {
             let result = self.eval_block_statement(body).await?;
 
             // Propagate Return/Break/Continue signals.
-            if let ObjectKind::Return(inner) = &result {
-              if let ObjectKind::Err(_) = inner {
+            if result.is_control_signal() {
+              if let ObjectKind::Return(inner) = &result {
+                if inner.is_result_err() {
+                  continue;
+                }
+              }
+              if matches!(result, ObjectKind::Break) {
+                break;
+              }
+              if matches!(result, ObjectKind::Continue) {
                 continue;
               }
-              return Ok(result.clone());
-            }
-
-            if matches!(result, ObjectKind::Break) {
-              break;
-            }
-            if matches!(result, ObjectKind::Continue) {
-              continue;
+              return Ok(result);
             }
           }
           Ok(ObjectKind::Void)
@@ -219,18 +220,19 @@ impl<'ast> Interpreter<'ast> {
 
             let result = new_interpreter.eval_block_statement(body).await?;
 
-            if let ObjectKind::Return(inner) = &result {
-              if let ObjectKind::Err(_) = inner {
+            if result.is_control_signal() {
+              if let ObjectKind::Return(inner) = &result {
+                if inner.is_result_err() {
+                  continue;
+                }
+              }
+              if matches!(result, ObjectKind::Break) {
+                break;
+              }
+              if matches!(result, ObjectKind::Continue) {
                 continue;
               }
-              return Ok(result.clone());
-            }
-
-            if matches!(result, ObjectKind::Break) {
-              break;
-            }
-            if matches!(result, ObjectKind::Continue) {
-              continue;
+              return Ok(result);
             }
           }
           Ok(ObjectKind::Void)

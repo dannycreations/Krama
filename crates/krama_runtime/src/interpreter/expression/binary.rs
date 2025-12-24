@@ -13,7 +13,6 @@ impl<'ast> Interpreter<'ast> {
     span: Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     // 1. Handle short-circuiting for logical operators (OR/AND).
-    // These must NOT evaluate the right side if the left side determines the result.
     if matches!(
       operator,
       BinaryOperator::LogicalOr | BinaryOperator::LogicalAnd
@@ -34,14 +33,13 @@ impl<'ast> Interpreter<'ast> {
       return self.eval_expression(right, None).await;
     }
 
-    // 2. Eager evaluation for all other binary operators (Arithmetic, Comparison, Bitwise).
-    // We use try_join! to run both evaluations concurrently where possible (though typically sequential in this interpreter).
+    // 2. Eager evaluation for all other binary operators.
     let (l, r) = try_join!(
       self.eval_expression(left, None),
       self.eval_expression(right, None)
     )?;
 
-    // Delegate to core ObjectKind logic for type-specific operations.
+    // Delegate to core ObjectKind logic.
     l.binary_op(operator, &r, self.arena)
       .map_err(|k| k.at(span))
   }
