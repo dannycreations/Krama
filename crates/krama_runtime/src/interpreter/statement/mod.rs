@@ -244,7 +244,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   /// Helper to evaluate an expression and check its type if a hint is provided.
-  pub(crate) async fn eval_and_check_type(
+  pub async fn eval_and_check_type(
     &self,
     value_expr: &Expression<'ast>,
     kind_hint: Option<&Type<'ast>>,
@@ -276,11 +276,7 @@ impl<'ast> Interpreter<'ast> {
       result = self.eval_statement(statement).await?;
 
       // Return/Break/Continue trigger early exits from statement sequences.
-      if let ObjectKind::Return(_) = &result {
-        return Ok(result);
-      }
-
-      if matches!(&result, ObjectKind::Break | ObjectKind::Continue) {
+      if result.is_control_signal() {
         return Ok(result);
       }
     }

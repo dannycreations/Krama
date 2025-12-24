@@ -11,9 +11,7 @@ where
   'ast: 'a,
 {
   /// Parses an identifier expression.
-  pub(crate) fn parse_identifier_expression(
-    &mut self,
-  ) -> ParseResult<'a, 'ast> {
+  pub fn parse_identifier_expression(&mut self) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
     let name = self.parse_identifier()?;
     Ok(Expression::new(
@@ -23,7 +21,7 @@ where
   }
 
   /// Parses a literal expression (Integer, Float, String, Boolean, Null).
-  pub(crate) fn parse_literal(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_literal(&mut self) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
     self.advance();
 
@@ -61,7 +59,7 @@ where
   }
 
   /// Parses a parenthesized expression or an arrow function.
-  pub(crate) fn parse_paren_expression(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_paren_expression(&mut self) -> ParseResult<'a, 'ast> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::LParen)?;
 
@@ -113,7 +111,7 @@ where
   }
 
   /// Parses a prefix unary expression (!, -, ~).
-  pub(crate) fn parse_unary_expression(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_unary_expression(&mut self) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
 
     // Handle '+' as a no-op prefix by just parsing the expression.
@@ -138,9 +136,7 @@ where
   }
 
   /// Parses a prefix update expression (++x, --x).
-  pub(crate) fn parse_prefix_update_expression(
-    &mut self,
-  ) -> ParseResult<'a, 'ast> {
+  pub fn parse_prefix_update_expression(&mut self) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
 
     if let Some(operator) = UpdateOperator::from_token(token.kind) {

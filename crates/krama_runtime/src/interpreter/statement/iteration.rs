@@ -5,7 +5,7 @@ use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   /// Collects elements from an iterable for a for-loop.
-  pub(crate) fn collect_iterable_elements(
+  pub fn collect_iterable_elements(
     &self,
     iterable: &ObjectKind<'ast>,
     binding: &ForBinding<'ast>,
@@ -55,7 +55,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   /// Assigns a loop element to the loop binding.
-  pub(crate) fn assign_for_binding(
+  pub fn assign_for_binding(
     &self,
     interpreter: &Interpreter<'ast>,
     binding: &ForBinding<'ast>,

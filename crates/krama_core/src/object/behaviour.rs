@@ -135,10 +135,10 @@ impl<'ast> ObjectKind<'ast> {
     arena: &'ast Bump,
   ) -> Result<Self, ErrorKind> {
     // Propagate early exits from either side.
-    if matches!(self, Self::Return(_) | Self::Break | Self::Continue) {
+    if self.is_control_signal() {
       return Ok(self.clone());
     }
-    if matches!(other, Self::Return(_) | Self::Break | Self::Continue) {
+    if other.is_control_signal() {
       return Ok(other.clone());
     }
 

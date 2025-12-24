@@ -4,7 +4,7 @@ use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   /// Evaluates the postfix '?' operator (Try expression).
-  pub(crate) async fn eval_result(
+  pub async fn eval_result(
     &self,
     expr: &Expression<'ast>,
     _span: Span,

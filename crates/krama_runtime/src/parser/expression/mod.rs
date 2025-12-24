@@ -20,6 +20,7 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
+  /// Central entry point for parsing expressions with precedence.
   pub fn parse_expression(
     &mut self,
     precedence: PrecedenceKind,
@@ -42,40 +43,13 @@ where
     Ok(left)
   }
 
+  /// Pratt parsing prefix dispatch.
   fn parse_pratt(&mut self) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
 
     match token.kind {
       TokenKind::Identifier(_) => self.parse_identifier_expression(),
-      TokenKind::This => {
-        let span = token.span;
-        self.advance();
-        if self.current_token.kind == TokenKind::LBrace {
-          // Parse as object but wrap in StructConstruction
-          let mut object_parser = self.clone();
-          if let Ok(expr) = object_parser.parse_object_expression() {
-            *self = object_parser;
-            if let ExpressionKind::Object { properties } = expr.kind {
-              let end_span = expr.span;
-              return Ok(Expression::new(
-                ExpressionKind::StructConstruction { properties },
-                span.merge(&end_span),
-              ));
-            }
-            // Should not happen if parse_object_expression returns Object
-            return Ok(expr);
-          }
-          // Fallback if parsing fails? Or error?
-          // If it starts with {, it should parse as object.
-          // If not, it's just 'this'.
-          // But here we checked for LBrace.
-          Err(ErrorKind::SyntaxError(
-            "Invalid struct construction".to_string(),
-          ))
-        } else {
-          Ok(Expression::new(ExpressionKind::This, token.span))
-        }
-      }
+      TokenKind::This => self.parse_this_expression(),
       TokenKind::Integer(_)
       | TokenKind::Float(_)
       | TokenKind::String(_)
@@ -91,17 +65,7 @@ where
       }
       TokenKind::LParen => self.parse_paren_expression(),
       TokenKind::LBracket => self.parse_collection_expression(),
-      TokenKind::LBrace => {
-        let mut object_parser = self.clone();
-        if let Ok(expr) = object_parser.parse_object_expression() {
-          *self = object_parser;
-          return Ok(expr);
-        }
-
-        let block = self.arena.alloc(self.parse_block_statement()?);
-        let span = block.span;
-        Ok(Expression::new(ExpressionKind::Block(block), span))
-      }
+      TokenKind::LBrace => self.parse_block_or_object_expression(),
       TokenKind::Import => self.parse_import_expression(),
       TokenKind::If => self.parse_if_expression(),
       TokenKind::Match => self.parse_match_expression(),
@@ -113,6 +77,42 @@ where
     }
   }
 
+  /// Parses 'this' or struct construction.
+  fn parse_this_expression(&mut self) -> ParseResult<'a, 'ast> {
+    let span = self.current_token.span;
+    self.advance();
+    if self.current_token.kind == TokenKind::LBrace {
+      let mut object_parser = self.clone();
+      if let Ok(expr) = object_parser.parse_object_expression() {
+        *self = object_parser;
+        if let ExpressionKind::Object { properties } = expr.kind {
+          return Ok(Expression::new(
+            ExpressionKind::StructConstruction { properties },
+            span.merge(&expr.span),
+          ));
+        }
+      }
+      Err(ErrorKind::SyntaxError(
+        "Invalid struct construction".to_string(),
+      ))
+    } else {
+      Ok(Expression::new(ExpressionKind::This, span))
+    }
+  }
+
+  /// Parses a block or an object literal depending on content.
+  fn parse_block_or_object_expression(&mut self) -> ParseResult<'a, 'ast> {
+    let mut object_parser = self.clone();
+    if let Ok(expr) = object_parser.parse_object_expression() {
+      *self = object_parser;
+      return Ok(expr);
+    }
+
+    let block = self.arena.alloc(self.parse_block_statement()?);
+    Ok(Expression::new(ExpressionKind::Block(block), block.span))
+  }
+
+  /// Parses an expression followed by a type annotation.
   fn parse_typed_expression(
     &mut self,
     expr: Expression<'ast>,
@@ -129,42 +129,35 @@ where
     ))
   }
 
+  /// Parses postfix operators (++, --, ?).
   fn parse_postfix_expression(
     &mut self,
     left: Expression<'ast>,
   ) -> ParseResult<'a, 'ast> {
     let token = self.current_token.clone();
     self.advance();
+    let span = left.span.merge(&token.span);
     match token.kind {
-      TokenKind::PlusPlus => {
-        let span = left.span.merge(&token.span);
-        Ok(Expression::new(
-          ExpressionKind::Update {
-            operator: UpdateOperator::Increment,
-            argument: self.arena.alloc(left),
-            prefix: false,
-          },
-          span,
-        ))
-      }
-      TokenKind::MinusMinus => {
-        let span = left.span.merge(&token.span);
-        Ok(Expression::new(
-          ExpressionKind::Update {
-            operator: UpdateOperator::Decrement,
-            argument: self.arena.alloc(left),
-            prefix: false,
-          },
-          span,
-        ))
-      }
-      TokenKind::Question => {
-        let span = left.span.merge(&token.span);
-        Ok(Expression::new(
-          ExpressionKind::Try(self.arena.alloc(left)),
-          span,
-        ))
-      }
+      TokenKind::PlusPlus => Ok(Expression::new(
+        ExpressionKind::Update {
+          operator: UpdateOperator::Increment,
+          argument: self.arena.alloc(left),
+          prefix: false,
+        },
+        span,
+      )),
+      TokenKind::MinusMinus => Ok(Expression::new(
+        ExpressionKind::Update {
+          operator: UpdateOperator::Decrement,
+          argument: self.arena.alloc(left),
+          prefix: false,
+        },
+        span,
+      )),
+      TokenKind::Question => Ok(Expression::new(
+        ExpressionKind::Try(self.arena.alloc(left)),
+        span,
+      )),
       _ => unreachable!(),
     }
   }

@@ -6,7 +6,7 @@ use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   /// Applies a binding (Identifier or Destructuring) to the environment.
-  pub(crate) fn apply_binding(
+  pub fn apply_binding(
     &self,
     binding: &ConstBinding<'ast>,
     value: ObjectKind<'ast>,
@@ -28,7 +28,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   /// Handles destructuring logic for module imports.
-  pub(crate) fn apply_destructuring(
+  pub fn apply_destructuring(
     &self,
     alias: Option<&'ast str>,
     items: &[Destructure<'ast>],

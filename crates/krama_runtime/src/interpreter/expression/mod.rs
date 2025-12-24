@@ -159,7 +159,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   /// Retrieves the 'this' object from the current environment.
-  pub(crate) fn get_this(
+  pub fn get_this(
     &self,
     span: krama_core::Span,
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {

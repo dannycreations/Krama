@@ -21,10 +21,7 @@ impl<'ast> Interpreter<'ast> {
       let left_val = self.eval_expression(left, None).await?;
 
       // Propagate control flow signals (Return/Break/Continue) immediately.
-      if matches!(
-        left_val,
-        ObjectKind::Return(_) | ObjectKind::Break | ObjectKind::Continue
-      ) {
+      if left_val.is_control_signal() {
         return Ok(left_val);
       }
 

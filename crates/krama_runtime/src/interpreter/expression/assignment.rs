@@ -38,7 +38,7 @@ impl<'ast> Interpreter<'ast> {
   ) -> Result<ObjectKind<'ast>, Error<'ast>> {
     // 1. Evaluate right side first.
     let right_val = self.eval_expression(right, None).await?;
-    if let ObjectKind::Return(_) = &right_val {
+    if right_val.is_control_signal() {
       return Ok(right_val);
     }
 
@@ -50,7 +50,7 @@ impl<'ast> Interpreter<'ast> {
       right_val
     } else {
       let left_val = self.get_lvalue_value(&target, left, span).await?;
-      if let ObjectKind::Return(_) = &left_val {
+      if left_val.is_control_signal() {
         return Ok(left_val);
       }
 
@@ -76,7 +76,7 @@ impl<'ast> Interpreter<'ast> {
     // 1. Resolve target and get current value.
     let target = self.resolve_lvalue(argument, span).await?;
     let original_value = self.get_lvalue_value(&target, argument, span).await?;
-    if let ObjectKind::Return(_) = &original_value {
+    if original_value.is_control_signal() {
       return Ok(original_value);
     }
 
@@ -112,7 +112,7 @@ impl<'ast> Interpreter<'ast> {
       // 2. Resolve Property target (Member access).
       ExpressionKind::Member { object, property } => {
         let obj_val = self.eval_expression(object, None).await?;
-        if let ObjectKind::Return(_) = obj_val {
+        if obj_val.is_control_signal() {
           return Err(Error::new(
             ErrorKind::RuntimeError("Early return in LValue resolution".into()),
             span,
@@ -159,14 +159,14 @@ impl<'ast> Interpreter<'ast> {
       // 3. Resolve Index target (Array/Object indexing).
       ExpressionKind::Index { object, index } => {
         let obj_val = self.eval_expression(object, None).await?;
-        if let ObjectKind::Return(_) = obj_val {
+        if obj_val.is_control_signal() {
           return Err(Error::new(
             ErrorKind::RuntimeError("Early return in LValue resolution".into()),
             span,
           ));
         }
         let index_val = self.eval_expression(index, None).await?;
-        if let ObjectKind::Return(_) = index_val {
+        if index_val.is_control_signal() {
           return Err(Error::new(
             ErrorKind::RuntimeError("Early return in LValue resolution".into()),
             span,

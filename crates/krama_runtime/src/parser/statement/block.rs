@@ -7,7 +7,7 @@ impl<'a, 'ast> Parser<'a, 'ast>
 where
   'ast: 'a,
 {
-  pub(in crate::parser) fn parse_block_statement(
+  pub fn parse_block_statement(
     &mut self,
   ) -> Result<StatementBlock<'ast>, ErrorKind> {
     let start_span = self.current_token.span;

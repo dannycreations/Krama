@@ -5,7 +5,7 @@ use crate::interpreter::Interpreter;
 
 impl<'ast> Interpreter<'ast> {
   /// Shared logic for evaluating property-based structures (Object, StructConstruction).
-  pub(crate) async fn eval_properties(
+  pub async fn eval_properties(
     &self,
     properties: &[(Expression<'ast>, Expression<'ast>)],
   ) -> Result<IndexMap<&'ast str, ObjectKind<'ast>>, Error<'ast>> {

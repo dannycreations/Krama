@@ -80,4 +80,10 @@ impl<'ast> ObjectKind<'ast> {
       kind: method.kind.clone(),
     })))
   }
+
+  /// Checks if the object is a control flow signal.
+  #[inline(always)]
+  pub fn is_control_signal(&self) -> bool {
+    matches!(self, Self::Return(_) | Self::Break | Self::Continue)
+  }
 }
