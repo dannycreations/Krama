@@ -1,8 +1,6 @@
-use std::borrow::Cow;
-
 use krama_core::{
-  Error, ErrorKind, Expression, ExpressionKind, FunctionBody, Match,
-  MatchPattern, ObjectKind, Span, Type,
+  ErrorKind, ErrorResult, Expression, ExpressionKind, FunctionBody, Match,
+  MatchPattern, ObjectKind, ObjectResult, Span, Type,
 };
 
 use crate::Interpreter;
@@ -15,26 +13,19 @@ impl Interpreter {
     then_branch: &Expression,
     else_branch: Option<&Expression>,
     kind: Option<&Type>,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     // 1. Check if the condition is a pattern match (e.g., if (Ok(v) = expr)).
     if let Some(bindings) = self.try_match_assignment(condition).await? {
-      let new_interpreter = self.new_enclosed();
-
       // Push a scope for the bindings
-      new_interpreter
-        .stack
-        .write()
-        .push("if_binding".to_string(), None);
+      let stack = self.stack.clone();
+      stack.write().push("if_binding".to_string(), None);
 
       for (name, val) in bindings {
-        new_interpreter
-          .stack
-          .write()
-          .define(name, val, false, false);
+        stack.write().define(name, val, false, false);
       }
 
-      let result = new_interpreter.eval_expression(then_branch, kind).await;
-      new_interpreter.stack.write().pop();
+      let result = self.eval_expression(then_branch, kind).await;
+      stack.write().pop();
       return result;
     }
 
@@ -55,7 +46,7 @@ impl Interpreter {
     subject: &Expression,
     arms: &[Match],
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     let subject_val = self.eval_expression(subject, None).await?;
 
     // Use centralized unwrap_return_err to simplify error handling logic.
@@ -68,37 +59,33 @@ impl Interpreter {
           .eval_match_pattern(effective_val, pattern, span)
           .await?
         {
-          // 1. Prepare interpreter with bindings if necessary.
-          let interpreter = if !bindings.is_empty() {
-            let new_interp = self.new_enclosed();
-            new_interp.stack.write().push("match_arm".to_string(), None);
+          // 1. Prepare bindings if necessary.
+          if !bindings.is_empty() {
+            self.stack.write().push("match_arm".to_string(), None);
             for (name, val) in &bindings {
-              new_interp.stack.write().define(
+              self.stack.write().define(
                 name.clone(),
                 val.clone(),
                 false,
                 false,
               );
             }
-            Cow::Owned(new_interp)
-          } else {
-            Cow::Borrowed(self)
-          };
+          }
 
           // 2. Execute arm body.
           let result = match &arm.body {
             FunctionBody::Block(block) => {
               // eval_block_statement_with_new_scope will push another scope, which is fine
-              interpreter.eval_block_statement_with_new_scope(block).await
+              self.eval_block_statement_with_new_scope(block).await
             }
             FunctionBody::Expression(expression) => {
               // Expression bodies share the current scope (which includes bindings)
-              interpreter.eval_expression(expression, None).await
+              self.eval_expression(expression, None).await
             }
           };
 
           if !bindings.is_empty() {
-            interpreter.stack.write().pop();
+            self.stack.write().pop();
           }
 
           let result = result?;
@@ -127,7 +114,7 @@ impl Interpreter {
     subject: &'s ObjectKind,
     pattern: &'s MatchPattern,
     span: Span,
-  ) -> Result<Option<Vec<(String, ObjectKind)>>, Error> {
+  ) -> ErrorResult<Option<Vec<(String, ObjectKind)>>> {
     match (pattern, subject) {
       // 1. Expression-based patterns (Result variants).
       (MatchPattern::Expression(expression), _) => {

@@ -17,7 +17,7 @@ use futures::{
   try_join,
 };
 use krama_core::{
-  Error, ErrorKind, Expression, ExpressionKind, LiteralKind, ObjectKind, Span,
+  Error, ErrorKind, Expression, ExpressionKind, ObjectKind, ObjectResult, Span,
 };
 
 use crate::interpreter::{types::check_type, Interpreter};
@@ -28,11 +28,11 @@ impl Interpreter {
     &'s self,
     expression: &'s Expression,
     kind: Option<&'s krama_core::Type>,
-  ) -> LocalBoxFuture<'s, Result<ObjectKind, Error>> {
+  ) -> LocalBoxFuture<'s, ObjectResult> {
     async move {
       let span = expression.span;
       let result = match &expression.kind {
-        ExpressionKind::Literal(literal) => self.eval_literal(literal.clone()),
+        ExpressionKind::Literal(literal) => Ok(literal.clone().into()),
         ExpressionKind::Identifier(name) => {
           self.eval_identifier(expression, name, span).await
         }
@@ -131,24 +131,21 @@ impl Interpreter {
         }
         ExpressionKind::Try(expr) => self.eval_result(expr, span).await,
       }?;
-
-      // Implicit error propagation: wrap Err in Return if not handled by Try.
-      // Control signals (Return/Break/Continue) are propagated as-is.
-      // Try expressions handle errors explicitly, so we skip propagation for them.
+      // Implicitly propagate errors by wrapping Err in Return if not handled by Try.
+      // This ensures errors bubble up through the call stack unless explicitly caught.
       if !matches!(expression.kind, ExpressionKind::Try(_))
         && result.is_result_err()
-        && !result.is_control_signal()
       {
-        return Ok(ObjectKind::Return(Box::new(result)));
+        Ok(ObjectKind::Return(Box::new(result)))
+      } else {
+        Ok(result)
       }
-
-      Ok(result)
     }
     .boxed_local()
   }
 
   /// Retrieves the 'this' object from the current environment.
-  pub fn get_this(&self, span: Span) -> Result<ObjectKind, Error> {
+  pub fn get_this(&self, span: Span) -> ObjectResult {
     self.stack.read().get("this").ok_or_else(|| {
       Error::new(
         ErrorKind::ReferenceError(
@@ -156,21 +153,6 @@ impl Interpreter {
         ),
         span,
       )
-    })
-  }
-
-  /// Evaluates a literal into an ObjectKind.
-  #[inline]
-  pub fn eval_literal(
-    &self,
-    literal: LiteralKind,
-  ) -> Result<ObjectKind, Error> {
-    Ok(match literal {
-      LiteralKind::Integer(i) => ObjectKind::Integer(i),
-      LiteralKind::Float(f) => ObjectKind::Float(f),
-      LiteralKind::String(s) => ObjectKind::String(s),
-      LiteralKind::Boolean(b) => ObjectKind::Boolean(b),
-      LiteralKind::Null => ObjectKind::Null,
     })
   }
 }

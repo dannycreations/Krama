@@ -18,20 +18,20 @@ pub enum AssignmentOperator {
 impl AssignmentOperator {
   /// Maps a token kind to its corresponding assignment operator.
   pub fn from_token(kind: TokenKind) -> Option<Self> {
-    match kind {
-      TokenKind::Equal => Some(Self::Assign),
-      TokenKind::PlusEqual => Some(Self::AddAssign),
-      TokenKind::MinusEqual => Some(Self::SubtractAssign),
-      TokenKind::StarEqual => Some(Self::MultiplyAssign),
-      TokenKind::SlashEqual => Some(Self::DivideAssign),
-      TokenKind::PercentEqual => Some(Self::ModuloAssign),
-      TokenKind::AmpersandEqual => Some(Self::BitwiseAndAssign),
-      TokenKind::PipeEqual => Some(Self::BitwiseOrAssign),
-      TokenKind::CaretEqual => Some(Self::BitwiseXorAssign),
-      TokenKind::LessLessEqual => Some(Self::LeftShiftAssign),
-      TokenKind::GreaterGreaterEqual => Some(Self::RightShiftAssign),
-      _ => None,
-    }
+    Some(match kind {
+      TokenKind::Equal => Self::Assign,
+      TokenKind::PlusEqual => Self::AddAssign,
+      TokenKind::MinusEqual => Self::SubtractAssign,
+      TokenKind::StarEqual => Self::MultiplyAssign,
+      TokenKind::SlashEqual => Self::DivideAssign,
+      TokenKind::PercentEqual => Self::ModuloAssign,
+      TokenKind::AmpersandEqual => Self::BitwiseAndAssign,
+      TokenKind::PipeEqual => Self::BitwiseOrAssign,
+      TokenKind::CaretEqual => Self::BitwiseXorAssign,
+      TokenKind::LessLessEqual => Self::LeftShiftAssign,
+      TokenKind::GreaterGreaterEqual => Self::RightShiftAssign,
+      _ => return None,
+    })
   }
 }
 
@@ -84,30 +84,30 @@ pub enum BinaryOperator {
 impl BinaryOperator {
   /// Maps a token kind to its corresponding binary operator.
   pub fn from_token(kind: TokenKind) -> Option<Self> {
-    match kind {
-      TokenKind::Plus => Some(Self::Add),
-      TokenKind::Minus => Some(Self::Subtract),
-      TokenKind::Star => Some(Self::Multiply),
-      TokenKind::StarStar => Some(Self::Exponent),
-      TokenKind::Slash => Some(Self::Divide),
-      TokenKind::Percent => Some(Self::Modulo),
-      TokenKind::EqualEqual => Some(Self::Equal),
-      TokenKind::BangEqual => Some(Self::NotEqual),
-      TokenKind::LessThan => Some(Self::LessThan),
-      TokenKind::LessThanEqual => Some(Self::LessThanOrEqual),
-      TokenKind::GreaterThan => Some(Self::GreaterThan),
-      TokenKind::GreaterThanEqual => Some(Self::GreaterThanOrEqual),
-      TokenKind::AmpersandAmpersand => Some(Self::LogicalAnd),
-      TokenKind::PipePipe => Some(Self::LogicalOr),
-      TokenKind::Ampersand => Some(Self::BitwiseAnd),
-      TokenKind::Pipe => Some(Self::BitwiseOr),
-      TokenKind::Caret => Some(Self::BitwiseXor),
-      TokenKind::LessLess => Some(Self::LeftShift),
-      TokenKind::GreaterGreater => Some(Self::RightShift),
-      TokenKind::DotDot => Some(Self::Range),
-      TokenKind::In => Some(Self::In),
-      _ => None,
-    }
+    Some(match kind {
+      TokenKind::Plus => Self::Add,
+      TokenKind::Minus => Self::Subtract,
+      TokenKind::Star => Self::Multiply,
+      TokenKind::StarStar => Self::Exponent,
+      TokenKind::Slash => Self::Divide,
+      TokenKind::Percent => Self::Modulo,
+      TokenKind::EqualEqual => Self::Equal,
+      TokenKind::BangEqual => Self::NotEqual,
+      TokenKind::LessThan => Self::LessThan,
+      TokenKind::LessThanEqual => Self::LessThanOrEqual,
+      TokenKind::GreaterThan => Self::GreaterThan,
+      TokenKind::GreaterThanEqual => Self::GreaterThanOrEqual,
+      TokenKind::AmpersandAmpersand => Self::LogicalAnd,
+      TokenKind::PipePipe => Self::LogicalOr,
+      TokenKind::Ampersand => Self::BitwiseAnd,
+      TokenKind::Pipe => Self::BitwiseOr,
+      TokenKind::Caret => Self::BitwiseXor,
+      TokenKind::LessLess => Self::LeftShift,
+      TokenKind::GreaterGreater => Self::RightShift,
+      TokenKind::DotDot => Self::Range,
+      TokenKind::In => Self::In,
+      _ => return None,
+    })
   }
 }
 
@@ -121,12 +121,12 @@ pub enum UnaryOperator {
 impl UnaryOperator {
   /// Maps a token kind to its corresponding unary operator.
   pub fn from_token(kind: TokenKind) -> Option<Self> {
-    match kind {
-      TokenKind::Bang => Some(Self::Not),
-      TokenKind::Minus => Some(Self::Negate),
-      TokenKind::Tilde => Some(Self::BitwiseNot),
-      _ => None,
-    }
+    Some(match kind {
+      TokenKind::Bang => Self::Not,
+      TokenKind::Minus => Self::Negate,
+      TokenKind::Tilde => Self::BitwiseNot,
+      _ => return None,
+    })
   }
 }
 
@@ -139,11 +139,11 @@ pub enum UpdateOperator {
 impl UpdateOperator {
   /// Maps a token kind to its corresponding update operator.
   pub fn from_token(kind: TokenKind) -> Option<Self> {
-    match kind {
-      TokenKind::PlusPlus => Some(Self::Increment),
-      TokenKind::MinusMinus => Some(Self::Decrement),
-      _ => None,
-    }
+    Some(match kind {
+      TokenKind::PlusPlus => Self::Increment,
+      TokenKind::MinusMinus => Self::Decrement,
+      _ => return None,
+    })
   }
 }
 

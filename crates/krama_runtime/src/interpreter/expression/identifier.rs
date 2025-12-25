@@ -1,4 +1,4 @@
-use krama_core::{Error, ErrorKind, Expression, ObjectKind, Span};
+use krama_core::{Error, ErrorKind, Expression, ObjectResult, Span};
 
 use super::Interpreter;
 
@@ -11,7 +11,7 @@ impl Interpreter {
     expression: &Expression,
     name: &str,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     // 1. Fast path: Use pre-resolved scope distance from semantic analysis.
     // This avoids traversing the environment chain manually.
     if let Some(distance) = self.get_resolved_distance(expression) {

@@ -4,16 +4,16 @@ use futures::future::LocalBoxFuture;
 use parking_lot::RwLock;
 
 use crate::{
-  Enum, ErrorKind, FunctionBody, ObjectKind, Parameter, Scope, Type,
+  Enum, ErrorKindResult, FunctionBody, ObjectKind, Parameter, Scope, Type,
 };
 
 /// Callback type for native functions implemented in Rust.
 pub type NativeFnCb =
-  fn(&[ObjectKind]) -> LocalBoxFuture<'static, Result<ObjectKind, ErrorKind>>;
+  fn(&[ObjectKind]) -> LocalBoxFuture<'static, ErrorKindResult<ObjectKind>>;
 
 /// Callback type for properties that return a value based on the object instance.
 pub type PropertyFnCb =
-  fn(ObjectKind) -> LocalBoxFuture<'static, Result<ObjectKind, ErrorKind>>;
+  fn(ObjectKind) -> LocalBoxFuture<'static, ErrorKindResult<ObjectKind>>;
 
 /// Represents a function implemented in native Rust code.
 #[derive(Debug, Clone, Copy)]

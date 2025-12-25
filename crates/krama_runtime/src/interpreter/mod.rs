@@ -10,8 +10,8 @@ use std::sync::Arc;
 use ahash::AHashMap;
 use indexmap::IndexMap;
 use krama_core::{
-  Error, ErrorKind, Expression, FunctionKind, ObjectKind, Scope, Span,
-  Statement,
+  Error, ErrorKind, ErrorResult, Expression, FunctionKind, ObjectKind,
+  ObjectResult, Scope, Span, Statement,
 };
 use krama_std::GLOBALS;
 use parking_lot::RwLock;
@@ -60,18 +60,6 @@ impl Interpreter {
     }
   }
 
-  /// Creates a new interpreter instance sharing the same stack, heap, and modules.
-  /// Used for function calls and blocks where the context needs to be shared.
-  pub fn new_enclosed(&self) -> Self {
-    Self {
-      modules: self.modules.clone(),
-      stack: self.stack.clone(),
-      heap: self.heap.clone(),
-      path: self.path.clone(),
-      locals: self.locals.clone(),
-    }
-  }
-
   /// Retrieves a variable value from a specific scope distance.
   pub fn get_at(&self, distance: usize, name: &str) -> Option<ObjectKind> {
     let stack = self.stack.read();
@@ -93,7 +81,7 @@ impl Interpreter {
     name: &str,
     value: ObjectKind,
     span: Span,
-  ) -> Result<(), Error> {
+  ) -> ErrorResult {
     let stack = self.stack.read();
     let mut current_scope = stack.current();
 
@@ -132,31 +120,29 @@ impl Interpreter {
   }
 
   /// Performs static analysis on the source code without execution.
-  pub fn check(&self, source: &str) -> Result<(), Error> {
-    self.parse_and_check(source)?;
-    Ok(())
+  pub fn check(&self, source: &str) -> ErrorResult {
+    self.parse_and_check(source).map(|_| ())
   }
 
   /// Evaluates the source code and returns the result of the last expression.
-  pub async fn eval(&self, source: &str) -> Result<ObjectKind, Error> {
+  pub async fn eval(&self, source: &str) -> ObjectResult {
     let statements = self.parse_and_check(source)?;
     let result = self.eval_statements(&statements).await?;
 
-    // Use centralized unwrap_return_err to simplify error handling logic.
+    // Handle both explicit Return(Err) and direct Err results.
     let effective_result = result.unwrap_return_err();
     if let ObjectKind::Err(e) = effective_result {
       return Err(self.ensure_error_context(
-        Error::new(ErrorKind::RuntimeError(format!("{}", e)), Span::empty()),
+        ErrorKind::RuntimeError(e.to_string()).at(Span::empty()),
         source,
       ));
     }
 
-    // Handle normal return signals.
     Ok(result.unwrap_return().clone())
   }
 
   /// Parses and runs semantic analysis (checking) on the source.
-  pub fn parse_and_check(&self, source: &str) -> Result<Vec<Statement>, Error> {
+  pub fn parse_and_check(&self, source: &str) -> ErrorResult<Vec<Statement>> {
     let lexer = Lexer::new(source, self.path.clone());
     let mut parser = Parser::new(lexer);
     let statements = parser
@@ -173,12 +159,14 @@ impl Interpreter {
   }
 
   /// Ensures an error has source and file context for better diagnostics.
-  fn ensure_error_context(&self, e: Error, source: &str) -> Error {
+  /// If the error already has source context, it is returned as-is.
+  fn ensure_error_context(&self, mut e: Error, source: &str) -> Error {
     if e.source.is_none() {
-      e.with_context(source, self.path.as_deref().unwrap_or("<unknown>"))
-    } else {
-      e
+      e.source = Some(source.to_string());
+      e.file =
+        Some(self.path.clone().unwrap_or_else(|| "<unknown>".to_string()));
     }
+    e
   }
 
   /// Returns the current scope for mutation.

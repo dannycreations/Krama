@@ -5,7 +5,9 @@ use std::{
 };
 
 use super::{FunctionKind, NativeFunction, ObjectKind};
-use crate::{BinaryOperator, ErrorKind, UnaryOperator};
+use crate::{
+  BinaryOperator, ErrorKind, ErrorKindResult, LiteralKind, UnaryOperator,
+};
 
 impl PartialEq for NativeFunction {
   fn eq(&self, other: &Self) -> bool {
@@ -71,20 +73,12 @@ impl PartialEq for ObjectKind {
 }
 
 impl ObjectKind {
-  /// Helper for string concatenation.
-  fn concat_strings(l: &str, r: &str) -> Self {
-    let mut s = String::with_capacity(l.len() + r.len());
-    s.push_str(l);
-    s.push_str(r);
-    Self::String(s)
-  }
-
   /// Evaluates a binary operation on this object.
   pub fn binary_op(
     &self,
     operator: BinaryOperator,
     other: &Self,
-  ) -> Result<Self, ErrorKind> {
+  ) -> ErrorKindResult<Self> {
     // Propagate early exits from either side.
     if self.is_control_signal() {
       return Ok(self.clone());
@@ -106,18 +100,21 @@ impl ObjectKind {
       (Self::Float(l), Self::Integer(r)) => {
         self.perform_float_op(operator, *l, *r as f64)
       }
+      (Self::String(l), r) | (r, Self::String(l))
+        if operator == BinaryOperator::Add =>
+      {
+        Ok(Self::String(format!("{}{}", l, r)))
+      }
       (Self::String(l), Self::String(r)) => {
-        self.perform_string_op(operator, l, r)
+        Self::compare_numbers(l, r, operator)
+          .map(Self::Boolean)
+          .ok_or_else(|| self.unsupported_bin_op(other, operator))
       }
-      (Self::String(l), r) if operator == BinaryOperator::Add => {
-        Ok(Self::concat_strings(l, &r.to_string()))
-      }
-      (l, Self::String(r)) if operator == BinaryOperator::Add => {
-        Ok(Self::concat_strings(&l.to_string(), r))
-      }
-      (Self::Boolean(l), Self::Boolean(r)) => {
-        self.perform_bool_op(operator, *l, *r)
-      }
+      (Self::Boolean(l), Self::Boolean(r)) => match operator {
+        BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
+        BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
+        _ => Err(self.unsupported_bin_op(other, operator)),
+      },
       (l, r) => match operator {
         BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
         BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
@@ -131,12 +128,7 @@ impl ObjectKind {
             r.type_name()
           )))
         }
-        _ => Err(ErrorKind::TypeError(format!(
-          "Unsupported types for binary operation: {} and {} with {:?}",
-          l.type_name(),
-          r.type_name(),
-          operator
-        ))),
+        _ => Err(self.unsupported_bin_op(other, operator)),
       },
     }
   }
@@ -159,12 +151,22 @@ impl ObjectKind {
     }
   }
 
+  #[inline(always)]
+  fn unsupported_bin_op(&self, other: &Self, op: BinaryOperator) -> ErrorKind {
+    ErrorKind::TypeError(format!(
+      "Unsupported types for binary operation: {} and {} with {:?}",
+      self.type_name(),
+      other.type_name(),
+      op
+    ))
+  }
+
   fn perform_int_op(
     &self,
     op: BinaryOperator,
     l: i64,
     r: i64,
-  ) -> Result<Self, ErrorKind> {
+  ) -> ErrorKindResult<Self> {
     if let Some(res) = Self::compare_numbers(l, r, op) {
       return Ok(Self::Boolean(res));
     }
@@ -187,24 +189,16 @@ impl ObjectKind {
       BinaryOperator::LeftShift => Ok(Self::Integer(l.shl(r))),
       BinaryOperator::RightShift => Ok(Self::Integer(l.shr(r))),
       BinaryOperator::Range => {
-        if r < l {
-          return Ok(Self::Tuple {
-            elements: Arc::new(Vec::new()),
-          });
-        }
-        let count = (r.wrapping_sub(l)) as usize + 1;
-        let mut elements = Vec::with_capacity(count);
-        for i in l..=r {
-          elements.push(Self::Integer(i));
-        }
+        let elements = if r < l {
+          Vec::new()
+        } else {
+          (l..=r).map(Self::Integer).collect()
+        };
         Ok(Self::Tuple {
           elements: Arc::new(elements),
         })
       }
-      _ => Err(ErrorKind::TypeError(format!(
-        "Unsupported operator for integers: {:?}",
-        op
-      ))),
+      _ => Err(self.unsupported_bin_op(&Self::Integer(r), op)),
     }
   }
 
@@ -213,7 +207,7 @@ impl ObjectKind {
     op: BinaryOperator,
     l: f64,
     r: f64,
-  ) -> Result<Self, ErrorKind> {
+  ) -> ErrorKindResult<Self> {
     if let Some(res) = Self::compare_numbers(l, r, op) {
       return Ok(Self::Boolean(res));
     }
@@ -225,50 +219,12 @@ impl ObjectKind {
       BinaryOperator::Divide => Ok(Self::Float(l.div(r))),
       BinaryOperator::Modulo => Ok(Self::Float(l.rem(r))),
       BinaryOperator::Exponent => Ok(Self::Float(l.powf(r))),
-      _ => Err(ErrorKind::TypeError(format!(
-        "Unsupported operator for floats: {:?}",
-        op
-      ))),
-    }
-  }
-
-  fn perform_string_op(
-    &self,
-    op: BinaryOperator,
-    l: &str,
-    r: &str,
-  ) -> Result<Self, ErrorKind> {
-    if let Some(res) = Self::compare_numbers(l, r, op) {
-      return Ok(Self::Boolean(res));
-    }
-
-    match op {
-      BinaryOperator::Add => Ok(Self::concat_strings(l, r)),
-      _ => Err(ErrorKind::TypeError(format!(
-        "Unsupported operator for strings: {:?}",
-        op
-      ))),
-    }
-  }
-
-  fn perform_bool_op(
-    &self,
-    op: BinaryOperator,
-    l: bool,
-    r: bool,
-  ) -> Result<Self, ErrorKind> {
-    match op {
-      BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
-      BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
-      _ => Err(ErrorKind::TypeError(format!(
-        "Unsupported operator for booleans: {:?}",
-        op
-      ))),
+      _ => Err(self.unsupported_bin_op(&Self::Float(r), op)),
     }
   }
 
   /// Evaluates a unary operation on this object.
-  pub fn unary_op(&self, operator: UnaryOperator) -> Result<Self, ErrorKind> {
+  pub fn unary_op(&self, operator: UnaryOperator) -> ErrorKindResult<Self> {
     match operator {
       UnaryOperator::Not => Ok(Self::Boolean(!self.is_truthy())),
       UnaryOperator::Negate => match self {
@@ -381,6 +337,18 @@ impl Display for ObjectKind {
       }
       Self::Struct(s) => write!(f, "struct {}", s.name),
       Self::Type(t) => write!(f, "type {}", t),
+    }
+  }
+}
+
+impl From<LiteralKind> for ObjectKind {
+  fn from(literal: LiteralKind) -> Self {
+    match literal {
+      LiteralKind::Integer(i) => Self::Integer(i),
+      LiteralKind::Float(f) => Self::Float(f),
+      LiteralKind::String(s) => Self::String(s),
+      LiteralKind::Boolean(b) => Self::Boolean(b),
+      LiteralKind::Null => Self::Null,
     }
   }
 }

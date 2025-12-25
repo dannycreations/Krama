@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 use krama_core::{
-  AssignmentOperator, Error, ErrorKind, Expression, ExpressionKind,
-  LiteralKind, ObjectKind, Span, TypeKind, UpdateOperator,
+  AssignmentOperator, Error, ErrorKind, ErrorResult, Expression,
+  ExpressionKind, LiteralKind, ObjectKind, ObjectResult, Span, TypeKind,
+  UpdateOperator,
 };
 use parking_lot::RwLock;
 
@@ -34,7 +35,7 @@ impl Interpreter {
     operator: AssignmentOperator,
     right: &Expression,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     let right_val = self.eval_expression(right, None).await?;
     if right_val.is_control_signal() {
       return Ok(right_val);
@@ -66,7 +67,7 @@ impl Interpreter {
     argument: &Expression,
     prefix: bool,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     let target = self.resolve_lvalue(argument, span).await?;
     let original_value = self.get_lvalue_value(&target, argument, span).await?;
     if original_value.is_control_signal() {
@@ -86,7 +87,7 @@ impl Interpreter {
     &self,
     expr: &Expression,
     span: Span,
-  ) -> Result<LValue, Error> {
+  ) -> ErrorResult<LValue> {
     match &expr.kind {
       ExpressionKind::Identifier(name) => Ok(LValue::Variable {
         name: name.to_string(),
@@ -95,133 +96,13 @@ impl Interpreter {
 
       ExpressionKind::Member { object, property } => {
         let obj_val = self.eval_expression(object, None).await?;
-        if obj_val.is_control_signal() {
-          return Err(Error::new(
-            ErrorKind::RuntimeError("Early return in LValue resolution".into()),
-            span,
-          ));
-        }
-
-        let name = if let ExpressionKind::Identifier(name) = &property.kind {
-          name
-        } else {
-          return Err(
-            ErrorKind::TypeError("Invalid property for assignment".to_string())
-              .at(span),
-          );
-        };
-
-        match obj_val {
-          ObjectKind::Object {
-            properties,
-            constant,
-            ..
-          } => {
-            if constant {
-              return Err(
-                ErrorKind::TypeError(
-                  "Cannot assign to property of constant object".into(),
-                )
-                .at(span),
-              );
-            }
-            Ok(LValue::Property {
-              properties: properties.clone(),
-              name: name.to_string(),
-            })
-          }
-          _ => Err(
-            ErrorKind::TypeError(format!(
-              "Cannot assign to property of type {}",
-              obj_val.type_name()
-            ))
-            .at(span),
-          ),
-        }
+        self.resolve_member_lvalue(obj_val, property, span)
       }
 
       ExpressionKind::Index { object, index } => {
         let obj_val = self.eval_expression(object, None).await?;
-        if obj_val.is_control_signal() {
-          return Err(Error::new(
-            ErrorKind::RuntimeError("Early return in LValue resolution".into()),
-            span,
-          ));
-        }
         let index_val = self.eval_expression(index, None).await?;
-        if index_val.is_control_signal() {
-          return Err(Error::new(
-            ErrorKind::RuntimeError("Early return in LValue resolution".into()),
-            span,
-          ));
-        }
-
-        match obj_val {
-          ObjectKind::Object {
-            properties,
-            constant,
-            ..
-          } => {
-            if constant {
-              return Err(
-                ErrorKind::TypeError(
-                  "Cannot assign to index of constant object".into(),
-                )
-                .at(span),
-              );
-            }
-            let key = match index_val {
-              ObjectKind::String(s) => s,
-              _ => {
-                return Err(
-                  ErrorKind::TypeError("Object index must be a string".into())
-                    .at(span),
-                )
-              }
-            };
-            Ok(LValue::Property {
-              properties: properties.clone(),
-              name: key,
-            })
-          }
-          ObjectKind::Array {
-            elements,
-            constant,
-            kind,
-            ..
-          } => {
-            if constant {
-              return Err(
-                ErrorKind::TypeError(
-                  "Cannot assign to index of constant array".into(),
-                )
-                .at(span),
-              );
-            }
-            let index = self.ensure_int_index(&index_val, span)?;
-            let fixed_size = if let TypeKind::Array {
-              size: Some(LiteralKind::Integer(size)),
-              ..
-            } = &kind.kind
-            {
-              Some(*size)
-            } else {
-              None
-            };
-            Ok(LValue::Index {
-              elements: elements.clone(),
-              index,
-              fixed_size,
-            })
-          }
-          _ => Err(
-            ErrorKind::TypeError(format!(
-              "Cannot assign to index of type {}",
-              obj_val.type_name()
-            ))
-            .at(span),
-          ),
-        }
+        self.resolve_index_lvalue(obj_val, index_val, span)
       }
       _ => Err(
         ErrorKind::TypeError("Invalid assignment target".to_string()).at(span),
@@ -235,7 +116,7 @@ impl Interpreter {
     target: &LValue,
     expr: &Expression,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     match target {
       LValue::Variable { name, .. } => {
         self.eval_identifier(expr, name, span).await
@@ -259,7 +140,7 @@ impl Interpreter {
     target: LValue,
     value: ObjectKind,
     span: Span,
-  ) -> Result<(), Error> {
+  ) -> ErrorResult {
     match target {
       LValue::Variable { name, distance } => {
         if let Some(distance) = distance {
@@ -303,6 +184,140 @@ impl Interpreter {
         }
         Ok(())
       }
+    }
+  }
+
+  /// Helper to resolve member access into an LValue.
+  fn resolve_member_lvalue(
+    &self,
+    obj_val: ObjectKind,
+    property: &Expression,
+    span: Span,
+  ) -> ErrorResult<LValue> {
+    if obj_val.is_control_signal() {
+      return Err(Error::new(
+        ErrorKind::RuntimeError("Early return in LValue resolution".into()),
+        span,
+      ));
+    }
+
+    let name = if let ExpressionKind::Identifier(name) = &property.kind {
+      name
+    } else {
+      return Err(
+        ErrorKind::TypeError("Invalid property for assignment".to_string())
+          .at(span),
+      );
+    };
+
+    match obj_val {
+      ObjectKind::Object {
+        properties,
+        constant,
+        ..
+      } => {
+        if constant {
+          return Err(
+            ErrorKind::TypeError(
+              "Cannot assign to property of constant object".into(),
+            )
+            .at(span),
+          );
+        }
+        Ok(LValue::Property {
+          properties: properties.clone(),
+          name: name.to_string(),
+        })
+      }
+      _ => Err(
+        ErrorKind::TypeError(format!(
+          "Cannot assign to property of type {}",
+          obj_val.type_name()
+        ))
+        .at(span),
+      ),
+    }
+  }
+
+  /// Helper to resolve indexing into an LValue.
+  fn resolve_index_lvalue(
+    &self,
+    obj_val: ObjectKind,
+    index_val: ObjectKind,
+    span: Span,
+  ) -> ErrorResult<LValue> {
+    if obj_val.is_control_signal() || index_val.is_control_signal() {
+      return Err(Error::new(
+        ErrorKind::RuntimeError("Early return in LValue resolution".into()),
+        span,
+      ));
+    }
+
+    match obj_val {
+      ObjectKind::Object {
+        properties,
+        constant,
+        ..
+      } => {
+        if constant {
+          return Err(
+            ErrorKind::TypeError(
+              "Cannot assign to index of constant object".into(),
+            )
+            .at(span),
+          );
+        }
+        let key = match index_val {
+          ObjectKind::String(s) => s,
+          _ => {
+            return Err(
+              ErrorKind::TypeError("Object index must be a string".into())
+                .at(span),
+            )
+          }
+        };
+        Ok(LValue::Property {
+          properties: properties.clone(),
+          name: key,
+        })
+      }
+      ObjectKind::Array {
+        elements,
+        constant,
+        kind,
+        ..
+      } => {
+        if constant {
+          return Err(
+            ErrorKind::TypeError(
+              "Cannot assign to index of constant array".into(),
+            )
+            .at(span),
+          );
+        }
+        let index = self.ensure_int_index(&index_val, span)?;
+        let fixed_size = if let TypeKind::Array {
+          size: Some(LiteralKind::Integer(size)),
+          ..
+        } = &kind.kind
+        {
+          Some(*size)
+        } else {
+          None
+        };
+        Ok(LValue::Index {
+          elements: elements.clone(),
+          index,
+          fixed_size,
+        })
+      }
+      _ => Err(
+        ErrorKind::TypeError(format!(
+          "Cannot assign to index of type {}",
+          obj_val.type_name()
+        ))
+        .at(span),
+      ),
     }
   }
 }

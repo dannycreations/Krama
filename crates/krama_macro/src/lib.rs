@@ -108,7 +108,7 @@ fn transform_fn(
   new_sig.asyncness = None;
 
   new_sig.output = syn::parse_quote! {
-    -> futures::future::LocalBoxFuture<'static, Result<krama_core::ObjectKind, krama_core::ErrorKind>>
+    -> futures::future::LocalBoxFuture<'static, krama_core::ErrorKindResult<krama_core::ObjectKind>>
   };
 
   let mut pre_block = TokenStream2::new();

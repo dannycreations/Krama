@@ -1,11 +1,12 @@
 use krama_core::{
-  ErrorKind, ForBinding, PrecedenceKind, Statement, StatementKind, TokenKind,
+  ErrorKind, ErrorKindResult, ForBinding, PrecedenceKind, Statement,
+  StatementKind, TokenKind,
 };
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
-  pub fn parse_while_statement(&mut self) -> Result<Statement, ErrorKind> {
+  pub fn parse_while_statement(&mut self) -> ErrorKindResult<Statement> {
     let start_span = self.current_token.span;
     self.advance();
 
@@ -25,7 +26,7 @@ impl<'a> Parser<'a> {
     ))
   }
 
-  pub fn parse_for_statement(&mut self) -> Result<Statement, ErrorKind> {
+  pub fn parse_for_statement(&mut self) -> ErrorKindResult<Statement> {
     let start_span = self.current_token.span;
     self.advance();
 
@@ -51,7 +52,7 @@ impl<'a> Parser<'a> {
     ))
   }
 
-  fn parse_for_binding(&mut self) -> Result<ForBinding, ErrorKind> {
+  fn parse_for_binding(&mut self) -> ErrorKindResult<ForBinding> {
     match &self.current_token.kind {
       TokenKind::Identifier(name) => {
         let name = name.to_string();

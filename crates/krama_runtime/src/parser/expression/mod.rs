@@ -26,15 +26,15 @@ impl<'a> Parser<'a> {
 
     while precedence < self.current_precedence() {
       left = match self.current_token.kind {
-        TokenKind::LParen => self.parse_call_expression(left)?,
-        TokenKind::Dot => self.parse_member_expression(left)?,
-        TokenKind::LBracket => self.parse_index_expression(left)?,
-        TokenKind::Colon => self.parse_typed_expression(left)?,
+        TokenKind::LParen => self.parse_call_expression(left),
+        TokenKind::Dot => self.parse_member_expression(left),
+        TokenKind::LBracket => self.parse_index_expression(left),
+        TokenKind::Colon => self.parse_typed_expression(left),
         TokenKind::PlusPlus | TokenKind::MinusMinus | TokenKind::Question => {
-          self.parse_postfix_expression(left)?
+          self.parse_postfix_expression(left)
         }
-        _ => self.parse_infix_expression(left)?,
-      };
+        _ => self.parse_infix_expression(left),
+      }?;
     }
 
     Ok(left)

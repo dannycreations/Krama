@@ -1,4 +1,4 @@
-use krama_core::{Expression, ObjectKind, Span};
+use krama_core::{Expression, ObjectKind, ObjectResult, Span};
 
 use crate::interpreter::Interpreter;
 
@@ -8,7 +8,7 @@ impl Interpreter {
     &self,
     expr: &Expression,
     _span: Span,
-  ) -> Result<ObjectKind, krama_core::Error> {
+  ) -> ObjectResult {
     let val = self.eval_expression(expr, None).await?;
 
     // The '?' operator unwraps Return(Err(e)) to Err(e).

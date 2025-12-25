@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use indexmap::IndexMap;
 
-use crate::{ErrorKind, LiteralKind, Node, ObjectKind};
+use crate::{ErrorKind, ErrorKindResult, LiteralKind, Node, ObjectKind};
 
 pub type Type = Node<TypeKind>;
 
@@ -43,7 +43,7 @@ pub struct ObjectProperty {
 
 impl Type {
   /// Validates that an object matches this type.
-  pub fn check(&self, object: &ObjectKind) -> Result<(), ErrorKind> {
+  pub fn check(&self, object: &ObjectKind) -> ErrorKindResult<()> {
     match (&self.kind, object) {
       // Integer types
       (

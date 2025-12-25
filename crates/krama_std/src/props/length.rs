@@ -2,7 +2,7 @@ use krama_core::ObjectKind;
 use krama_macro::register_property;
 
 #[register_property(name = "length", types = ["string", "array", "tuple"])]
-async fn length(object: ObjectKind) -> Result<ObjectKind, ErrorKind> {
+async fn length(object: ObjectKind) -> ObjectResult {
   match object {
     ObjectKind::Array { elements, .. } => {
       let elements = elements.read();

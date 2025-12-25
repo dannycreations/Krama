@@ -1,6 +1,6 @@
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, FunctionBody, Parameter,
-  PrecedenceKind, TokenKind, Type,
+  ErrorKind, ErrorKindResult, Expression, ExpressionKind, FunctionBody,
+  Parameter, PrecedenceKind, TokenKind, Type,
 };
 
 use super::{ParseResult, Parser};
@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
   }
 
   /// Parses function parameters, handling optional types and default values.
-  pub fn parse_fn_parameters(&mut self) -> Result<Vec<Parameter>, ErrorKind> {
+  pub fn parse_fn_parameters(&mut self) -> ErrorKindResult<Vec<Parameter>> {
     let mut parameters = Vec::new();
     if self.current_token.kind == TokenKind::RParen {
       return Ok(parameters);
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
   /// Parses the body and return type of an arrow function (`(...) : T => expr`).
   pub fn parse_arrow_fn_body_and_return_type(
     &mut self,
-  ) -> Result<(FunctionBody, Option<Type>), ErrorKind> {
+  ) -> ErrorKindResult<(FunctionBody, Option<Type>)> {
     let kind = self.parse_optional_type()?;
 
     self.consume(TokenKind::Arrow)?;
@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
   /// Parses the body and return type of a classic function (`fn(...) : T {...}`).
   pub fn parse_classic_fn_body_and_return_type(
     &mut self,
-  ) -> Result<(FunctionBody, Option<Type>), ErrorKind> {
+  ) -> ErrorKindResult<(FunctionBody, Option<Type>)> {
     let kind = self.parse_optional_type()?;
 
     if self.current_token.kind == TokenKind::Arrow {

@@ -1,5 +1,5 @@
 use krama_core::{
-  AssignmentOperator, Error, Expression, ExpressionKind, ObjectKind,
+  AssignmentOperator, ErrorResult, Expression, ExpressionKind, ObjectKind,
 };
 
 use crate::Interpreter;
@@ -12,7 +12,7 @@ impl Interpreter {
   pub async fn try_match_assignment(
     &self,
     expression: &Expression,
-  ) -> Result<Option<Vec<(String, ObjectKind)>>, Error> {
+  ) -> ErrorResult<Option<Vec<(String, ObjectKind)>>> {
     // We only care about simple assignments for pattern matching.
     if let ExpressionKind::Assignment {
       left,

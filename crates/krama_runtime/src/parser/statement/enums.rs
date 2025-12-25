@@ -1,5 +1,5 @@
 use krama_core::{
-  EnumVariant, ErrorKind, Span, Statement, StatementKind, TokenKind,
+  EnumVariant, ErrorKindResult, Span, Statement, StatementKind, TokenKind,
 };
 
 use super::Parser;
@@ -9,7 +9,7 @@ impl<'a> Parser<'a> {
     &mut self,
     public: bool,
     start_span: Span,
-  ) -> Result<Statement, ErrorKind> {
+  ) -> ErrorKindResult<Statement> {
     self.consume(TokenKind::Enum)?;
 
     let name = self.parse_identifier()?;

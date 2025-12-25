@@ -5,7 +5,8 @@ use std::{
 
 use ahash::AHashMap;
 use krama_core::{
-  Binding, Error, ErrorKind, FunctionKind, ObjectKind, Scope, Span,
+  Binding, Error, ErrorKind, ErrorResult, FunctionKind, ObjectKind,
+  ObjectResult, Scope, Span,
 };
 use krama_std::MODULES;
 use parking_lot::RwLock;
@@ -16,11 +17,7 @@ use super::Interpreter;
 
 impl Interpreter {
   /// Evaluates an import expression, supporting both standard library and file-based modules.
-  pub async fn eval_import(
-    &self,
-    path: &str,
-    span: Span,
-  ) -> Result<ObjectKind, Error> {
+  pub async fn eval_import(&self, path: &str, span: Span) -> ObjectResult {
     if path.starts_with("std:") {
       self.eval_std_module(path, span)
     } else {
@@ -33,7 +30,7 @@ impl Interpreter {
     &self,
     path: &str,
     span: &Span,
-  ) -> Result<(PathBuf, String), Error> {
+  ) -> ErrorResult<(PathBuf, String)> {
     // 1. Determine base path for resolution.
     let base_path = self
       .path
@@ -64,11 +61,7 @@ impl Interpreter {
   }
 
   /// Loads and caches a standard library module.
-  fn eval_std_module(
-    &self,
-    path: &str,
-    span: Span,
-  ) -> Result<ObjectKind, Error> {
+  fn eval_std_module(&self, path: &str, span: Span) -> ObjectResult {
     let module_name = path.strip_prefix("std:").unwrap().to_string();
 
     // Check module cache.
@@ -116,19 +109,9 @@ impl Interpreter {
   }
 
   /// Loads, executes, and caches a file-based module.
-  async fn eval_file_module(
-    &self,
-    path: &str,
-    span: Span,
-  ) -> Result<ObjectKind, Error> {
+  async fn eval_file_module(&self, path: &str, span: Span) -> ObjectResult {
     let (resolved_path, source) = self.resolve_import_path(path, &span).await?;
-    let resolved_path_str = resolved_path.to_str().ok_or_else(|| {
-      Error::new(
-        ErrorKind::RuntimeError("Invalid path encoding".to_string()),
-        span,
-      )
-    })?;
-    let resolved_path_key = resolved_path_str.to_string();
+    let resolved_path_key = resolved_path.to_string_lossy().to_string();
 
     // Check module cache.
     if let Some(module) = self.modules.read().get(&resolved_path_key) {

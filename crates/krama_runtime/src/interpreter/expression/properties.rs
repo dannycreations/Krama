@@ -1,5 +1,5 @@
 use indexmap::IndexMap;
-use krama_core::{Error, ErrorKind, Expression, ObjectKind};
+use krama_core::{Error, ErrorKind, ErrorResult, Expression, ObjectKind};
 
 use crate::interpreter::Interpreter;
 
@@ -8,7 +8,7 @@ impl Interpreter {
   pub async fn eval_properties(
     &self,
     properties: &[(Expression, Expression)],
-  ) -> Result<IndexMap<String, ObjectKind>, Error> {
+  ) -> ErrorResult<IndexMap<String, ObjectKind>> {
     let mut fields = IndexMap::with_capacity(properties.len());
     for (key, value) in properties {
       let key_obj = self.eval_expression(key, None).await?;

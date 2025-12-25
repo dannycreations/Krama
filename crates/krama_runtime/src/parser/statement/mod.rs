@@ -10,13 +10,13 @@ mod test;
 mod types;
 
 use krama_core::{
-  ErrorKind, PrecedenceKind, Statement, StatementKind, TokenKind,
+  ErrorKindResult, PrecedenceKind, Statement, StatementKind, TokenKind,
 };
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
-  pub fn parse_statement(&mut self) -> Result<Statement, ErrorKind> {
+  pub fn parse_statement(&mut self) -> ErrorKindResult<Statement> {
     let token = self.current_token.clone();
 
     let statement = match token.kind {

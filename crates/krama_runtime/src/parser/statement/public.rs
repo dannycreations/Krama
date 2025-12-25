@@ -1,9 +1,9 @@
-use krama_core::{ErrorKind, Statement, TokenKind};
+use krama_core::{ErrorKind, ErrorKindResult, Statement, TokenKind};
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
-  pub fn parse_pub_statement(&mut self) -> Result<Statement, ErrorKind> {
+  pub fn parse_pub_statement(&mut self) -> ErrorKindResult<Statement> {
     let start_span = self.current_token.span;
     self.advance();
     match self.current_token.kind {

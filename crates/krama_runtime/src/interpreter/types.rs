@@ -1,14 +1,11 @@
 use indexmap::IndexMap;
-use krama_core::{Error, ObjectKind, ObjectProperty, Type, TypeKind};
+use krama_core::{ErrorResult, ObjectKind, ObjectProperty, Type, TypeKind};
 
 use super::Interpreter;
 
 /// Validates that an object matches the expected type.
 /// Delegates the core logic to Type::check in krama_core.
-pub fn check_type(
-  expected_type: &Type,
-  object: &ObjectKind,
-) -> Result<(), Error> {
+pub fn check_type(expected_type: &Type, object: &ObjectKind) -> ErrorResult {
   expected_type
     .check(object)
     .map_err(|k| k.at(expected_type.span))
@@ -18,7 +15,7 @@ pub fn check_type(
 pub fn resolve_type(
   interpreter: &Interpreter,
   kind: &Type,
-) -> Result<Type, Error> {
+) -> ErrorResult<Type> {
   // Use a helper to avoid re-wrapping identical types.
   let resolved_kind = match &kind.kind {
     // 1. Resolve type aliases from the environment.
@@ -38,27 +35,27 @@ pub fn resolve_type(
       size: size.clone(),
     },
     // 3. Recursively resolve tuple component types.
-    TypeKind::Tuple(types) => {
-      let mut resolved_types = Vec::new();
-      for t in types {
-        resolved_types.push(resolve_type(interpreter, t)?);
-      }
-      TypeKind::Tuple(resolved_types)
-    }
+    TypeKind::Tuple(types) => TypeKind::Tuple(
+      types
+        .iter()
+        .map(|t| resolve_type(interpreter, t))
+        .collect::<ErrorResult<Vec<_>>>()?,
+    ),
     // 4. Recursively resolve object property types.
-    TypeKind::Object(properties) => {
-      let mut resolved_properties = IndexMap::with_capacity(properties.len());
-      for (name, prop) in properties {
-        resolved_properties.insert(
-          name.clone(),
-          ObjectProperty {
-            kind: resolve_type(interpreter, &prop.kind)?,
-            optional: prop.optional,
-          },
-        );
-      }
-      TypeKind::Object(resolved_properties)
-    }
+    TypeKind::Object(properties) => TypeKind::Object(
+      properties
+        .iter()
+        .map(|(name, prop)| {
+          Ok((
+            name.clone(),
+            ObjectProperty {
+              kind: resolve_type(interpreter, &prop.kind)?,
+              optional: prop.optional,
+            },
+          ))
+        })
+        .collect::<ErrorResult<IndexMap<_, _>>>()?,
+    ),
     // 5. Primitives and other types remain unchanged.
     _ => return Ok(kind.clone()),
   };

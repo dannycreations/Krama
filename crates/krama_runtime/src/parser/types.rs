@@ -1,12 +1,13 @@
 use indexmap::IndexMap;
 use krama_core::{
-  ErrorKind, LiteralKind, ObjectProperty, TokenKind, Type, TypeKind,
+  ErrorKind, ErrorKindResult, LiteralKind, ObjectProperty, TokenKind, Type,
+  TypeKind,
 };
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
-  pub fn parse_type(&mut self) -> Result<Type, ErrorKind> {
+  pub fn parse_type(&mut self) -> ErrorKindResult<Type> {
     let mut kind = if self.current_token.kind == TokenKind::LBracket {
       self.parse_tuple_type()?
     } else if self.current_token.kind == TokenKind::LBrace {
@@ -22,7 +23,7 @@ impl<'a> Parser<'a> {
     Ok(kind)
   }
 
-  pub fn parse_optional_type(&mut self) -> Result<Option<Type>, ErrorKind> {
+  pub fn parse_optional_type(&mut self) -> ErrorKindResult<Option<Type>> {
     if self.current_token.kind == TokenKind::Colon {
       self.advance();
       self.parse_type().map(Some)
@@ -31,7 +32,7 @@ impl<'a> Parser<'a> {
     }
   }
 
-  fn parse_tuple_type(&mut self) -> Result<Type, ErrorKind> {
+  fn parse_tuple_type(&mut self) -> ErrorKindResult<Type> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::LBracket)?;
 
@@ -59,7 +60,7 @@ impl<'a> Parser<'a> {
     ))
   }
 
-  fn parse_object_type(&mut self) -> Result<Type, ErrorKind> {
+  fn parse_object_type(&mut self) -> ErrorKindResult<Type> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::LBrace)?;
 
@@ -98,10 +99,7 @@ impl<'a> Parser<'a> {
     ))
   }
 
-  fn parse_array_type(
-    &mut self,
-    element_type: Type,
-  ) -> Result<Type, ErrorKind> {
+  fn parse_array_type(&mut self, element_type: Type) -> ErrorKindResult<Type> {
     let span = element_type.span;
     self.consume(TokenKind::LBracket)?;
 
@@ -133,7 +131,7 @@ impl<'a> Parser<'a> {
     ))
   }
 
-  fn parse_base_type(&mut self) -> Result<Type, ErrorKind> {
+  fn parse_base_type(&mut self) -> ErrorKindResult<Type> {
     let token = self.current_token.clone();
     let span = token.span;
     let kind = match token.kind {

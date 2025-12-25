@@ -1,12 +1,12 @@
 use krama_core::{
-  ConstBinding, Destructure, ErrorKind, PrecedenceKind, Span, Statement,
+  ConstBinding, Destructure, ErrorKindResult, PrecedenceKind, Span, Statement,
   StatementKind, TokenKind,
 };
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
-  pub fn parse_let_statement(&mut self) -> Result<Statement, ErrorKind> {
+  pub fn parse_let_statement(&mut self) -> ErrorKindResult<Statement> {
     let start_span = self.consume(TokenKind::Let)?.span;
     let name = self.parse_identifier()?;
     let kind = self.parse_optional_type()?;
@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
     &mut self,
     public: bool,
     start_span: Span,
-  ) -> Result<Statement, ErrorKind> {
+  ) -> ErrorKindResult<Statement> {
     self.consume(TokenKind::Const)?;
     let binding = self.parse_binding()?;
     let kind = self.parse_optional_type()?;
@@ -43,7 +43,7 @@ impl<'a> Parser<'a> {
     ))
   }
 
-  fn parse_binding(&mut self) -> Result<ConstBinding, ErrorKind> {
+  fn parse_binding(&mut self) -> ErrorKindResult<ConstBinding> {
     if self.current_token.kind == TokenKind::LBrace {
       self.consume(TokenKind::LBrace)?;
       let items = self.parse_destructured_items()?;
@@ -63,9 +63,7 @@ impl<'a> Parser<'a> {
     }
   }
 
-  fn parse_destructured_items(
-    &mut self,
-  ) -> Result<Vec<Destructure>, ErrorKind> {
+  fn parse_destructured_items(&mut self) -> ErrorKindResult<Vec<Destructure>> {
     let mut items = Vec::new();
     if self.current_token.kind == TokenKind::RBrace {
       return Ok(items);

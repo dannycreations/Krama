@@ -1,4 +1,4 @@
-use krama_core::{ErrorKind, Span, Statement, StatementKind, TokenKind};
+use krama_core::{ErrorKindResult, Span, Statement, StatementKind, TokenKind};
 
 use super::Parser;
 
@@ -7,7 +7,7 @@ impl<'a> Parser<'a> {
     &mut self,
     public: bool,
     start_span: Span,
-  ) -> Result<Statement, ErrorKind> {
+  ) -> ErrorKindResult<Statement> {
     self.consume(TokenKind::Type)?;
 
     let name = self.parse_identifier()?;

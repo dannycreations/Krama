@@ -1,4 +1,6 @@
-use krama_core::{Error, ErrorKind, ObjectKind, Span};
+use krama_core::{
+  Error, ErrorKind, ErrorResult, ObjectKind, ObjectResult, Span,
+};
 
 use crate::Interpreter;
 
@@ -8,7 +10,7 @@ impl Interpreter {
     mut object: ObjectKind,
     index: ObjectKind,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     match &mut object {
       ObjectKind::Array { elements, .. } => {
         let idx = self.ensure_int_index(&index, span)?;
@@ -64,7 +66,7 @@ impl Interpreter {
     &self,
     index: &ObjectKind,
     span: Span,
-  ) -> Result<i64, Error> {
+  ) -> ErrorResult<i64> {
     if let ObjectKind::Integer(i) = index {
       Ok(*i)
     } else {

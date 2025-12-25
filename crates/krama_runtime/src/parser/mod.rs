@@ -5,13 +5,13 @@ mod types;
 use std::iter::Peekable;
 
 use krama_core::{
-  Error, ErrorKind, Expression, PrecedenceKind, Span, Statement, Token,
-  TokenKind,
+  ErrorKind, Expression, PrecedenceKind, Span, Statement, Token, TokenKind,
 };
+pub use krama_core::{ErrorKindResult, ErrorResult};
 
 use crate::Lexer;
 
-type ParseResult = Result<Expression, ErrorKind>;
+pub type ParseResult = ErrorKindResult<Expression>;
 
 /// Recursive descent parser for the language.
 /// Uses a Bump arena for efficient AST allocation.
@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
   pub fn consume(
     &mut self,
     expected_kind: TokenKind,
-  ) -> Result<Token, ErrorKind> {
+  ) -> ErrorKindResult<Token> {
     if self.current_token.kind == expected_kind {
       let token = self.current_token.clone();
       self.advance();
@@ -64,34 +64,30 @@ impl<'a> Parser<'a> {
 
   /// Speculatively attempts to parse using the provided closure.
   /// If the closure returns an error, the parser state is restored.
-  pub fn try_parse<F, T>(&mut self, f: F) -> Result<T, ErrorKind>
+  pub fn try_parse<F, T>(&mut self, f: F) -> ErrorKindResult<T>
   where
-    F: FnOnce(&mut Self) -> Result<T, ErrorKind>,
+    F: FnOnce(&mut Self) -> ErrorKindResult<T>,
   {
     let mut checkpoint = self.clone();
-    match f(&mut checkpoint) {
-      Ok(result) => {
-        *self = checkpoint;
-        Ok(result)
-      }
-      Err(e) => Err(e),
-    }
+    f(&mut checkpoint).inspect(|_| {
+      *self = checkpoint;
+    })
   }
 
   /// Parses the entire program into an AST.
-  pub fn parse(&mut self) -> Result<Vec<Statement>, Error> {
+  pub fn parse(&mut self) -> ErrorResult<Vec<Statement>> {
     let mut statements = Vec::new();
     while self.current_token.kind != TokenKind::Eof {
       let statement = self
         .parse_statement()
-        .map_err(|kind| Error::new(kind, self.current_token.span))?;
+        .map_err(|kind| kind.at(self.current_token.span))?;
       statements.push(statement);
     }
     Ok(statements)
   }
 
   /// Parses an identifier, handling keyword conflicts.
-  pub fn parse_identifier(&mut self) -> Result<String, ErrorKind> {
+  pub fn parse_identifier(&mut self) -> ErrorKindResult<String> {
     match &self.current_token.kind {
       TokenKind::Identifier(name) => {
         let name = name.to_string();

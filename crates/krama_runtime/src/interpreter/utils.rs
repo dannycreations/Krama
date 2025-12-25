@@ -1,4 +1,4 @@
-use krama_core::{Error, ErrorKind, ObjectKind, Span};
+use krama_core::{Error, ErrorKind, ErrorResult, ObjectKind, Span};
 
 use crate::interpreter::Interpreter;
 
@@ -10,7 +10,7 @@ impl Interpreter {
     member_name: &str,
     struct_name: &str,
     span: Span,
-  ) -> Result<(), Error> {
+  ) -> ErrorResult {
     if public {
       return Ok(());
     }

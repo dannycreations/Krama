@@ -1,5 +1,5 @@
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, PrecedenceKind, TokenKind,
+  ErrorKindResult, Expression, ExpressionKind, PrecedenceKind, TokenKind,
 };
 
 use super::{ParseResult, Parser};
@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
   pub fn parse_comma_separated_expressions(
     &mut self,
     end_token: TokenKind,
-  ) -> Result<Vec<Expression>, ErrorKind> {
+  ) -> ErrorKindResult<Vec<Expression>> {
     let mut expressions = Vec::new();
 
     if self.current_token.kind == end_token {

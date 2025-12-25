@@ -6,8 +6,9 @@ use std::sync::Arc;
 use ahash::AHashMap;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  AssignmentOperator, Enum, Error, Expression, ExpressionKind, FunctionKind,
-  ObjectKind, Statement, StatementBlock, StatementKind, Struct, Type,
+  AssignmentOperator, Enum, Expression, ExpressionKind, FunctionKind,
+  ObjectKind, ObjectResult, Statement, StatementBlock, StatementKind, Struct,
+  Type,
 };
 
 use crate::interpreter::{
@@ -20,7 +21,7 @@ impl Interpreter {
   pub fn eval_statement<'s>(
     &'s self,
     statement: &'s Statement,
-  ) -> LocalBoxFuture<'s, Result<ObjectKind, Error>> {
+  ) -> LocalBoxFuture<'s, ObjectResult> {
     async move {
       let span = statement.span;
       match &statement.kind {
@@ -190,8 +191,7 @@ impl Interpreter {
             // For loop iteration scope
             self.stack.write().push("for_loop_iter".to_string(), None);
 
-            // We use 'self' because new_enclosed shares the stack anyway.
-            self.assign_for_binding(self, binding, element, span)?;
+            self.assign_for_binding(binding, element, span)?;
             let result = self.eval_block_statement(body).await;
 
             self.stack.write().pop();
@@ -221,7 +221,7 @@ impl Interpreter {
     &self,
     expr: &Expression,
     kind_hint: Option<&Type>,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     let resolved = kind_hint.map(|k| resolve_type(self, k)).transpose()?;
     let value = self.eval_expression(expr, resolved.as_ref()).await?;
     if let Some(kind) = &resolved {
@@ -234,7 +234,7 @@ impl Interpreter {
   pub async fn eval_statements<'s>(
     &'s self,
     statements: &'s [Statement],
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     let mut result = ObjectKind::Void;
     for statement in statements {
       result = self.eval_statement(statement).await?;
@@ -249,7 +249,7 @@ impl Interpreter {
   pub async fn eval_block_statement(
     &self,
     block: &StatementBlock,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     self.eval_statements(&block.statements).await
   }
 
@@ -257,7 +257,7 @@ impl Interpreter {
   pub async fn eval_block_statement_with_new_scope(
     &self,
     block: &StatementBlock,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     self.stack.write().push("block".to_string(), None);
     let result = self.eval_statements(&block.statements).await;
     self.stack.write().pop();

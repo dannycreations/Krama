@@ -1,5 +1,7 @@
 use indexmap::IndexMap;
-use krama_core::{Error, ErrorKind, Expression, ObjectKind, Span};
+use krama_core::{
+  Error, ErrorKind, Expression, ObjectKind, ObjectResult, Span,
+};
 
 use crate::interpreter::{types::check_type, Interpreter};
 
@@ -9,7 +11,7 @@ impl Interpreter {
     &self,
     properties: &[(Expression, Expression)],
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     let this_obj = self.get_this(span)?;
     let ObjectKind::Struct(definition) = this_obj else {
       return Err(Error::new(
@@ -26,15 +28,17 @@ impl Interpreter {
     // Validate and apply default values for missing fields
     let mut final_fields = IndexMap::with_capacity(definition.fields.len());
     for field in &definition.fields {
-      let value = if let Some(val) = fields.get(&field.name) {
-        val.clone()
-      } else if let Some(default) = &field.default {
-        self.eval_expression(default, None).await?
-      } else {
-        return Err(Error::new(
-          ErrorKind::TypeError(format!("Missing field '{}'", field.name)),
-          span,
-        ));
+      let value = match fields.get(&field.name) {
+        Some(val) => val.clone(),
+        None => match &field.default {
+          Some(default) => self.eval_expression(default, None).await?,
+          None => {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!("Missing field '{}'", field.name)),
+              span,
+            ))
+          }
+        },
       };
       check_type(&field.kind, &value)?;
       final_fields.insert(field.name.clone(), value);

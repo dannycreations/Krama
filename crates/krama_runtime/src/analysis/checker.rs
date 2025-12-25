@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use krama_core::{
-  ConstBinding, Error, ErrorKind, Expression, ExpressionKind, ForBinding,
-  FunctionBody, MatchPattern, Span, Statement, StatementKind,
+  ConstBinding, Error, ErrorKind, ErrorResult, Expression, ExpressionKind,
+  ForBinding, FunctionBody, MatchPattern, Span, Statement, StatementKind,
 };
 
 pub struct Checker {
@@ -11,29 +11,29 @@ pub struct Checker {
 
 impl Default for Checker {
   fn default() -> Self {
-    Self::new()
-  }
-}
-
-impl Checker {
-  pub fn new() -> Self {
     Self {
       scopes: vec![IndexMap::default()],
       locals: IndexMap::default(),
     }
   }
+}
+
+impl Checker {
+  pub fn new() -> Self {
+    Self::default()
+  }
 
   pub fn check(
     &mut self,
     statements: &[Statement],
-  ) -> Result<IndexMap<Span, usize>, Error> {
+  ) -> ErrorResult<IndexMap<Span, usize>> {
     for statement in statements {
       self.check_statement(statement)?;
     }
     Ok(self.locals.clone())
   }
 
-  fn check_statement(&mut self, statement: &Statement) -> Result<(), Error> {
+  fn check_statement(&mut self, statement: &Statement) -> ErrorResult {
     match &statement.kind {
       StatementKind::Expression { expression } => {
         self.check_expression(expression)?
@@ -120,7 +120,7 @@ impl Checker {
     &mut self,
     params: &[krama_core::Parameter],
     body: &FunctionBody,
-  ) -> Result<(), Error> {
+  ) -> ErrorResult {
     self.with_scope(|this| {
       for param in params {
         this.define_var(param.name.to_string());
@@ -129,24 +129,21 @@ impl Checker {
     })
   }
 
-  fn check_body(&mut self, body: &FunctionBody) -> Result<(), Error> {
+  fn check_body(&mut self, body: &FunctionBody) -> ErrorResult {
     match body {
       FunctionBody::Block(block) => self.check_block_content(block),
       FunctionBody::Expression(expr) => self.check_expression(expr),
     }
   }
 
-  fn check_block(
-    &mut self,
-    block: &krama_core::StatementBlock,
-  ) -> Result<(), Error> {
+  fn check_block(&mut self, block: &krama_core::StatementBlock) -> ErrorResult {
     self.with_scope(|this| this.check_block_content(block))
   }
 
   fn check_block_content(
     &mut self,
     block: &krama_core::StatementBlock,
-  ) -> Result<(), Error> {
+  ) -> ErrorResult {
     for statement in &block.statements {
       self.check_statement(statement)?;
     }
@@ -164,7 +161,7 @@ impl Checker {
     }
   }
 
-  fn check_expression(&mut self, expression: &Expression) -> Result<(), Error> {
+  fn check_expression(&mut self, expression: &Expression) -> ErrorResult {
     match &expression.kind {
       ExpressionKind::Identifier(name) => {
         if let Some(scope) = self.scopes.last() {

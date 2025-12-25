@@ -1,4 +1,4 @@
-use krama_core::{Error, ErrorKind, ForBinding, ObjectKind, Span};
+use krama_core::{Error, ErrorKind, ErrorResult, ForBinding, ObjectKind, Span};
 
 use crate::interpreter::Interpreter;
 
@@ -9,7 +9,7 @@ impl Interpreter {
     iterable: &ObjectKind,
     binding: &ForBinding,
     span: Span,
-  ) -> Result<Vec<ObjectKind>, Error> {
+  ) -> ErrorResult<Vec<ObjectKind>> {
     match iterable {
       ObjectKind::Array { elements, .. } => Ok(elements.read().to_vec()),
       ObjectKind::Tuple { elements } => Ok(elements.as_ref().clone()),
@@ -52,19 +52,16 @@ impl Interpreter {
   /// Assigns a loop element to the loop binding.
   pub fn assign_for_binding(
     &self,
-    interpreter: &Interpreter,
     binding: &ForBinding,
     value: ObjectKind,
     span: Span,
-  ) -> Result<(), Error> {
+  ) -> ErrorResult {
     match binding {
       ForBinding::Identifier(name) => {
-        interpreter.stack.write().define(
-          name.clone(),
-          value.clone(),
-          false,
-          false,
-        );
+        self
+          .stack
+          .write()
+          .define(name.clone(), value.clone(), false, false);
         Ok(())
       }
       ForBinding::Array(bindings) => {
@@ -84,7 +81,7 @@ impl Interpreter {
 
         for (i, binding) in bindings.iter().enumerate() {
           let val = elements.get(i).cloned().unwrap_or(ObjectKind::Void);
-          self.assign_for_binding(interpreter, binding, val, span)?;
+          self.assign_for_binding(binding, val, span)?;
         }
         Ok(())
       }

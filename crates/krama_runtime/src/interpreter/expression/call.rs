@@ -3,7 +3,7 @@ use std::sync::Arc;
 use futures::future::try_join_all;
 use krama_core::{
   Error, ErrorKind, Expression, ExpressionKind, FunctionBody, FunctionKind,
-  ObjectKind, Span, UserFunction,
+  ObjectKind, ObjectResult, Span, UserFunction,
 };
 
 use crate::{check_type, Interpreter};
@@ -15,29 +15,24 @@ impl Interpreter {
     function: &Expression,
     arguments: &[Expression],
     span: Span,
-  ) -> Result<ObjectKind, krama_core::Error> {
-    let (func_obj, this_binding) =
-      if let ExpressionKind::Member { object, property } = &function.kind {
+  ) -> ObjectResult {
+    let (func_obj, this_binding) = match &function.kind {
+      ExpressionKind::Member { object, property } => {
         let obj_val = self.eval_expression(object, None).await?;
-        (
-          self
-            .eval_member_expression(obj_val.clone(), property, span)
-            .await?,
-          obj_val,
-        )
-      } else {
-        (
-          self.eval_expression(function, None).await?,
-          ObjectKind::Void,
-        )
-      };
-
-    let evaluated_args = if arguments.is_empty() {
-      Vec::new()
-    } else {
-      try_join_all(arguments.iter().map(|arg| self.eval_expression(arg, None)))
-        .await?
+        let func = self
+          .eval_member_expression(obj_val.clone(), property, span)
+          .await?;
+        (func, obj_val)
+      }
+      _ => (
+        self.eval_expression(function, None).await?,
+        ObjectKind::Void,
+      ),
     };
+
+    let evaluated_args =
+      try_join_all(arguments.iter().map(|arg| self.eval_expression(arg, None)))
+        .await?;
 
     self
       .eval_call_expression_with_this(
@@ -56,7 +51,7 @@ impl Interpreter {
     arguments: &[ObjectKind],
     this: ObjectKind,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     match function {
       ObjectKind::Function(function) => match function {
         FunctionKind::Native(native_fn) => (native_fn.callback)(arguments)
@@ -111,7 +106,7 @@ impl Interpreter {
     arguments: &[ObjectKind],
     this: ObjectKind,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     if arguments.len() > user_fn.parameters.len() {
       return Err(Error::new(
         ErrorKind::TypeError(format!(
@@ -123,17 +118,13 @@ impl Interpreter {
       ));
     }
 
-    let new_interpreter = self.new_enclosed();
+    let stack = self.stack.clone();
 
     // Push a new scope onto the stack.
-    // Use the captured closure environment as the parent scope, if available.
-    new_interpreter
-      .stack
-      .write()
-      .push("function_call".to_string(), closure_env);
+    stack.write().push("function_call".to_string(), closure_env);
 
     if !matches!(this, ObjectKind::Void) {
-      let mut stack = new_interpreter.stack.write();
+      let mut stack = stack.write();
       stack.define("this".to_string(), this.clone(), false, true);
 
       let struct_name = match &this {
@@ -159,7 +150,7 @@ impl Interpreter {
       let value = if let Some(arg) = arguments.get(i) {
         arg.clone()
       } else if let Some(default) = &param.default {
-        new_interpreter.eval_expression(default, None).await?
+        self.eval_expression(default, None).await?
       } else {
         return Err(Error::new(
           ErrorKind::TypeError(format!(
@@ -174,25 +165,20 @@ impl Interpreter {
         check_type(param_type, &value)?;
       }
 
-      new_interpreter.stack.write().define(
-        param.name.clone(),
-        value,
-        false,
-        false,
-      );
+      stack
+        .write()
+        .define(param.name.clone(), value, false, false);
     }
 
     let result = match &user_fn.body {
       FunctionBody::Block(block) => {
-        new_interpreter.eval_statements(&block.statements).await
+        self.eval_statements(&block.statements).await
       }
-      FunctionBody::Expression(expr) => {
-        new_interpreter.eval_expression(expr, None).await
-      }
+      FunctionBody::Expression(expr) => self.eval_expression(expr, None).await,
     };
 
     // Pop the stack frame (which is the current scope)
-    new_interpreter.stack.write().pop();
+    stack.write().pop();
 
     // Functions always unwrap Return signals to return the underlying value.
     Ok(result?.unwrap_return().clone())

@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 use strum_macros::EnumProperty as EnumPropertyMacro;
 
-use crate::Type;
+use crate::{ErrorResult, Type};
 
 mod behaviour;
 mod collection;
@@ -17,6 +17,8 @@ pub use collection::*;
 pub use function::*;
 pub use scope::*;
 pub use standard::*;
+
+pub type ObjectResult = ErrorResult<ObjectKind>;
 
 /// The fundamental value type in the language.
 /// Uses `ObjectKind` to represent everything from primitives to complex structures.

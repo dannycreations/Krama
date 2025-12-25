@@ -1,9 +1,9 @@
-use krama_core::{ErrorKind, PrecedenceKind, Statement, StatementKind};
+use krama_core::{ErrorKindResult, PrecedenceKind, Statement, StatementKind};
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
-  pub fn parse_test_statement(&mut self) -> Result<Statement, ErrorKind> {
+  pub fn parse_test_statement(&mut self) -> ErrorKindResult<Statement> {
     let start_span = self.current_token.span;
     self.advance();
     let name = self.parse_expression(PrecedenceKind::Lowest)?;

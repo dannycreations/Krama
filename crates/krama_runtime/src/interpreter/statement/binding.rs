@@ -1,5 +1,5 @@
 use krama_core::{
-  ConstBinding, Destructure, Error, ErrorKind, ObjectKind, Span,
+  ConstBinding, Destructure, Error, ErrorKind, ErrorResult, ObjectKind, Span,
 };
 
 use crate::interpreter::Interpreter;
@@ -12,7 +12,7 @@ impl Interpreter {
     value: ObjectKind,
     public: bool,
     span: Span,
-  ) -> Result<(), Error> {
+  ) -> ErrorResult {
     match binding {
       ConstBinding::Identifier(name) => {
         self.stack.write().define(name.clone(), value, public, true);
@@ -35,7 +35,7 @@ impl Interpreter {
     value: ObjectKind,
     public: bool,
     span: Span,
-  ) -> Result<(), Error> {
+  ) -> ErrorResult {
     if let ObjectKind::Scope(scope) = &value {
       if let Some(alias_name) = alias {
         self.stack.write().define(

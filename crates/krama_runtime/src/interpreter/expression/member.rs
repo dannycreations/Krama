@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use krama_core::{
-  Error, ErrorKind, Expression, ExpressionKind, FunctionKind, ObjectKind, Span,
-  StructMethod, UserFunction,
+  Error, ErrorKind, Expression, ExpressionKind, FunctionKind, ObjectKind,
+  ObjectResult, Span, StructMethod, UserFunction,
 };
 use krama_std::PROPS;
 
@@ -16,7 +16,7 @@ impl Interpreter {
     object: ObjectKind,
     property: &Expression,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     // 1. Extract property name from the identifier.
     let property_name = if let ExpressionKind::Identifier(name) = &property.kind
     {

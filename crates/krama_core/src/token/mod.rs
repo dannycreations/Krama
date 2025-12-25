@@ -215,50 +215,50 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
+  /// Checks if the token is a reserved keyword.
   pub fn is_keyword(&self) -> bool {
-    use TokenKind::*;
     matches!(
       self,
-      Const
-        | Fn
-        | Pub
-        | Let
-        | Struct
-        | This
-        | If
-        | Elif
-        | Else
-        | Match
-        | While
-        | For
-        | In
-        | Return
-        | Break
-        | Continue
-        | Test
-        | True
-        | False
-        | Import
-        | As
-        | Null
-        | Enum
-        | Type
-        | I8
-        | I16
-        | I32
-        | I64
-        | I128
-        | Isize
-        | U8
-        | U16
-        | U32
-        | U64
-        | U128
-        | Usize
-        | F32
-        | F64
-        | Bool
-        | Str
+      Self::Const
+        | Self::Fn
+        | Self::Pub
+        | Self::Let
+        | Self::Struct
+        | Self::This
+        | Self::If
+        | Self::Elif
+        | Self::Else
+        | Self::Match
+        | Self::While
+        | Self::For
+        | Self::In
+        | Self::Return
+        | Self::Break
+        | Self::Continue
+        | Self::Test
+        | Self::True
+        | Self::False
+        | Self::Import
+        | Self::As
+        | Self::Null
+        | Self::Enum
+        | Self::Type
+        | Self::I8
+        | Self::I16
+        | Self::I32
+        | Self::I64
+        | Self::I128
+        | Self::Isize
+        | Self::U8
+        | Self::U16
+        | Self::U32
+        | Self::U64
+        | Self::U128
+        | Self::Usize
+        | Self::F32
+        | Self::F64
+        | Self::Bool
+        | Self::Str
     )
   }
 }

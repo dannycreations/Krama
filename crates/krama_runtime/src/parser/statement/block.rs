@@ -1,9 +1,9 @@
-use krama_core::{ErrorKind, StatementBlock, TokenKind};
+use krama_core::{ErrorKind, ErrorKindResult, StatementBlock, TokenKind};
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
-  pub fn parse_block_statement(&mut self) -> Result<StatementBlock, ErrorKind> {
+  pub fn parse_block_statement(&mut self) -> ErrorKindResult<StatementBlock> {
     let start_span = self.current_token.span;
     self.advance();
     let mut statements = Vec::new();

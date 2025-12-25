@@ -1,7 +1,7 @@
 use std::vec::Vec;
 
 use futures::future::try_join_all;
-use krama_core::{Error, Expression, ObjectKind, Span, Type, TypeKind};
+use krama_core::{Expression, ObjectResult, Span, Type, TypeKind};
 
 use crate::interpreter::Interpreter;
 
@@ -12,7 +12,7 @@ impl Interpreter {
     elements: &[Expression],
     kind_hint: Option<&Type>,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     // 1. Determine element type hint from the parent collection hint.
     let el_hint = kind_hint.and_then(|hint| {
       if let TypeKind::Array { element, .. } = &hint.kind {
@@ -23,33 +23,19 @@ impl Interpreter {
     });
 
     // 2. Evaluate all elements concurrently.
-    let results = if elements.is_empty() {
-      Vec::new()
-    } else {
+    let results =
       try_join_all(elements.iter().map(|e| self.eval_expression(e, el_hint)))
-        .await?
-    };
+        .await?;
 
-    // 3. Construct the specific collection type if a hint is present.
-    if let Some(hint) = kind_hint {
-      match &hint.kind {
-        TypeKind::Array { .. } => {
-          return Ok(self.heap.write().alloc_array(
-            results,
-            hint.clone(),
-            false,
-          ));
-        }
-        TypeKind::Tuple(_) => {
-          return Ok(self.heap.write().alloc_tuple(results));
-        }
-        _ => {}
-      }
-    }
-
-    // 4. Default to Array if empty, or Tuple if non-empty and no hint is available.
-    if results.is_empty() {
-      Ok(self.heap.write().alloc_array(
+    // 3. Construct the specific collection type based on hint or defaults.
+    Ok(match kind_hint.map(|h| &h.kind) {
+      Some(TypeKind::Array { .. }) => self.heap.write().alloc_array(
+        results,
+        kind_hint.unwrap().clone(),
+        false,
+      ),
+      Some(TypeKind::Tuple(_)) => self.heap.write().alloc_tuple(results),
+      _ if results.is_empty() => self.heap.write().alloc_array(
         Vec::new(),
         Type::new(
           TypeKind::Array {
@@ -59,17 +45,16 @@ impl Interpreter {
           span,
         ),
         false,
-      ))
-    } else {
-      Ok(self.heap.write().alloc_tuple(results))
-    }
+      ),
+      _ => self.heap.write().alloc_tuple(results),
+    })
   }
 
   /// Evaluates an object literal expression by resolving its properties.
   pub async fn eval_object_literal(
     &self,
     properties: &[(Expression, Expression)],
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     let object = self.eval_properties(properties).await?;
     Ok(self.heap.write().alloc_object(object, None, false))
   }

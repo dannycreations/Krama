@@ -1,4 +1,4 @@
-use krama_core::{ErrorKind, ObjectKind};
+use krama_core::{ErrorKindResult, ObjectKind};
 use krama_macro::register_global;
 use tokio::io::{self, AsyncWrite, AsyncWriteExt};
 
@@ -13,7 +13,7 @@ macro_rules! io_try {
 async fn write_objects<W>(
   mut writer: W,
   objects: &[ObjectKind],
-) -> Result<(), ErrorKind>
+) -> ErrorKindResult<()>
 where
   W: AsyncWrite + Unpin,
 {
@@ -29,13 +29,13 @@ where
 }
 
 #[register_global("print")]
-pub async fn print(objects: &[ObjectKind]) -> Result<ObjectKind, ErrorKind> {
+pub async fn print(objects: &[ObjectKind]) -> ObjectResult {
   write_objects(io::stdout(), &objects).await?;
   Ok(ObjectKind::Void)
 }
 
 #[register_global("eprint")]
-pub async fn eprint(objects: &[ObjectKind]) -> Result<ObjectKind, ErrorKind> {
+pub async fn eprint(objects: &[ObjectKind]) -> ObjectResult {
   write_objects(io::stderr(), &objects).await?;
   Ok(ObjectKind::Void)
 }

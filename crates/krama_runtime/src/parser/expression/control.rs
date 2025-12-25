@@ -1,6 +1,6 @@
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, FunctionBody, Match, MatchPattern,
-  PrecedenceKind, TokenKind,
+  ErrorKind, ErrorKindResult, Expression, ExpressionKind, FunctionBody, Match,
+  MatchPattern, PrecedenceKind, TokenKind,
 };
 
 use super::{ParseResult, Parser};
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
     ))
   }
 
-  fn parse_match_arm(&mut self) -> Result<Match, ErrorKind> {
+  fn parse_match_arm(&mut self) -> ErrorKindResult<Match> {
     let mut patterns = Vec::new();
     patterns.push(self.parse_match_pattern()?);
 
@@ -120,7 +120,7 @@ impl<'a> Parser<'a> {
     Ok(Match { patterns, body })
   }
 
-  fn parse_match_pattern(&mut self) -> Result<MatchPattern, ErrorKind> {
+  fn parse_match_pattern(&mut self) -> ErrorKindResult<MatchPattern> {
     if self.current_token.kind == TokenKind::Else {
       self.advance();
       return Ok(MatchPattern::Else);

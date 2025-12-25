@@ -1,6 +1,6 @@
 use krama_core::{
-  ErrorKind, FunctionBody, PrecedenceKind, Span, Statement, StatementKind,
-  StructField, StructMethod, TokenKind,
+  ErrorKindResult, FunctionBody, PrecedenceKind, Span, Statement,
+  StatementKind, StructField, StructMethod, TokenKind,
 };
 
 use crate::parser::Parser;
@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
     &mut self,
     public: bool,
     start_span: Span,
-  ) -> Result<Statement, ErrorKind> {
+  ) -> ErrorKindResult<Statement> {
     self.consume(TokenKind::Struct)?;
     let name = self.parse_identifier()?;
     self.consume(TokenKind::LBrace)?;
@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
   fn parse_struct_field(
     &mut self,
     public: bool,
-  ) -> Result<StructField, ErrorKind> {
+  ) -> ErrorKindResult<StructField> {
     let start_span = self.current_token.span;
     let name = self.parse_identifier()?;
     self.consume(TokenKind::Colon)?;
@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
   fn parse_struct_method(
     &mut self,
     public: bool,
-  ) -> Result<StructMethod, ErrorKind> {
+  ) -> ErrorKindResult<StructMethod> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::Fn)?;
     let name = self.parse_identifier()?;

@@ -23,25 +23,13 @@ pub struct Scope {
 }
 
 impl Scope {
-  /// Creates a new scope.
-  #[inline(always)]
-  pub fn new(name: Option<String>) -> Self {
+  /// Creates a new scope, optionally with a parent.
+  /// Pre-allocates space for bindings if a parent is provided (likely a block or function).
+  pub fn new(name: Option<String>, parent: Option<Arc<RwLock<Scope>>>) -> Self {
     Self {
       name,
-      bindings: AHashMap::with_capacity(0),
-      parent: None,
-    }
-  }
-
-  /// Creates a new scope with a parent (closure/block).
-  pub fn new_enclosed(
-    name: Option<String>,
-    parent: Arc<RwLock<Scope>>,
-  ) -> Self {
-    Self {
-      name,
-      bindings: AHashMap::with_capacity(4),
-      parent: Some(parent),
+      bindings: AHashMap::with_capacity(if parent.is_some() { 4 } else { 0 }),
+      parent,
     }
   }
 

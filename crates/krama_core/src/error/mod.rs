@@ -5,6 +5,9 @@ mod span;
 
 pub use span::*;
 
+pub type ErrorResult<T = ()> = Result<T, Error>;
+pub type ErrorKindResult<T = ()> = Result<T, ErrorKind>;
+
 /// Represents a diagnostic error in the compiler/interpreter.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Error {

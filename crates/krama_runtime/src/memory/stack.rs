@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use indexmap::IndexMap;
-use krama_core::{Error, ErrorKind, ObjectKind, Scope, Span};
+use krama_core::{Error, ErrorKind, ErrorResult, ObjectKind, Scope, Span};
 use parking_lot::RwLock;
 
 /// The Call Stack, managing the execution context history.
@@ -16,7 +16,7 @@ impl Stack {
   /// Creates a new stack with a global scope.
   pub fn new() -> Self {
     let global_scope =
-      Arc::new(RwLock::new(Scope::new(Some("global".to_string()))));
+      Arc::new(RwLock::new(Scope::new(Some("global".to_string()), None)));
     Self {
       frames: vec![global_scope],
     }
@@ -37,7 +37,7 @@ impl Stack {
   pub fn push(&mut self, name: String, parent: Option<Arc<RwLock<Scope>>>) {
     let parent_scope = parent.unwrap_or_else(|| self.current());
     let new_scope =
-      Arc::new(RwLock::new(Scope::new_enclosed(Some(name), parent_scope)));
+      Arc::new(RwLock::new(Scope::new(Some(name), Some(parent_scope))));
     self.frames.push(new_scope);
   }
 
@@ -67,7 +67,7 @@ impl Stack {
     name: &str,
     value: ObjectKind,
     span: Span,
-  ) -> Result<(), Error> {
+  ) -> ErrorResult {
     let mut current_scope = self.current();
 
     loop {

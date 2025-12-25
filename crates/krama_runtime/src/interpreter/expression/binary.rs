@@ -1,5 +1,5 @@
 use futures::try_join;
-use krama_core::{BinaryOperator, Error, Expression, ObjectKind, Span};
+use krama_core::{BinaryOperator, Expression, ObjectResult, Span};
 
 use crate::Interpreter;
 
@@ -11,7 +11,7 @@ impl Interpreter {
     operator: BinaryOperator,
     right: &Expression,
     span: Span,
-  ) -> Result<ObjectKind, Error> {
+  ) -> ObjectResult {
     // 1. Handle short-circuiting for logical operators (OR/AND).
     if matches!(
       operator,
@@ -24,10 +24,7 @@ impl Interpreter {
         return Ok(left_val);
       }
 
-      let is_truthy = left_val.is_truthy();
-      if (operator == BinaryOperator::LogicalOr && is_truthy)
-        || (operator == BinaryOperator::LogicalAnd && !is_truthy)
-      {
+      if left_val.is_truthy() == (operator == BinaryOperator::LogicalOr) {
         return Ok(left_val);
       }
       return self.eval_expression(right, None).await;
