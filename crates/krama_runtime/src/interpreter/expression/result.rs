@@ -17,7 +17,7 @@ impl Interpreter {
     // be propagated or unwrapped by the calling function.
     if let ObjectKind::Return(inner) = &val {
       if inner.is_result_err() {
-        return Ok((**inner).clone());
+        return Ok(inner.as_ref().clone());
       }
     }
 

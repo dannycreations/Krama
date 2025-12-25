@@ -54,25 +54,25 @@ test_eval_ok!(
 test_eval_ok!(
   literal_string,
   "\"hello\"",
-  ObjectKind::String("hello".to_string())
+  ObjectKind::String("hello".into())
 );
 
 test_eval_ok!(
   literal_string_concatenation,
   "\"hello\" + \" world\"",
-  ObjectKind::String("hello world".to_string())
+  ObjectKind::String("hello world".into())
 );
 
 test_eval_ok!(
   literal_string_index,
   "const a = \"hello\"; a[0]",
-  ObjectKind::String("h".to_string())
+  ObjectKind::String("h".into())
 );
 
 test_eval_ok!(
   literal_string_index_negative,
   "const a = \"hello\"; a[-1]",
-  ObjectKind::String("o".to_string())
+  ObjectKind::String("o".into())
 );
 
 test_eval_ok!(

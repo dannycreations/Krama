@@ -36,13 +36,12 @@ impl PartialEq for ObjectKind {
       (Self::Integer(l), Self::Integer(r)) => l == r,
       (Self::Float(l), Self::Float(r)) => l == r,
       (Self::Boolean(l), Self::Boolean(r)) => l == r,
-      (Self::String(l), Self::String(r)) => l == r,
+      // Arc::ptr_eq is much faster than string comparison if they point to the same allocation.
+      (Self::String(l), Self::String(r)) => Arc::ptr_eq(l, r) || *l == *r,
       (Self::Array { elements: l, .. }, Self::Array { elements: r, .. }) => {
         Arc::ptr_eq(l, r)
       }
-      (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => {
-        Arc::ptr_eq(l, r)
-      }
+      (Self::Tuple(l), Self::Tuple(r)) => Arc::ptr_eq(l, r),
       (
         Self::Object { properties: l, .. },
         Self::Object { properties: r, .. },
@@ -50,21 +49,12 @@ impl PartialEq for ObjectKind {
       (Self::Null, Self::Null) | (Self::Void, Self::Void) => true,
       (Self::Scope(l), Self::Scope(r)) => Arc::ptr_eq(l, r),
       (Self::Function(l), Self::Function(r)) => l == r,
-      (Self::Return(l), Self::Return(r)) => l == r,
+      (Self::Return(l), Self::Return(r)) => Arc::ptr_eq(l, r) || l == r,
       (Self::Break, Self::Break) | (Self::Continue, Self::Continue) => true,
-      (Self::Ok(l), Self::Ok(r)) | (Self::Err(l), Self::Err(r)) => l == r,
-      (
-        Self::Enum {
-          name: ln,
-          variant: lv,
-          fields: lf,
-        },
-        Self::Enum {
-          name: rn,
-          variant: rv,
-          fields: rf,
-        },
-      ) => ln == rn && lv == rv && lf == rf,
+      (Self::Ok(l), Self::Ok(r)) | (Self::Err(l), Self::Err(r)) => {
+        Arc::ptr_eq(l, r) || l == r
+      }
+      (Self::Enum(l), Self::Enum(r)) => l == r,
       (Self::Struct(l), Self::Struct(r)) => Arc::ptr_eq(l, r),
       (Self::Type(l), Self::Type(r)) => l == r,
       _ => false,
@@ -103,7 +93,12 @@ impl ObjectKind {
       (Self::String(l), r) | (r, Self::String(l))
         if operator == BinaryOperator::Add =>
       {
-        Ok(Self::String(format!("{}{}", l, r)))
+        // Pre-calculate capacity to avoid multiple re-allocations during string concatenation.
+        let r_str = r.to_string();
+        let mut res = String::with_capacity(l.len() + r_str.len());
+        res.push_str(l);
+        res.push_str(&r_str);
+        Ok(Self::String(res.into()))
       }
       (Self::String(l), Self::String(r)) => {
         Self::compare_numbers(l, r, operator)
@@ -135,7 +130,7 @@ impl ObjectKind {
 
   /// Internal helper to unify comparison logic for numbers.
   #[inline(always)]
-  fn compare_numbers<N: PartialOrd>(
+  fn compare_numbers<N: PartialOrd + PartialEq>(
     l: N,
     r: N,
     op: BinaryOperator,
@@ -182,7 +177,16 @@ impl ObjectKind {
         Ok(Self::Integer(l.wrapping_div(r)))
       }
       BinaryOperator::Modulo => Ok(Self::Integer(l.wrapping_rem(r))),
-      BinaryOperator::Exponent => Ok(Self::Integer(l.pow(r as u32))),
+      BinaryOperator::Exponent => {
+        // Use checked_pow or handle u32 cast carefully.
+        // BigInt support is a TODO for the future.
+        if r < 0 {
+          return Err(ErrorKind::RuntimeError(
+            "Negative exponent for integer".into(),
+          ));
+        }
+        Ok(Self::Integer(l.pow(r as u32)))
+      }
       BinaryOperator::BitwiseAnd => Ok(Self::Integer(l.bitand(r))),
       BinaryOperator::BitwiseOr => Ok(Self::Integer(l.bitor(r))),
       BinaryOperator::BitwiseXor => Ok(Self::Integer(l.bitxor(r))),
@@ -192,11 +196,15 @@ impl ObjectKind {
         let elements = if r < l {
           Vec::new()
         } else {
-          (l..=r).map(Self::Integer).collect()
+          // Pre-allocate capacity for the range vector to avoid re-allocations.
+          let count = (r - l + 1) as usize;
+          let mut vec = Vec::with_capacity(count);
+          for i in l..=r {
+            vec.push(Self::Integer(i));
+          }
+          vec
         };
-        Ok(Self::Tuple {
-          elements: Arc::new(elements),
-        })
+        Ok(Self::Tuple(elements.into()))
       }
       _ => Err(self.unsupported_bin_op(&Self::Integer(r), op)),
     }
@@ -271,7 +279,7 @@ impl Display for ObjectKind {
         }
         write!(f, "]")
       }
-      Self::Tuple { elements } => {
+      Self::Tuple(elements) => {
         write!(f, "(")?;
         for (i, el) in elements.iter().enumerate() {
           if i > 0 {
@@ -309,7 +317,7 @@ impl Display for ObjectKind {
         FunctionKind::Native(n) => write!(f, "fn {}() [native]", n.name),
         FunctionKind::User { .. } => write!(f, "fn() [user]"),
         FunctionKind::Enum(e) => {
-          write!(f, "fn {}::{}() [enum]", e.name, e.variant)
+          write!(f, "fn {}.{}() [enum]", e.name, e.variant)
         }
       },
       Self::Return(v) => write!(f, "return {}", v),
@@ -317,13 +325,9 @@ impl Display for ObjectKind {
       Self::Continue => write!(f, "continue"),
       Self::Ok(v) => write!(f, "Ok({})", v),
       Self::Err(v) => write!(f, "Err({})", v),
-      Self::Enum {
-        name,
-        variant,
-        fields,
-      } => {
-        write!(f, "{}::{}", name, variant)?;
-        if let Some(fields) = fields {
+      Self::Enum(instance) => {
+        write!(f, "{}.{}", instance.name, instance.variant)?;
+        if let Some(fields) = &instance.fields {
           write!(f, "(")?;
           for (i, field) in fields.iter().enumerate() {
             if i > 0 {

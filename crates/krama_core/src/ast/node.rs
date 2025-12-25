@@ -57,3 +57,10 @@ impl<T> Deref for Node<T> {
     &self.kind
   }
 }
+
+/// Allows transparent conversion from Node<T> to T in patterns.
+impl<T> AsRef<T> for Node<T> {
+  fn as_ref(&self) -> &T {
+    &self.kind
+  }
+}

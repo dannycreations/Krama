@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use krama_core::{
   AssignmentOperator, ErrorResult, Expression, ExpressionKind, ObjectKind, Span,
 };
@@ -12,7 +14,7 @@ impl Interpreter {
   pub async fn try_match_assignment(
     &self,
     expression: &Expression,
-  ) -> ErrorResult<Option<Vec<(String, ObjectKind)>>> {
+  ) -> ErrorResult<Option<Vec<(Arc<str>, ObjectKind)>>> {
     // We only care about simple assignments for pattern matching.
     if let ExpressionKind::Assignment {
       left,
@@ -39,7 +41,7 @@ impl Interpreter {
     subject: &ObjectKind,
     pattern_expr: &Expression,
     _span: Span,
-  ) -> ErrorResult<Option<Vec<(String, ObjectKind)>>> {
+  ) -> ErrorResult<Option<Vec<(Arc<str>, ObjectKind)>>> {
     // Handle Result variant patterns: Ok(v) or Err(e)
     if let ExpressionKind::Call {
       function,
@@ -47,9 +49,11 @@ impl Interpreter {
     } = &pattern_expr.kind
     {
       if let ExpressionKind::Identifier(name) = &function.kind {
-        if (name == "Ok" || name == "Err") && arguments.len() == 1 {
+        if (name.as_ref() == "Ok" || name.as_ref() == "Err")
+          && arguments.len() == 1
+        {
           let is_match = matches!(
-            (name.as_str(), subject),
+            (name.as_ref(), subject),
             ("Ok", ObjectKind::Ok(_)) | ("Err", ObjectKind::Err(_))
           );
 
@@ -63,12 +67,12 @@ impl Interpreter {
             if let ExpressionKind::Identifier(bind_name) = &arg.kind {
               return Ok(Some(vec![(
                 bind_name.clone(),
-                *(*inner_val).clone(),
+                inner_val.as_ref().clone(),
               )]));
             } else {
               // Nested pattern matching (currently only direct value equality).
               let arg_val = self.eval_expression(arg, None).await?;
-              if arg_val == **inner_val {
+              if arg_val == *inner_val.as_ref() {
                 return Ok(Some(Vec::new()));
               }
             }

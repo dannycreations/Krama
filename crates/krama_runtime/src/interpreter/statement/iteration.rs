@@ -12,10 +12,10 @@ impl Interpreter {
   ) -> ErrorResult<Vec<ObjectKind>> {
     match iterable {
       ObjectKind::Array { elements, .. } => Ok(elements.read().to_vec()),
-      ObjectKind::Tuple { elements } => Ok(elements.as_ref().clone()),
+      ObjectKind::Tuple(elements) => Ok(elements.as_ref().to_vec()),
       ObjectKind::String(s) => Ok(
         s.chars()
-          .map(|c| ObjectKind::String(c.to_string()))
+          .map(|c| ObjectKind::String(c.to_string().into()))
           .collect(),
       ),
       ObjectKind::Object { properties, .. } => {
@@ -67,7 +67,7 @@ impl Interpreter {
       ForBinding::Array(bindings) => {
         let elements = match &value {
           ObjectKind::Array { elements, .. } => elements.read().to_vec(),
-          ObjectKind::Tuple { elements } => elements.as_ref().clone(),
+          ObjectKind::Tuple(elements) => elements.as_ref().to_vec(),
           _ => {
             return Err(Error::new(
               ErrorKind::TypeError(format!(

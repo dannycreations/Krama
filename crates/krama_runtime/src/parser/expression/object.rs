@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use krama_core::{
   ErrorKind, Expression, ExpressionKind, LiteralKind, PrecedenceKind, TokenKind,
 };
@@ -23,7 +25,7 @@ impl<'a> Parser<'a> {
       let (key, value) = match self.current_token.kind {
         TokenKind::Identifier(_) => {
           let key_span = self.current_token.span;
-          let key_ident = self.parse_identifier()?;
+          let key_ident: Arc<str> = self.parse_identifier()?.into();
           let key_expr = Expression::new(
             ExpressionKind::Literal(LiteralKind::String(key_ident.clone())),
             key_span,

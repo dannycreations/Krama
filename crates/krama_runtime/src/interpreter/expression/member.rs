@@ -28,19 +28,19 @@ impl Interpreter {
       ));
     };
 
-    match object {
+    match &object {
       // 2. Handle Object literals and Struct instances.
       ObjectKind::Object {
         properties,
         definition,
         ..
       } => {
-        // a. Check properties (fields) first.
+        // a. O(1) property lookup.
         if let Some(value) = properties.read().get(property_name) {
           if let Some(definition) = definition {
-            if let Some(field_def) =
-              definition.fields.iter().find(|f| f.name == *property_name)
-            {
+            // O(1) field visibility check using pre-computed field_map.
+            if let Some(&index) = definition.field_map.get(property_name) {
+              let field_def = &definition.fields[index];
               self.ensure_accessible(
                 field_def.public,
                 property_name,
@@ -129,14 +129,42 @@ impl Interpreter {
         }
       }
 
-      // 6. Handle Built-in properties (Standard library extensions).
+      // 6. Handle Enum variants.
+      ObjectKind::Enum(instance) => {
+        if property_name.as_ref() == "variant" {
+          return Ok(ObjectKind::String(instance.variant.clone()));
+        }
+        if property_name.as_ref() == "name" {
+          return Ok(ObjectKind::String(instance.name.clone()));
+        }
+
+        let type_name = object.type_name();
+        if let Some(callback) = PROPS
+          .get(type_name)
+          .and_then(|type_props| type_props.get(property_name.as_ref()))
+        {
+          return (callback)(object.clone())
+            .await
+            .map_err(|kind| Error::new(kind, span));
+        }
+
+        Err(Error::new(
+          ErrorKind::TypeError(format!(
+            "Enum variant {}.{} does not support member access for '{}'",
+            instance.name, instance.variant, property_name
+          )),
+          span,
+        ))
+      }
+
+      // 7. Handle Built-in properties (Standard library extensions).
       _ => {
         let type_name = object.type_name();
         if let Some(callback) = PROPS
           .get(type_name)
-          .and_then(|type_props| type_props.get(property_name.as_str()))
+          .and_then(|type_props| type_props.get(property_name.as_ref()))
         {
-          return (callback)(object)
+          return (callback)(object.clone())
             .await
             .map_err(|kind| Error::new(kind, span));
         }

@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
 
     loop {
       let param_span_start = self.current_token.span;
-      let name = self.parse_identifier()?;
+      let name = self.parse_identifier()?.into();
       let kind = self.parse_optional_type()?;
 
       let default = if self.current_token.kind == TokenKind::Equal {

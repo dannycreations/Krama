@@ -16,7 +16,7 @@ impl Interpreter {
         let idx = self.ensure_int_index(&index, span)?;
         Ok(self.get_by_index(&elements.read(), idx))
       }
-      ObjectKind::Tuple { elements } => {
+      ObjectKind::Tuple(elements) => {
         let idx = self.ensure_int_index(&index, span)?;
         Ok(self.get_by_index(elements.as_ref(), idx))
       }
@@ -25,7 +25,7 @@ impl Interpreter {
         let real_idx = self.resolve_index(idx, s.len());
 
         Ok(if let Some(i) = real_idx {
-          ObjectKind::String(s.chars().nth(i).unwrap().to_string())
+          ObjectKind::String(s.chars().nth(i).unwrap().to_string().into())
         } else {
           ObjectKind::Void
         })

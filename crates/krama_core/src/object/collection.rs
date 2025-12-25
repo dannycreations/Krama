@@ -1,17 +1,24 @@
-use crate::{StructField, StructMethod};
+use std::sync::Arc;
 
-/// Represents an Enum definition.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Enum {
-  pub name: String,
-  pub variant: String,
-  pub field_count: usize,
+use parking_lot::RwLock;
+
+use crate::{ObjectKind, Type};
+
+/// Represents a dynamic array with type safety and interior mutability.
+/// Optimized with Arc<RwLock<Vec<T>>> for thread-safe shared access.
+#[derive(Debug, Clone)]
+pub struct Array {
+  pub elements: Arc<RwLock<Vec<ObjectKind>>>,
+  pub kind: Type,
+  pub constant: bool,
 }
 
-/// Represents a Struct definition.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Struct {
-  pub name: String,
-  pub fields: Vec<StructField>,
-  pub methods: Vec<StructMethod>,
+impl Array {
+  pub fn new(elements: Vec<ObjectKind>, kind: Type, constant: bool) -> Self {
+    Self {
+      elements: Arc::new(RwLock::new(elements)),
+      kind,
+      constant,
+    }
+  }
 }

@@ -13,37 +13,41 @@ fn error(e: IoError) -> ErrorKind {
 #[register_module(name = "readFile", module = "fs")]
 async fn read_file(objects: &[ObjectKind]) -> ObjectResult {
   parse_path_arg!(objects, "readFile"; path_str);
-  let contents = fs::read(Path::new(path_str)).await.map_err(error)?;
+  let contents = fs::read(Path::new(path_str.as_ref()))
+    .await
+    .map_err(error)?;
   let contents_str = str::from_utf8(&contents)
     .map_err(|e| ErrorKind::TypeError(e.to_string()))?;
-  Ok(ObjectKind::String(contents_str.to_string()))
+  Ok(ObjectKind::String(contents_str.into()))
 }
 
 #[register_module(name = "writeFile", module = "fs")]
 async fn write_file(objects: &[ObjectKind]) -> ObjectResult {
   parse_args!(objects, "writeFile"; path_str: ObjectKind::String(path_str), contents: ObjectKind::String(contents));
-  fs::write(path_str, contents).await.map_err(error)?;
+  fs::write(path_str.as_ref(), contents.as_ref())
+    .await
+    .map_err(error)?;
   Ok(ObjectKind::Void)
 }
 
 #[register_module(name = "exists", module = "fs")]
 async fn exists(objects: &[ObjectKind]) -> ObjectResult {
   parse_path_arg!(objects, "exists"; path_str);
-  let metadata = fs::metadata(Path::new(path_str)).await;
+  let metadata = fs::metadata(Path::new(path_str.as_ref())).await;
   Ok(ObjectKind::Boolean(metadata.is_ok()))
 }
 
 #[register_module(name = "rm", module = "fs")]
 async fn rm(objects: &[ObjectKind]) -> ObjectResult {
   parse_path_arg!(objects, "rm"; path_str);
-  fs::remove_file(path_str).await.map_err(error)?;
+  fs::remove_file(path_str.as_ref()).await.map_err(error)?;
   Ok(ObjectKind::Void)
 }
 
 #[register_module(name = "readDir", module = "fs")]
 async fn read_dir(objects: &[ObjectKind]) -> ObjectResult {
   parse_path_arg!(objects, "readDir"; path_str);
-  let mut paths = fs::read_dir(path_str).await.map_err(error)?;
+  let mut paths = fs::read_dir(path_str.as_ref()).await.map_err(error)?;
   let mut entries = Vec::new();
   while let Some(path) = paths.next_entry().await.map_err(error)? {
     let entry = path.file_name().into_string().map_err(|os_string| {
@@ -52,7 +56,7 @@ async fn read_dir(objects: &[ObjectKind]) -> ObjectResult {
         os_string
       ))
     })?;
-    entries.push(ObjectKind::String(entry));
+    entries.push(ObjectKind::String(entry.into()));
   }
 
   Ok(ObjectKind::Array {
@@ -65,21 +69,21 @@ async fn read_dir(objects: &[ObjectKind]) -> ObjectResult {
 #[register_module(name = "mkdir", module = "fs")]
 async fn mkdir(objects: &[ObjectKind]) -> ObjectResult {
   parse_path_arg!(objects, "mkdir"; path_str);
-  fs::create_dir_all(path_str).await.map_err(error)?;
+  fs::create_dir_all(path_str.as_ref()).await.map_err(error)?;
   Ok(ObjectKind::Void)
 }
 
 #[register_module(name = "rmdir", module = "fs")]
 async fn rmdir(objects: &[ObjectKind]) -> ObjectResult {
   parse_path_arg!(objects, "rmdir"; path_str);
-  fs::remove_dir(path_str).await.map_err(error)?;
+  fs::remove_dir(path_str.as_ref()).await.map_err(error)?;
   Ok(ObjectKind::Void)
 }
 
 #[register_module(name = "isFile", module = "fs")]
 async fn is_file(objects: &[ObjectKind]) -> ObjectResult {
   parse_path_arg!(objects, "isFile"; path_str);
-  let metadata = fs::metadata(Path::new(path_str)).await;
+  let metadata = fs::metadata(Path::new(path_str.as_ref())).await;
   Ok(ObjectKind::Boolean(
     metadata.map(|m| m.is_file()).unwrap_or(false),
   ))
@@ -88,7 +92,7 @@ async fn is_file(objects: &[ObjectKind]) -> ObjectResult {
 #[register_module(name = "isDirectory", module = "fs")]
 async fn is_directory(objects: &[ObjectKind]) -> ObjectResult {
   parse_path_arg!(objects, "isDirectory"; path_str);
-  let metadata = fs::metadata(Path::new(path_str)).await;
+  let metadata = fs::metadata(Path::new(path_str.as_ref())).await;
   Ok(ObjectKind::Boolean(
     metadata.map(|m| m.is_dir()).unwrap_or(false),
   ))

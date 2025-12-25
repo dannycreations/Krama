@@ -1,6 +1,6 @@
 use strum::EnumProperty;
 
-use super::ObjectKind;
+use super::{EnumInstance, ObjectKind};
 
 impl ObjectKind {
   /// Checks if the object is a control flow signal (Return, Break, or Continue).
@@ -42,7 +42,7 @@ impl ObjectKind {
   #[inline(always)]
   pub fn type_name(&self) -> &str {
     match self {
-      Self::Enum { name, .. } => name,
+      Self::Enum(instance) => &instance.name,
       Self::Struct(def) => &def.name,
       Self::Object {
         definition: Some(def),
@@ -64,7 +64,7 @@ impl ObjectKind {
       Self::Float(f) => *f != 0.0,
       Self::String(s) => !s.is_empty(),
       Self::Array { elements, .. } => !elements.read().is_empty(),
-      Self::Tuple { elements } => !elements.is_empty(),
+      Self::Tuple(elements) => !elements.is_empty(),
       // Null, Void, and Err are always falsy.
       Self::Null | Self::Void | Self::Err(_) => false,
       _ => true,
@@ -79,5 +79,11 @@ impl ObjectKind {
     {
       *c = constant;
     }
+  }
+}
+
+impl From<EnumInstance> for ObjectKind {
+  fn from(instance: EnumInstance) -> Self {
+    Self::Enum(Box::new(instance))
   }
 }

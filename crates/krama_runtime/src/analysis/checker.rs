@@ -1,19 +1,21 @@
-use indexmap::IndexMap;
+use std::sync::Arc;
+
+use ahash::AHashMap;
 use krama_core::{
   ConstBinding, Error, ErrorKind, ErrorResult, Expression, ExpressionKind,
   ForBinding, FunctionBody, MatchPattern, Span, Statement, StatementKind,
 };
 
 pub struct Checker {
-  scopes: Vec<IndexMap<String, bool>>,
-  locals: IndexMap<Span, usize>,
+  scopes: Vec<AHashMap<Arc<str>, bool>>,
+  locals: AHashMap<Span, usize>,
 }
 
 impl Default for Checker {
   fn default() -> Self {
     Self {
-      scopes: vec![IndexMap::default()],
-      locals: IndexMap::default(),
+      scopes: vec![AHashMap::default()],
+      locals: AHashMap::default(),
     }
   }
 }
@@ -26,7 +28,7 @@ impl Checker {
   pub fn check(
     &mut self,
     statements: &[Statement],
-  ) -> ErrorResult<IndexMap<Span, usize>> {
+  ) -> ErrorResult<AHashMap<Span, usize>> {
     for statement in statements {
       self.check_statement(statement)?;
     }
@@ -40,21 +42,21 @@ impl Checker {
       }
       StatementKind::Let { name, value, .. } => {
         self.check_expression(value)?;
-        self.define_var(name.to_string());
+        self.define_var(name.clone());
       }
       StatementKind::Const { binding, value, .. } => {
         self.check_expression(value)?;
         match binding {
-          ConstBinding::Identifier(name) => self.define_var(name.to_string()),
+          ConstBinding::Identifier(name) => self.define_var(name.clone()),
           ConstBinding::Destructure(items) => {
             for item in items {
-              self.define_var(item.name.to_string());
+              self.define_var(item.name.clone());
             }
           }
           ConstBinding::ModuleAndDestructure { alias, items } => {
-            self.define_var(alias.to_string());
+            self.define_var(alias.clone());
             for item in items {
-              self.define_var(item.name.to_string());
+              self.define_var(item.name.clone());
             }
           }
         }
@@ -65,11 +67,11 @@ impl Checker {
         body,
         ..
       } => {
-        self.define_var(name.to_string());
+        self.define_var(name.clone());
         self.check_function(parameters, body)?;
       }
       StatementKind::Enum { name, .. } | StatementKind::Type { name, .. } => {
-        self.define_var(name.to_string());
+        self.define_var(name.clone());
       }
       StatementKind::Struct {
         name,
@@ -77,7 +79,7 @@ impl Checker {
         methods,
         ..
       } => {
-        self.define_var(name.to_string());
+        self.define_var(name.clone());
         for field in fields {
           if let Some(default) = &field.default {
             self.check_expression(default)?;
@@ -123,7 +125,7 @@ impl Checker {
   ) -> ErrorResult {
     self.with_scope(|this| {
       for param in params {
-        this.define_var(param.name.to_string());
+        this.define_var(param.name.clone());
       }
       this.check_body(body)
     })
@@ -152,7 +154,7 @@ impl Checker {
 
   fn declare_for_binding(&mut self, binding: &ForBinding) {
     match binding {
-      ForBinding::Identifier(name) => self.define_var(name.to_string()),
+      ForBinding::Identifier(name) => self.define_var(name.clone()),
       ForBinding::Array(bindings) => {
         for b in bindings {
           self.declare_for_binding(b);
@@ -165,7 +167,7 @@ impl Checker {
     match &expression.kind {
       ExpressionKind::Identifier(name) => {
         if let Some(scope) = self.scopes.last() {
-          if let Some(false) = scope.get(name) {
+          if let Some(false) = scope.get(name.as_ref()) {
             return Err(Error::new(
               ErrorKind::SyntaxError(
                 "Cannot read local variable in its own initializer".into(),
@@ -268,13 +270,13 @@ impl Checker {
   where
     F: FnOnce(&mut Self) -> R,
   {
-    self.scopes.push(IndexMap::default());
+    self.scopes.push(AHashMap::default());
     let result = f(self);
     self.scopes.pop();
     result
   }
 
-  fn define_var(&mut self, name: String) {
+  fn define_var(&mut self, name: Arc<str>) {
     if let Some(scope) = self.scopes.last_mut() {
       scope.insert(name, true);
     }

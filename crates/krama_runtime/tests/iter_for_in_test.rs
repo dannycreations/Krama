@@ -107,7 +107,7 @@ test_eval_ok!(
     }
     a
   "#,
-  ObjectKind::String("ab".to_string())
+  ObjectKind::String("ab".into())
 );
 
 test_eval_ok!(
@@ -119,5 +119,5 @@ test_eval_ok!(
     }
     a
   "#,
-  ObjectKind::String("h-e-l-l-o-".to_string())
+  ObjectKind::String("h-e-l-l-o-".into())
 );

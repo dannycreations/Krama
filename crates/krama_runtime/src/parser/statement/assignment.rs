@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use krama_core::{
   ConstBinding, Destructure, ErrorKindResult, PrecedenceKind, Span, Statement,
   StatementKind, TokenKind,
@@ -14,7 +16,7 @@ impl<'a> Parser<'a> {
     let value = self.parse_expression(PrecedenceKind::Lowest)?;
     Ok(Statement::new(
       StatementKind::Let {
-        name,
+        name: name.into(),
         kind,
         value: Box::new(value),
       },
@@ -50,7 +52,7 @@ impl<'a> Parser<'a> {
       self.consume(TokenKind::RBrace)?;
       Ok(ConstBinding::Destructure(items))
     } else {
-      let alias = self.parse_identifier()?;
+      let alias: Arc<str> = self.parse_identifier()?.into();
       if self.current_token.kind == TokenKind::Comma {
         self.consume(TokenKind::Comma)?;
         self.consume(TokenKind::LBrace)?;
@@ -69,10 +71,10 @@ impl<'a> Parser<'a> {
       return Ok(items);
     }
     loop {
-      let name = self.parse_identifier()?;
+      let name = self.parse_identifier()?.into();
       let alias = if self.current_token.kind == TokenKind::As {
         self.advance();
-        Some(self.parse_identifier()?)
+        Some(self.parse_identifier()?.into())
       } else {
         None
       };

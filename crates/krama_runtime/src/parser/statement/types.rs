@@ -10,7 +10,7 @@ impl<'a> Parser<'a> {
   ) -> ErrorKindResult<Statement> {
     self.consume(TokenKind::Type)?;
 
-    let name = self.parse_identifier()?;
+    let name = self.parse_identifier()?.into();
 
     self.consume(TokenKind::Equal)?;
 

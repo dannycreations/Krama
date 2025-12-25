@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use krama_core::{
   ConstBinding, Destructure, Error, ErrorKind, ErrorResult, ObjectKind, Span,
 };
@@ -39,7 +41,7 @@ impl Interpreter {
     if let ObjectKind::Scope(scope) = &value {
       if let Some(alias_name) = alias {
         self.stack.write().define(
-          alias_name.to_string(),
+          Arc::from(alias_name),
           value.clone(),
           public,
           true,

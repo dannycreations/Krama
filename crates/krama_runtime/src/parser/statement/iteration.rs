@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
   fn parse_for_binding(&mut self) -> ErrorKindResult<ForBinding> {
     match &self.current_token.kind {
       TokenKind::Identifier(name) => {
-        let name = name.to_string();
+        let name = name.clone();
         self.advance();
         Ok(ForBinding::Identifier(name))
       }

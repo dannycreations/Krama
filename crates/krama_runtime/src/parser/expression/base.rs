@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
     let token = self.current_token.clone();
     let name = self.parse_identifier()?;
     Ok(Expression::new(
-      ExpressionKind::Identifier(name),
+      ExpressionKind::Identifier(name.into()),
       token.span,
     ))
   }
@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
           ErrorKind::SyntaxError("Invalid float literal".to_string())
         })?)
       }
-      TokenKind::String(value) => LiteralKind::String(value.to_string()),
+      TokenKind::String(value) => LiteralKind::String(value.clone()),
       TokenKind::True => LiteralKind::Boolean(true),
       TokenKind::False => LiteralKind::Boolean(false),
       TokenKind::Null => LiteralKind::Null,

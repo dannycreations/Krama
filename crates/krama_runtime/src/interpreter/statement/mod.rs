@@ -6,9 +6,9 @@ use std::sync::Arc;
 use ahash::AHashMap;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
-  AssignmentOperator, Enum, Expression, ExpressionKind, FunctionKind,
-  ObjectKind, ObjectResult, Statement, StatementBlock, StatementKind, Struct,
-  Type,
+  AssignmentOperator, Enum, EnumInstance, Expression, ExpressionKind,
+  FunctionKind, ObjectKind, ObjectResult, Statement, StatementBlock,
+  StatementKind, Struct, Type,
 };
 
 use crate::interpreter::{
@@ -72,23 +72,25 @@ impl Interpreter {
           name,
           variants,
         } => {
+          // Using Arc<str> for names to reduce allocations and improve equality checks.
+          let name_arc = name.clone();
           let mut properties = AHashMap::with_capacity(variants.len());
           for variant in variants {
-            let variant_name = variant.name.clone();
+            let variant_name_arc = variant.name.clone();
             let obj = if let Some(fields) = &variant.fields {
               ObjectKind::Function(FunctionKind::Enum(Arc::new(Enum {
-                name: name.clone(),
-                variant: variant_name.clone(),
+                name: name_arc.clone(),
+                variant: variant_name_arc.clone(),
                 field_count: fields.len(),
               })))
             } else {
-              ObjectKind::Enum {
-                name: name.clone(),
-                variant: variant_name.clone(),
+              ObjectKind::Enum(Box::new(EnumInstance {
+                name: name_arc.clone(),
+                variant: variant_name_arc.clone(),
                 fields: None,
-              }
+              }))
             };
-            properties.insert(variant_name, obj);
+            properties.insert(variant_name_arc, obj);
           }
           let enum_obj = self.heap.write().alloc_object(
             properties.into_iter().collect(),
@@ -107,10 +109,20 @@ impl Interpreter {
           fields,
           methods,
         } => {
+          // Struct definitions now use Arc<str> for name to optimize memory footprint.
+          // O(1) field lookup map is pre-computed during definition for efficient runtime access.
+          let name_arc = name.clone();
+          let field_map = fields
+            .iter()
+            .enumerate()
+            .map(|(i, f)| (f.name.clone(), i))
+            .collect();
+
           let struct_def = Arc::new(Struct {
-            name: name.clone(),
+            name: name_arc,
             fields: fields.clone(),
             methods: methods.clone(),
+            field_map,
           });
           self.stack.write().define(
             name.clone(),
@@ -135,7 +147,7 @@ impl Interpreter {
             Some(expr) => self.eval_expression(expr, None).await?,
             None => ObjectKind::Void,
           };
-          Ok(ObjectKind::Return(Box::new(value)))
+          Ok(ObjectKind::Return(Arc::new(value)))
         }
         StatementKind::Break => Ok(ObjectKind::Break),
         StatementKind::Continue => Ok(ObjectKind::Continue),
@@ -144,7 +156,7 @@ impl Interpreter {
             if let Some(bindings) = self.try_match_assignment(condition).await?
             {
               for (name, val) in bindings {
-                self.stack.write().define(name, val, false, false);
+                self.stack.write().define(name.clone(), val, false, false);
               }
             } else {
               // Special case for pattern matching in while
@@ -156,7 +168,7 @@ impl Interpreter {
               {
                 if let ExpressionKind::Call { function, .. } = &left.kind {
                   if let ExpressionKind::Identifier(name) = &function.kind {
-                    if name == "Ok" || name == "Err" {
+                    if name.as_ref() == "Ok" || name.as_ref() == "Err" {
                       break;
                     }
                   }
@@ -188,8 +200,11 @@ impl Interpreter {
           let elements =
             self.collect_iterable_elements(&iterable_val, binding, span)?;
           for element in elements {
-            // For loop iteration scope
-            self.stack.write().push("for_loop_iter".to_string(), None);
+            // Push/Pop scope without holding the lock during await.
+            {
+              let mut stack = self.stack.write();
+              stack.push("for_loop_iter".into(), None);
+            }
 
             self.assign_for_binding(binding, element, span)?;
             let result = self.eval_block_statement(body).await;
@@ -258,7 +273,7 @@ impl Interpreter {
     &self,
     block: &StatementBlock,
   ) -> ObjectResult {
-    self.stack.write().push("block".to_string(), None);
+    self.stack.write().push("block".into(), None);
     let result = self.eval_statements(&block.statements).await;
     self.stack.write().pop();
     result

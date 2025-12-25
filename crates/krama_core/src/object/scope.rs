@@ -17,17 +17,21 @@ pub struct Binding {
 /// Optimized with AHashMap for O(1) lookups and memory efficiency.
 #[derive(Debug, Clone)]
 pub struct Scope {
-  pub name: Option<String>,
-  pub bindings: AHashMap<String, Binding>,
+  pub name: Option<Arc<str>>,
+  pub bindings: AHashMap<Arc<str>, Binding>,
   pub parent: Option<Arc<RwLock<Scope>>>,
 }
 
 impl Scope {
   /// Creates a new scope, optionally with a parent.
   /// Pre-allocates space for bindings if a parent is provided (likely a block or function).
-  pub fn new(name: Option<String>, parent: Option<Arc<RwLock<Scope>>>) -> Self {
+  pub fn new(
+    name: Option<Arc<str>>,
+    parent: Option<Arc<RwLock<Scope>>>,
+  ) -> Self {
     Self {
       name,
+      // Pre-allocate capacity for local scopes to reduce re-allocations.
       bindings: AHashMap::with_capacity(if parent.is_some() { 4 } else { 0 }),
       parent,
     }
@@ -45,32 +49,40 @@ impl Scope {
       return Some(binding.value.clone());
     }
 
-    let mut current = self.parent.clone();
+    // Iterative traversal to avoid recursion overhead.
+    // We clone the Arc to move up the chain safely without holding locks for too long.
+    let mut current = self.parent.as_ref().map(Arc::clone);
     while let Some(parent_cell) = current {
       let parent = parent_cell.read();
       if let Some(binding) = parent.get_local(name) {
         return Some(binding.value.clone());
       }
-      current = parent.parent.clone();
+      current = parent.parent.as_ref().map(Arc::clone);
     }
     None
   }
 
   /// Sets or updates a binding in the current scope.
+  /// Uses entry API for efficient insertion if it doesn't exist.
   pub fn set(
     &mut self,
-    name: &str,
+    name: Arc<str>,
     value: ObjectKind,
     public: bool,
     constant: bool,
   ) {
-    self.bindings.insert(
-      name.to_string(),
-      Binding {
+    self
+      .bindings
+      .entry(name)
+      .and_modify(|b| {
+        b.value = value.clone();
+        b.public = public;
+        b.constant = constant;
+      })
+      .or_insert(Binding {
         value,
         public,
         constant,
-      },
-    );
+      });
   }
 }

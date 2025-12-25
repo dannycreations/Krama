@@ -1,10 +1,13 @@
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::{
+  fmt::{Display, Formatter, Result as FmtResult},
+  sync::Arc,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralKind {
   Integer(i64),
   Float(f64),
-  String(String),
+  String(Arc<str>),
   Boolean(bool),
   Null,
 }

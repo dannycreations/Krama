@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::{
+  fmt::{Display, Formatter, Result as FmtResult},
+  sync::Arc,
+};
 
 use indexmap::IndexMap;
 
@@ -26,13 +29,13 @@ pub enum TypeKind {
   Str,
   Null,
   Void,
-  Identifier(String),
+  Identifier(Arc<str>),
   Array {
     element: Box<Type>,
     size: Option<LiteralKind>,
   },
   Tuple(Vec<Type>),
-  Object(IndexMap<String, ObjectProperty>),
+  Object(IndexMap<Arc<str>, ObjectProperty>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,29 +44,43 @@ pub struct ObjectProperty {
   pub optional: bool,
 }
 
+impl TypeKind {
+  /// Checks if this type represents any integer variant.
+  #[inline(always)]
+  pub fn is_integer(&self) -> bool {
+    matches!(
+      self,
+      Self::I8
+        | Self::I16
+        | Self::I32
+        | Self::I64
+        | Self::I128
+        | Self::Isize
+        | Self::U8
+        | Self::U16
+        | Self::U32
+        | Self::U64
+        | Self::U128
+        | Self::Usize
+    )
+  }
+
+  /// Checks if this type represents any float variant.
+  #[inline(always)]
+  pub fn is_float(&self) -> bool {
+    matches!(self, Self::F32 | Self::F64)
+  }
+}
+
 impl Type {
   /// Validates that an object matches this type.
   pub fn check(&self, object: &ObjectKind) -> ErrorKindResult<()> {
     match (&self.kind, object) {
-      // Integer types
-      (
-        TypeKind::I8
-        | TypeKind::I16
-        | TypeKind::I32
-        | TypeKind::I64
-        | TypeKind::I128
-        | TypeKind::Isize
-        | TypeKind::U8
-        | TypeKind::U16
-        | TypeKind::U32
-        | TypeKind::U64
-        | TypeKind::U128
-        | TypeKind::Usize,
-        ObjectKind::Integer(_),
-      ) => Ok(()),
+      // Integer types - Simplified using helper method.
+      (k, ObjectKind::Integer(_)) if k.is_integer() => Ok(()),
 
-      // Float types
-      (TypeKind::F32 | TypeKind::F64, ObjectKind::Float(_)) => Ok(()),
+      // Float types - Simplified using helper method.
+      (k, ObjectKind::Float(_)) if k.is_float() => Ok(()),
 
       // Primitives
       (TypeKind::Bool, ObjectKind::Boolean(_)) => Ok(()),
@@ -72,7 +89,11 @@ impl Type {
       (TypeKind::Null, ObjectKind::Null) => Ok(()),
 
       // Custom types / Identifiers
-      (TypeKind::Identifier(name), _) if object.type_name() == *name => Ok(()),
+      (TypeKind::Identifier(name), _)
+        if object.type_name() == name.as_ref() =>
+      {
+        Ok(())
+      }
 
       // Arrays
       (
@@ -99,7 +120,7 @@ impl Type {
       }
 
       // Tuples
-      (TypeKind::Tuple(types), ObjectKind::Tuple { elements }) => {
+      (TypeKind::Tuple(types), ObjectKind::Tuple(elements)) => {
         if types.len() != elements.len() {
           return Err(ErrorKind::TypeError(format!(
             "Expected a tuple of {} elements, but got {}",
@@ -124,7 +145,7 @@ impl Type {
       ) => {
         let obj_props = obj_props.read();
         for (name, prop) in properties {
-          if let Some(val) = obj_props.get(name.as_str()) {
+          if let Some(val) = obj_props.get(name) {
             prop.kind.check(val)?;
           } else if !prop.optional {
             return Err(ErrorKind::TypeError(format!(

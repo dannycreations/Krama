@@ -28,7 +28,7 @@ impl Interpreter {
     // Validate and apply default values for missing fields
     let mut final_fields = IndexMap::with_capacity(definition.fields.len());
     for field in &definition.fields {
-      let value = match fields.get(&field.name) {
+      let value = match fields.get(field.name.as_ref()) {
         Some(val) => val.clone(),
         None => match &field.default {
           Some(default) => self.eval_expression(default, None).await?,

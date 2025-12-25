@@ -17,7 +17,7 @@ impl Heap {
   /// Allocates a new, empty Object (map-like).
   pub fn alloc_object(
     &mut self,
-    properties: IndexMap<String, ObjectKind>,
+    properties: IndexMap<Arc<str>, ObjectKind>,
     definition: Option<Arc<Struct>>,
     constant: bool,
   ) -> ObjectKind {
@@ -32,9 +32,7 @@ impl Heap {
   /// Allocates a new Tuple.
   pub fn alloc_tuple(&mut self, elements: Vec<ObjectKind>) -> ObjectKind {
     self.allocations += 1;
-    ObjectKind::Tuple {
-      elements: Arc::new(elements),
-    }
+    ObjectKind::Tuple(elements.into())
   }
 
   /// Allocates a new Array.
@@ -55,6 +53,6 @@ impl Heap {
   /// Allocates a raw string (though strings are currently value types in ObjectKind,
   /// this is a placeholder if we move to heap-allocated strings).
   pub fn alloc_string(&mut self, s: String) -> ObjectKind {
-    ObjectKind::String(s)
+    ObjectKind::String(s.into())
   }
 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
   AssignmentOperator, BinaryOperator, LiteralKind, Node, Parameter,
   StatementBlock, Type, UnaryOperator, UpdateOperator,
@@ -13,7 +15,7 @@ pub enum FunctionBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExpressionKind {
-  Identifier(String),
+  Identifier(Arc<str>),
   Literal(LiteralKind),
   This,
   StructConstruction {
@@ -55,8 +57,8 @@ pub enum ExpressionKind {
     arms: Vec<Match>,
   },
   Import {
-    path: String,
-    items: Option<Vec<String>>,
+    path: Arc<str>,
+    items: Option<Vec<Arc<str>>>,
   },
   Call {
     function: Box<Expression>,

@@ -8,7 +8,7 @@ async fn length(object: ObjectKind) -> ObjectResult {
       let elements = elements.read();
       Ok(ObjectKind::Integer(elements.len() as i64))
     }
-    ObjectKind::Tuple { elements } => {
+    ObjectKind::Tuple(elements) => {
       Ok(ObjectKind::Integer(elements.len() as i64))
     }
     ObjectKind::String(s) => Ok(ObjectKind::Integer(s.len() as i64)),

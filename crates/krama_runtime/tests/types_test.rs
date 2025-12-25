@@ -94,7 +94,7 @@ test_eval_ok!(
 test_eval_ok!(
   type_str_declaration,
   "const a: str = \"hello\"\na",
-  ObjectKind::String("hello".to_string())
+  ObjectKind::String("hello".into())
 );
 
 test_eval_ok!(

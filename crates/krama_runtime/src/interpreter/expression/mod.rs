@@ -12,6 +12,8 @@ mod result;
 mod structs;
 mod unary;
 
+use std::sync::Arc;
+
 use futures::{
   future::{FutureExt, LocalBoxFuture},
   try_join,
@@ -20,7 +22,7 @@ use krama_core::{
   Error, ErrorKind, Expression, ExpressionKind, ObjectKind, ObjectResult, Span,
 };
 
-use crate::interpreter::{types::check_type, Interpreter};
+use crate::interpreter::Interpreter;
 
 impl Interpreter {
   /// Evaluates an expression and returns its resulting object.
@@ -125,18 +127,18 @@ impl Interpreter {
           self.eval_import(path, span).await
         }
         ExpressionKind::Typed { expr, kind } => {
-          let value = self.eval_expression(expr, Some(kind)).await?;
-          check_type(kind, &value)?;
-          Ok(value)
+          // Use eval_and_check_type to deduplicate type validation logic.
+          self.eval_and_check_type(expr, Some(kind)).await
         }
         ExpressionKind::Try(expr) => self.eval_result(expr, span).await,
       }?;
       // Implicitly propagate errors by wrapping Err in Return if not handled by Try.
       // This ensures errors bubble up through the call stack unless explicitly caught.
+      // O(1) check for ErrorKind::Try to avoid unnecessary clones or deep matches.
       if !matches!(expression.kind, ExpressionKind::Try(_))
         && result.is_result_err()
       {
-        Ok(ObjectKind::Return(Box::new(result)))
+        Ok(ObjectKind::Return(Arc::new(result)))
       } else {
         Ok(result)
       }

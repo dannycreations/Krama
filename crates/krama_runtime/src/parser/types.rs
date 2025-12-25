@@ -79,7 +79,7 @@ impl<'a> Parser<'a> {
 
         self.consume(TokenKind::Colon)?;
         let kind = self.parse_type()?;
-        properties.insert(name, ObjectProperty { kind, optional });
+        properties.insert(name.into(), ObjectProperty { kind, optional });
 
         if self.current_token.kind == TokenKind::RBrace {
           break;
@@ -151,8 +151,8 @@ impl<'a> Parser<'a> {
       TokenKind::F64 => TypeKind::F64,
       TokenKind::Bool => TypeKind::Bool,
       TokenKind::Str => TypeKind::Str,
-      TokenKind::Identifier(ident) => TypeKind::Identifier(ident.to_string()),
-      TokenKind::This => TypeKind::Identifier("this".to_string()),
+      TokenKind::Identifier(ident) => TypeKind::Identifier(ident.clone()),
+      TokenKind::This => TypeKind::Identifier("this".into()),
       _ => return Err(ErrorKind::SyntaxError("Expected type".to_string())),
     };
     self.advance();

@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
       Token {
         kind: TokenKind::String(path),
         ..
-      } => path.to_string(),
+      } => path.clone(),
       _ => {
         return Err(ErrorKind::SyntaxError(
           "Expected a string literal for the import path".to_string(),

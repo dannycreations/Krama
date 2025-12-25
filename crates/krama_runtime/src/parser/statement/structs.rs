@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
     start_span: Span,
   ) -> ErrorKindResult<Statement> {
     self.consume(TokenKind::Struct)?;
-    let name = self.parse_identifier()?;
+    let name = self.parse_identifier()?.into();
     self.consume(TokenKind::LBrace)?;
 
     let mut fields = Vec::new();
@@ -57,7 +57,7 @@ impl<'a> Parser<'a> {
     public: bool,
   ) -> ErrorKindResult<StructField> {
     let start_span = self.current_token.span;
-    let name = self.parse_identifier()?;
+    let name = self.parse_identifier()?.into();
     self.consume(TokenKind::Colon)?;
     let kind = self.parse_type()?;
 
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
   ) -> ErrorKindResult<StructMethod> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::Fn)?;
-    let name = self.parse_identifier()?;
+    let name = self.parse_identifier()?.into();
     self.consume(TokenKind::LParen)?;
 
     // Reuse parse_fn_parameters for consistency and to reduce duplication.

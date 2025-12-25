@@ -142,7 +142,7 @@ test_eval_ok!(
       "ok"
     }
   "#,
-  ObjectKind::String("error".to_string())
+  ObjectKind::String("error".into())
 );
 
 test_eval_ok!(

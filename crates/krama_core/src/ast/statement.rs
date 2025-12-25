@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{Expression, FunctionBody, Node, Span, Type};
 
 pub type Statement = Node<StatementKind>;
@@ -10,23 +12,23 @@ pub struct StatementBlock {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Destructure {
-  pub name: String,
-  pub alias: Option<String>,
+  pub name: Arc<str>,
+  pub alias: Option<Arc<str>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstBinding {
-  Identifier(String),
+  Identifier(Arc<str>),
   Destructure(Vec<Destructure>),
   ModuleAndDestructure {
-    alias: String,
+    alias: Arc<str>,
     items: Vec<Destructure>,
   },
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
-  pub name: String,
+  pub name: Arc<str>,
   pub kind: Option<Type>,
   pub default: Option<Box<Expression>>,
   pub span: Span,
@@ -34,7 +36,7 @@ pub struct Parameter {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumVariant {
-  pub name: String,
+  pub name: Arc<str>,
   pub fields: Option<Vec<Type>>,
   pub span: Span,
 }
@@ -42,7 +44,7 @@ pub struct EnumVariant {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
   pub public: bool,
-  pub name: String,
+  pub name: Arc<str>,
   pub kind: Type,
   pub default: Option<Box<Expression>>,
   pub span: Span,
@@ -51,7 +53,7 @@ pub struct StructField {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructMethod {
   pub public: bool,
-  pub name: String,
+  pub name: Arc<str>,
   pub parameters: Vec<Parameter>,
   pub body: FunctionBody,
   pub kind: Option<Type>,
@@ -60,7 +62,7 @@ pub struct StructMethod {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ForBinding {
-  Identifier(String),
+  Identifier(Arc<str>),
   Array(Vec<ForBinding>),
 }
 
@@ -77,31 +79,31 @@ pub enum StatementKind {
     value: Box<Expression>,
   },
   Let {
-    name: String,
+    name: Arc<str>,
     kind: Option<Type>,
     value: Box<Expression>,
   },
   Fn {
     public: bool,
-    name: String,
+    name: Arc<str>,
     parameters: Vec<Parameter>,
     body: FunctionBody,
     kind: Option<Type>,
   },
   Enum {
     public: bool,
-    name: String,
+    name: Arc<str>,
     variants: Vec<EnumVariant>,
   },
   Struct {
     public: bool,
-    name: String,
+    name: Arc<str>,
     fields: Vec<StructField>,
     methods: Vec<StructMethod>,
   },
   Type {
     public: bool,
-    name: String,
+    name: Arc<str>,
     kind: Type,
   },
   Expression {

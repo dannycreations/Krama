@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use indexmap::IndexMap;
+use ahash::AHashMap;
 use krama_core::{Error, ErrorKind, ErrorResult, ObjectKind, Scope, Span};
 use parking_lot::RwLock;
 
@@ -16,7 +16,7 @@ impl Stack {
   /// Creates a new stack with a global scope.
   pub fn new() -> Self {
     let global_scope =
-      Arc::new(RwLock::new(Scope::new(Some("global".to_string()), None)));
+      Arc::new(RwLock::new(Scope::new(Some("global".into()), None)));
     Self {
       frames: vec![global_scope],
     }
@@ -34,7 +34,7 @@ impl Stack {
   /// Pushes a new scope onto the stack.
   /// If `parent` is provided, it becomes the parent of the new scope (closure capture).
   /// Otherwise, the current scope becomes the parent (block scope).
-  pub fn push(&mut self, name: String, parent: Option<Arc<RwLock<Scope>>>) {
+  pub fn push(&mut self, name: Arc<str>, parent: Option<Arc<RwLock<Scope>>>) {
     let parent_scope = parent.unwrap_or_else(|| self.current());
     let new_scope =
       Arc::new(RwLock::new(Scope::new(Some(name), Some(parent_scope))));
@@ -89,7 +89,7 @@ impl Stack {
       // Release lock before moving up
       drop(scope);
 
-      let parent = current_scope.read().parent.clone();
+      let parent = current_scope.read().parent.as_ref().map(Arc::clone);
       if let Some(p) = parent {
         current_scope = p;
       } else {
@@ -106,16 +106,16 @@ impl Stack {
   /// Defines a variable in the current scope.
   pub fn define(
     &mut self,
-    name: String,
+    name: Arc<str>,
     value: ObjectKind,
     public: bool,
     constant: bool,
   ) {
-    self.current().write().set(&name, value, public, constant);
+    self.current().write().set(name, value, public, constant);
   }
 
   /// Returns all public bindings from the current scope.
-  pub fn get_public_bindings(&self) -> IndexMap<String, ObjectKind> {
+  pub fn get_public_bindings(&self) -> AHashMap<Arc<str>, ObjectKind> {
     self
       .current()
       .read()

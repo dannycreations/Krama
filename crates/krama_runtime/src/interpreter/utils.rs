@@ -19,7 +19,7 @@ impl Interpreter {
     let stack = self.stack.read();
     let current_struct = stack.get("__current_struct__");
     let allowed = if let Some(ObjectKind::String(name)) = current_struct {
-      name == struct_name
+      name.as_ref() == struct_name
     } else {
       false
     };

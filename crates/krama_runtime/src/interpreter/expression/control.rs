@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use krama_core::{
   ErrorKind, ErrorResult, Expression, FunctionBody, Match, MatchPattern,
   ObjectKind, ObjectResult, Span, Type,
@@ -18,7 +20,7 @@ impl Interpreter {
     if let Some(bindings) = self.try_match_assignment(condition).await? {
       // Push a scope for the bindings
       let stack = self.stack.clone();
-      stack.write().push("if_binding".to_string(), None);
+      stack.write().push("if_binding".into(), None);
 
       for (name, val) in bindings {
         stack.write().define(name, val, false, false);
@@ -61,7 +63,7 @@ impl Interpreter {
         {
           // 1. Prepare bindings if necessary.
           if !bindings.is_empty() {
-            self.stack.write().push("match_arm".to_string(), None);
+            self.stack.write().push("match_arm".into(), None);
             for (name, val) in &bindings {
               self.stack.write().define(
                 name.clone(),
@@ -114,7 +116,7 @@ impl Interpreter {
     subject: &'s ObjectKind,
     pattern: &'s MatchPattern,
     span: Span,
-  ) -> ErrorResult<Option<Vec<(String, ObjectKind)>>> {
+  ) -> ErrorResult<Option<Vec<(Arc<str>, ObjectKind)>>> {
     match (pattern, subject) {
       // 1. Expression-based patterns.
       (MatchPattern::Expression(expression), _) => {

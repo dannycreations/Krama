@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use logos::Logos;
 use strum_macros::AsRefStr;
@@ -201,14 +201,14 @@ pub enum TokenKind {
   #[token("?")]
   Question,
 
-  #[regex(r"[0-9][0-9_]*", |lex| lex.slice().to_string(), priority = 2)]
-  Integer(String),
-  #[regex(r"[0-9][0-9_]*(\.[0-9][0-9_]*)?([eE][+-]?[0-9][0-9_]*)?", |lex| lex.slice().to_string(), priority = 1)]
-  Float(String),
-  #[regex(r#""([^"\\]|\\.)*""#, |lex| lex.slice()[1..lex.slice().len()-1].to_string())]
-  String(String),
-  #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
-  Identifier(String),
+  #[regex(r"[0-9][0-9_]*", |lex| Arc::from(lex.slice()), priority = 2)]
+  Integer(Arc<str>),
+  #[regex(r"[0-9][0-9_]*(\.[0-9][0-9_]*)?([eE][+-]?[0-9][0-9_]*)?", |lex| Arc::from(lex.slice()), priority = 1)]
+  Float(Arc<str>),
+  #[regex(r#""([^"\\]|\\.)*""#, |lex| Arc::from(&lex.slice()[1..lex.slice().len()-1]))]
+  String(Arc<str>),
+  #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| Arc::from(lex.slice()))]
+  Identifier(Arc<str>),
 
   Unknown,
   Eof,

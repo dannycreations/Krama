@@ -1,4 +1,4 @@
-use krama_core::ObjectKind;
+use krama_core::{EnumInstance, ObjectKind};
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
@@ -11,11 +11,11 @@ test_eval_ok!(
 
     Status.Active
   "#,
-  ObjectKind::Enum {
-    name: "Status".to_string(),
-    variant: "Active".to_string(),
+  ObjectKind::Enum(Box::new(EnumInstance {
+    name: "Status".into(),
+    variant: "Active".into(),
     fields: None,
-  }
+  }))
 );
 
 test_eval_ok!(
@@ -28,11 +28,11 @@ test_eval_ok!(
 
     Message.Text("hello")
   "#,
-  ObjectKind::Enum {
-    name: "Message".to_string(),
-    variant: "Text".to_string(),
-    fields: Some(vec![ObjectKind::String("hello".to_string())]),
-  }
+  ObjectKind::Enum(Box::new(EnumInstance {
+    name: "Message".into(),
+    variant: "Text".into(),
+    fields: Some(vec![ObjectKind::String("hello".into())].into()),
+  }))
 );
 
 test_eval_ok!(
@@ -45,13 +45,16 @@ test_eval_ok!(
 
     Point.ThreeD(1, 2, 3)
   "#,
-  ObjectKind::Enum {
-    name: "Point".to_string(),
-    variant: "ThreeD".to_string(),
-    fields: Some(vec![
-      ObjectKind::Integer(1),
-      ObjectKind::Integer(2),
-      ObjectKind::Integer(3)
-    ]),
-  }
+  ObjectKind::Enum(Box::new(EnumInstance {
+    name: "Point".into(),
+    variant: "ThreeD".into(),
+    fields: Some(
+      vec![
+        ObjectKind::Integer(1),
+        ObjectKind::Integer(2),
+        ObjectKind::Integer(3),
+      ]
+      .into(),
+    ),
+  }))
 );

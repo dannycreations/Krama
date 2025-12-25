@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use futures::future::try_join_all;
 use krama_core::{
-  Error, ErrorKind, Expression, ExpressionKind, FunctionBody, FunctionKind,
-  ObjectKind, ObjectResult, Span, UserFunction,
+  EnumInstance, Error, ErrorKind, Expression, ExpressionKind, FunctionBody,
+  FunctionKind, ObjectKind, ObjectResult, Span, UserFunction,
 };
 
 use crate::{check_type, Interpreter};
@@ -72,7 +72,7 @@ impl Interpreter {
           if arguments.len() != constructor.field_count {
             return Err(Error::new(
               ErrorKind::TypeError(format!(
-                "Expected {} arguments for variant {}::{}, found {}",
+                "Expected {} arguments for variant {}.{}, found {}",
                 constructor.field_count,
                 constructor.name,
                 constructor.variant,
@@ -81,11 +81,12 @@ impl Interpreter {
               span,
             ));
           }
-          Ok(ObjectKind::Enum {
+          // Enum values store fields as Arc<[ObjectKind]> for efficient sharing and size predictability.
+          Ok(ObjectKind::Enum(Box::new(EnumInstance {
             name: constructor.name.clone(),
             variant: constructor.variant.clone(),
-            fields: Some(arguments.to_vec()),
-          })
+            fields: Some(arguments.into()),
+          })))
         }
       },
       _ => Err(Error::new(
@@ -118,14 +119,15 @@ impl Interpreter {
       ));
     }
 
-    let stack = self.stack.clone();
+    // Reuse the stack reference to avoid multiple Arc clones.
+    let stack_ref = &self.stack;
 
     // Push a new scope onto the stack.
-    stack.write().push("function_call".to_string(), closure_env);
+    stack_ref.write().push("function_call".into(), closure_env);
 
     if !matches!(this, ObjectKind::Void) {
-      let mut stack = stack.write();
-      stack.define("this".to_string(), this.clone(), false, true);
+      let mut stack = stack_ref.write();
+      stack.define("this".into(), this.clone(), false, true);
 
       let struct_name = match &this {
         ObjectKind::Object {
@@ -138,7 +140,7 @@ impl Interpreter {
 
       if let Some(name) = struct_name {
         stack.define(
-          "__current_struct__".to_string(),
+          "__current_struct__".into(),
           ObjectKind::String(name),
           false,
           true,
@@ -165,7 +167,7 @@ impl Interpreter {
         check_type(param_type, &value)?;
       }
 
-      stack
+      stack_ref
         .write()
         .define(param.name.clone(), value, false, false);
     }
@@ -178,7 +180,7 @@ impl Interpreter {
     };
 
     // Pop the stack frame (which is the current scope)
-    stack.write().pop();
+    stack_ref.write().pop();
 
     // Functions always unwrap Return signals to return the underlying value.
     Ok(result?.unwrap_return().clone())

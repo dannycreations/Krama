@@ -20,8 +20,35 @@ pub use standard::*;
 
 pub type ObjectResult = ErrorResult<ObjectKind>;
 
+/// Represents a structure definition.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Struct {
+  pub name: Arc<str>,
+  pub fields: Vec<crate::StructField>,
+  pub methods: Vec<crate::StructMethod>,
+  pub field_map: IndexMap<Arc<str>, usize>,
+}
+
+/// Represents an enum definition.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Enum {
+  pub name: Arc<str>,
+  pub variant: Arc<str>,
+  pub field_count: usize,
+}
+
+/// Represents an instance of an enum variant.
+/// Boxed in ObjectKind to reduce the size of the ObjectKind enum.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumInstance {
+  pub name: Arc<str>,
+  pub variant: Arc<str>,
+  pub fields: Option<Arc<[ObjectKind]>>,
+}
+
 /// The fundamental value type in the language.
 /// Uses `ObjectKind` to represent everything from primitives to complex structures.
+/// Optimized with Arc for shared ownership and Box for large variants to keep enum size small.
 #[derive(Debug, Clone, EnumPropertyMacro)]
 #[repr(C, u8)]
 pub enum ObjectKind {
@@ -36,20 +63,20 @@ pub enum ObjectKind {
   #[strum(props(name = "float"))]
   Float(f64),
   #[strum(props(name = "string"))]
-  String(String),
+  String(Arc<str>),
   #[strum(props(name = "array"))]
   Array {
+    // Use Arc<RwLock<Vec>> for interior mutability and shared ownership.
     elements: Arc<RwLock<Vec<ObjectKind>>>,
     kind: Type,
     constant: bool,
   },
   #[strum(props(name = "tuple"))]
-  Tuple {
-    elements: Arc<Vec<ObjectKind>>,
-  },
+  Tuple(Arc<[ObjectKind]>),
   #[strum(props(name = "object"))]
   Object {
-    properties: Arc<RwLock<IndexMap<String, ObjectKind>>>,
+    // Use Arc<RwLock<IndexMap>> to avoid cloning large maps.
+    properties: Arc<RwLock<IndexMap<Arc<str>, ObjectKind>>>,
     definition: Option<Arc<Struct>>,
     constant: bool,
   },
@@ -57,21 +84,17 @@ pub enum ObjectKind {
   #[strum(props(name = "function"))]
   Function(FunctionKind),
   #[strum(props(name = "return"))]
-  Return(Box<ObjectKind>),
+  Return(Arc<ObjectKind>),
   #[strum(props(name = "break"))]
   Break,
   #[strum(props(name = "continue"))]
   Continue,
   #[strum(props(name = "ok"))]
-  Ok(Box<ObjectKind>),
+  Ok(Arc<ObjectKind>),
   #[strum(props(name = "err"))]
-  Err(Box<ObjectKind>),
+  Err(Arc<ObjectKind>),
   #[strum(props(name = "enum"))]
-  Enum {
-    name: String,
-    variant: String,
-    fields: Option<Vec<ObjectKind>>,
-  },
+  Enum(Box<EnumInstance>),
   #[strum(props(name = "struct"))]
   Struct(Arc<Struct>),
   #[strum(props(name = "type"))]

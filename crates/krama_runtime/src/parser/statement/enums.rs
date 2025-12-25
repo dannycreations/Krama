@@ -12,7 +12,7 @@ impl<'a> Parser<'a> {
   ) -> ErrorKindResult<Statement> {
     self.consume(TokenKind::Enum)?;
 
-    let name = self.parse_identifier()?;
+    let name = self.parse_identifier()?.into();
 
     self.consume(TokenKind::LBrace)?;
 
@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
 
     while self.current_token.kind != TokenKind::RBrace {
       let variant_span = self.current_token.span;
-      let variant_name = self.parse_identifier()?;
+      let variant_name = self.parse_identifier()?.into();
 
       let fields = if self.current_token.kind == TokenKind::LParen {
         self.advance();

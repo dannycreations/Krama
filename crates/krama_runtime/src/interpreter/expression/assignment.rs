@@ -13,12 +13,12 @@ use crate::Interpreter;
 /// Represents a target that can be assigned to (L-Value).
 pub enum LValue {
   Variable {
-    name: String,
+    name: Arc<str>,
     distance: Option<usize>,
   },
   Property {
-    properties: Arc<RwLock<IndexMap<String, ObjectKind>>>,
-    name: String,
+    properties: Arc<RwLock<IndexMap<Arc<str>, ObjectKind>>>,
+    name: Arc<str>,
   },
   Index {
     elements: Arc<RwLock<Vec<ObjectKind>>>,
@@ -90,7 +90,7 @@ impl Interpreter {
   ) -> ErrorResult<LValue> {
     match &expr.kind {
       ExpressionKind::Identifier(name) => Ok(LValue::Variable {
-        name: name.to_string(),
+        name: name.clone(),
         distance: self.get_resolved_distance(expr),
       }),
 
@@ -124,7 +124,7 @@ impl Interpreter {
       LValue::Property { properties, name } => Ok(
         properties
           .read()
-          .get(name)
+          .get(name.as_ref())
           .cloned()
           .unwrap_or(ObjectKind::Void),
       ),
@@ -179,7 +179,10 @@ impl Interpreter {
           elements[i] = value;
         } else if index >= 0 {
           let u_idx = index as usize;
-          elements.resize(u_idx + 1, ObjectKind::Void);
+          // Avoid resize if possible, or use a more efficient way to extend.
+          if u_idx >= elements.len() {
+            elements.resize(u_idx + 1, ObjectKind::Void);
+          }
           elements[u_idx] = value;
         }
         Ok(())
@@ -226,7 +229,7 @@ impl Interpreter {
         }
         Ok(LValue::Property {
           properties: properties.clone(),
-          name: name.to_string(),
+          name: name.clone(),
         })
       }
       _ => Err(

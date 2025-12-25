@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use indexmap::IndexMap;
 use krama_core::{Error, ErrorKind, ErrorResult, Expression, ObjectKind};
 
@@ -8,7 +10,7 @@ impl Interpreter {
   pub async fn eval_properties(
     &self,
     properties: &[(Expression, Expression)],
-  ) -> ErrorResult<IndexMap<String, ObjectKind>> {
+  ) -> ErrorResult<IndexMap<Arc<str>, ObjectKind>> {
     let mut fields = IndexMap::with_capacity(properties.len());
     for (key, value) in properties {
       let key_obj = self.eval_expression(key, None).await?;

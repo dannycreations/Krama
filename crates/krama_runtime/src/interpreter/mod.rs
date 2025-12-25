@@ -8,7 +8,6 @@ mod utils;
 use std::sync::Arc;
 
 use ahash::AHashMap;
-use indexmap::IndexMap;
 use krama_core::{
   Error, ErrorKind, ErrorResult, Expression, FunctionKind, ObjectKind,
   ObjectResult, Scope, Span, Statement,
@@ -23,14 +22,14 @@ use crate::{Checker, Heap, Lexer, Parser, Stack};
 /// Manages execution state, including stack, heap, modules, and local variable resolution.
 #[derive(Clone)]
 pub struct Interpreter {
+  /// Path to the file being executed, if any.
+  pub path: Option<String>,
   /// Loaded modules in the current session.
-  pub modules: Arc<RwLock<IndexMap<String, ObjectKind>>>,
+  pub modules: Arc<RwLock<AHashMap<String, ObjectKind>>>,
   /// The call stack for the current execution thread.
   pub stack: Arc<RwLock<Stack>>,
   /// The heap allocator for complex objects.
   pub heap: Arc<RwLock<Heap>>,
-  /// Path to the file being executed, if any.
-  pub path: Option<String>,
   /// Map of expression spans to their resolved scope distance.
   locals: Arc<RwLock<AHashMap<Span, usize>>>,
 }
@@ -47,15 +46,15 @@ impl Interpreter {
       scope.bindings.reserve(GLOBALS.len());
       for (name, native_fn) in GLOBALS.iter() {
         let function = ObjectKind::Function(FunctionKind::Native(*native_fn));
-        scope.set(name, function, true, true);
+        scope.set(Arc::from(*name), function, true, true);
       }
     }
 
     Self {
-      modules: Arc::new(RwLock::new(IndexMap::default())),
+      path,
+      modules: Arc::new(RwLock::new(AHashMap::default())),
       stack: Arc::new(RwLock::new(stack)),
       heap: Arc::new(RwLock::new(Heap::default())),
-      path,
       locals: Arc::new(RwLock::new(AHashMap::default())),
     }
   }
@@ -66,7 +65,7 @@ impl Interpreter {
     let mut current_scope = stack.current();
 
     for _ in 0..distance {
-      let next = current_scope.read().parent.clone()?;
+      let next = current_scope.read().parent.as_ref().map(Arc::clone)?;
       current_scope = next;
     }
 
@@ -86,15 +85,20 @@ impl Interpreter {
     let mut current_scope = stack.current();
 
     for _ in 0..distance {
-      let next = current_scope.read().parent.clone().ok_or_else(|| {
-        Error::new(
-          ErrorKind::RuntimeError(format!(
-            "Invalid scope distance {} for '{}'",
-            distance, name
-          )),
-          span,
-        )
-      })?;
+      let next = current_scope
+        .read()
+        .parent
+        .as_ref()
+        .map(Arc::clone)
+        .ok_or_else(|| {
+          Error::new(
+            ErrorKind::RuntimeError(format!(
+              "Invalid scope distance {} for '{}'",
+              distance, name
+            )),
+            span,
+          )
+        })?;
       current_scope = next;
     }
 
@@ -163,8 +167,7 @@ impl Interpreter {
   fn ensure_error_context(&self, mut e: Error, source: &str) -> Error {
     if e.source.is_none() {
       e.source = Some(source.to_string());
-      e.file =
-        Some(self.path.clone().unwrap_or_else(|| "<unknown>".to_string()));
+      e.file = self.path.clone().or_else(|| Some("<unknown>".to_string()));
     }
     e
   }

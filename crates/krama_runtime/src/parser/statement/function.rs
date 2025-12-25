@@ -10,7 +10,7 @@ impl<'a> Parser<'a> {
     start_span: Span,
   ) -> ErrorKindResult<Statement> {
     self.advance();
-    let name = self.parse_identifier()?;
+    let name = self.parse_identifier()?.into();
     self.consume(TokenKind::LParen)?;
 
     // Reuse parse_fn_parameters for consistency.

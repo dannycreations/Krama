@@ -65,7 +65,7 @@ impl Interpreter {
     let module_name = path.strip_prefix("std:").unwrap().to_string();
 
     // Check module cache.
-    if let Some(module) = self.modules.read().get(&module_name) {
+    if let Some(module) = self.modules.read().get(module_name.as_str()) {
       return Ok(module.clone());
     }
 
@@ -76,7 +76,7 @@ impl Interpreter {
         let mut scope_bindings = AHashMap::with_capacity(bindings.len());
         for (name, native_fn) in bindings {
           scope_bindings.insert(
-            name.to_string(),
+            (*name).into(),
             Binding {
               value: ObjectKind::Function(FunctionKind::Native(*native_fn)),
               public: true,
@@ -86,7 +86,7 @@ impl Interpreter {
         }
 
         let module = Scope {
-          name: Some(module_name.clone()),
+          name: Some(module_name.clone().into()),
           bindings: scope_bindings,
           parent: None,
         };
@@ -114,7 +114,7 @@ impl Interpreter {
     let resolved_path_key = resolved_path.to_string_lossy().to_string();
 
     // Check module cache.
-    if let Some(module) = self.modules.read().get(&resolved_path_key) {
+    if let Some(module) = self.modules.read().get(resolved_path_key.as_str()) {
       return Ok(module.clone());
     }
 
@@ -140,7 +140,7 @@ impl Interpreter {
     }
 
     let module = ObjectKind::Scope(Arc::new(RwLock::new(Scope {
-      name: Some(resolved_path_key.clone()),
+      name: Some(resolved_path_key.clone().into()),
       bindings,
       parent: None,
     })));
