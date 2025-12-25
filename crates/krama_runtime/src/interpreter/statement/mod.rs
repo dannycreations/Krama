@@ -110,7 +110,7 @@ impl Interpreter {
           methods,
         } => {
           // Struct definitions now use Arc<str> for name to optimize memory footprint.
-          // O(1) field lookup map is pre-computed during definition for efficient runtime access.
+          // O(1) field and method lookup maps are pre-computed during definition for efficient runtime access.
           let name_arc = name.clone();
           let field_map = fields
             .iter()
@@ -118,11 +118,18 @@ impl Interpreter {
             .map(|(i, f)| (f.name.clone(), i))
             .collect();
 
+          let method_map = methods
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (m.name.clone(), i))
+            .collect();
+
           let struct_def = Arc::new(Struct {
             name: name_arc,
             fields: fields.clone(),
             methods: methods.clone(),
             field_map,
+            method_map,
           });
           self.stack.write().define(
             name.clone(),

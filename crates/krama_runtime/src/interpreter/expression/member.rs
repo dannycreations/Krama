@@ -54,9 +54,9 @@ impl Interpreter {
 
         // b. Check methods if it's a struct instance.
         if let Some(ref definition) = definition {
-          if let Some(method) =
-            definition.methods.iter().find(|m| m.name == *property_name)
-          {
+          // Optimized O(1) method lookup using pre-computed method_map.
+          if let Some(&index) = definition.method_map.get(property_name) {
+            let method = &definition.methods[index];
             self.ensure_accessible(
               method.public,
               property_name,
@@ -82,9 +82,9 @@ impl Interpreter {
 
       // 4. Handle Struct definitions (Static methods).
       ObjectKind::Struct(definition) => {
-        if let Some(method) =
-          definition.methods.iter().find(|m| m.name == *property_name)
-        {
+        // Optimized O(1) method lookup using pre-computed method_map.
+        if let Some(&index) = definition.method_map.get(property_name) {
+          let method = &definition.methods[index];
           self.ensure_accessible(
             method.public,
             property_name,

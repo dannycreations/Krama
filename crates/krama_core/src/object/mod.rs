@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ahash::AHashMap;
 use indexmap::IndexMap;
 use parking_lot::RwLock;
 use strum_macros::EnumProperty as EnumPropertyMacro;
@@ -26,7 +27,8 @@ pub struct Struct {
   pub name: Arc<str>,
   pub fields: Vec<crate::StructField>,
   pub methods: Vec<crate::StructMethod>,
-  pub field_map: IndexMap<Arc<str>, usize>,
+  pub field_map: AHashMap<Arc<str>, usize>,
+  pub method_map: AHashMap<Arc<str>, usize>,
 }
 
 /// Represents an enum definition.
