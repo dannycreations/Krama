@@ -3,7 +3,6 @@ mod expression;
 mod function;
 mod statement;
 mod types;
-mod utils;
 
 use std::sync::Arc;
 

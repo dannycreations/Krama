@@ -50,13 +50,14 @@ impl Scope {
     }
 
     // Iterative traversal to avoid recursion overhead.
-    // We clone the Arc to move up the chain safely without holding locks for too long.
+    // We use a manual loop to traverse the parent chain, minimizing Arc cloning.
     let mut current = self.parent.as_ref().map(Arc::clone);
     while let Some(parent_cell) = current {
       let parent = parent_cell.read();
       if let Some(binding) = parent.get_local(name) {
         return Some(binding.value.clone());
       }
+      // Update current to parent's parent.
       current = parent.parent.as_ref().map(Arc::clone);
     }
     None

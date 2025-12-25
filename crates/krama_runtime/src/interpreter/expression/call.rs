@@ -126,6 +126,7 @@ impl Interpreter {
     stack_ref.write().push("function_call".into(), closure_env);
 
     if !matches!(this, ObjectKind::Void) {
+      // Lock stack once for multiple define calls.
       let mut stack = stack_ref.write();
       stack.define("this".into(), this.clone(), false, true);
 
