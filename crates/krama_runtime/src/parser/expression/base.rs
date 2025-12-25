@@ -1,4 +1,3 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ErrorKind, Expression, ExpressionKind, LiteralKind, PrecedenceKind,
   TokenKind, UnaryOperator, UpdateOperator,
@@ -6,22 +5,19 @@ use krama_core::{
 
 use crate::parser::{ParseResult, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
+impl<'a> Parser<'a> {
   /// Parses an identifier expression.
-  pub fn parse_identifier_expression(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_identifier_expression(&mut self) -> ParseResult {
     let token = self.current_token.clone();
     let name = self.parse_identifier()?;
     Ok(Expression::new(
-      ExpressionKind::Identifier(self.arena.alloc_str(name)),
+      ExpressionKind::Identifier(name),
       token.span,
     ))
   }
 
   /// Parses a literal expression (Integer, Float, String, Boolean, Null).
-  pub fn parse_literal(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_literal(&mut self) -> ParseResult {
     let token = self.current_token.clone();
     self.advance();
 
@@ -36,9 +32,7 @@ where
           ErrorKind::SyntaxError("Invalid float literal".to_string())
         })?)
       }
-      TokenKind::String(value) => {
-        LiteralKind::String(self.arena.alloc_str(value))
-      }
+      TokenKind::String(value) => LiteralKind::String(value.to_string()),
       TokenKind::True => LiteralKind::Boolean(true),
       TokenKind::False => LiteralKind::Boolean(false),
       TokenKind::Null => LiteralKind::Null,
@@ -57,7 +51,7 @@ where
   }
 
   /// Parses a parenthesized expression or an arrow function.
-  pub fn parse_paren_expression(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_paren_expression(&mut self) -> ParseResult {
     let start_span = self.current_token.span;
     self.consume(TokenKind::LParen)?;
 
@@ -67,7 +61,7 @@ where
         let (body, kind) = self.parse_arrow_fn_body_and_return_type()?;
         return Ok(Expression::new(
           ExpressionKind::Fn {
-            parameters: BumpVec::new_in(self.arena),
+            parameters: Vec::new(),
             body,
             kind,
           },
@@ -105,7 +99,7 @@ where
   }
 
   /// Parses a prefix unary expression (!, -, ~).
-  pub fn parse_unary_expression(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_unary_expression(&mut self) -> ParseResult {
     let token = self.current_token.clone();
     if token.kind == TokenKind::Plus {
       self.advance();
@@ -118,7 +112,7 @@ where
       return Ok(Expression::new(
         ExpressionKind::Unary {
           operator,
-          right: self.arena.alloc(right),
+          right: Box::new(right),
         },
         token.span,
       ));
@@ -127,7 +121,7 @@ where
   }
 
   /// Parses a prefix update expression (++x, --x).
-  pub fn parse_prefix_update_expression(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_prefix_update_expression(&mut self) -> ParseResult {
     let token = self.current_token.clone();
     if let Some(operator) = UpdateOperator::from_token(token.kind) {
       self.advance();
@@ -135,7 +129,7 @@ where
       return Ok(Expression::new(
         ExpressionKind::Update {
           operator,
-          argument: self.arena.alloc(argument),
+          argument: Box::new(argument),
           prefix: true,
         },
         token.span,

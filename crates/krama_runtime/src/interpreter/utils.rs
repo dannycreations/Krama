@@ -2,7 +2,7 @@ use krama_core::{Error, ErrorKind, ObjectKind, Span};
 
 use crate::interpreter::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Verifies if a member is accessible based on its visibility and the current execution context.
   pub fn ensure_accessible(
     &self,
@@ -10,13 +10,13 @@ impl<'ast> Interpreter<'ast> {
     member_name: &str,
     struct_name: &str,
     span: Span,
-  ) -> Result<(), Error<'ast>> {
+  ) -> Result<(), Error> {
     if public {
       return Ok(());
     }
 
     // Check if the current scope is within the same struct definition.
-    let env = self.environment.borrow();
+    let env = self.environment.read();
     let current_struct = env.get("__current_struct__");
     let allowed = if let Some(ObjectKind::String(name)) = current_struct {
       name == struct_name

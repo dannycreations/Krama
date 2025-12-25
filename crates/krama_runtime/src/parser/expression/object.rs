@@ -1,18 +1,14 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ErrorKind, Expression, ExpressionKind, LiteralKind, PrecedenceKind, TokenKind,
 };
 
 use super::{ParseResult, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_object_expression(&mut self) -> ParseResult<'a, 'ast> {
+impl<'a> Parser<'a> {
+  pub fn parse_object_expression(&mut self) -> ParseResult {
     let start_span = self.consume(TokenKind::LBrace)?.span;
 
-    let mut properties = BumpVec::new_in(self.arena);
+    let mut properties = Vec::new();
 
     if self.current_token.kind == TokenKind::RBrace {
       let end_span = self.current_token.span;
@@ -29,7 +25,7 @@ where
           let key_span = self.current_token.span;
           let key_ident = self.parse_identifier()?;
           let key_expr = Expression::new(
-            ExpressionKind::Literal(LiteralKind::String(key_ident)),
+            ExpressionKind::Literal(LiteralKind::String(key_ident.clone())),
             key_span,
           );
 

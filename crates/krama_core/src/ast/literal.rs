@@ -1,15 +1,15 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum LiteralKind<'ast> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum LiteralKind {
   Integer(i64),
   Float(f64),
-  String(&'ast str),
+  String(String),
   Boolean(bool),
   Null,
 }
 
-impl<'ast> Display for LiteralKind<'ast> {
+impl Display for LiteralKind {
   fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
       LiteralKind::Integer(i) => write!(f, "{}", i),

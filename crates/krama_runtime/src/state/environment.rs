@@ -1,14 +1,15 @@
-use std::cell::RefCell;
+use std::sync::Arc;
 
 use ahash::AHashMap;
 use indexmap::IndexMap;
 use krama_core::{FunctionKind, ObjectKind};
 use krama_std::GLOBALS;
+use parking_lot::RwLock;
 
 /// Represents a variable binding with its metadata.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Binding<'ast> {
-  pub value: ObjectKind<'ast>,
+pub struct Binding {
+  pub value: ObjectKind,
   pub public: bool,
   pub constant: bool,
 }
@@ -16,14 +17,14 @@ pub struct Binding<'ast> {
 /// Manages variable bindings and scope chains.
 /// Optimized for fast lookups and minimal memory overhead.
 #[derive(Debug, Default, Clone)]
-pub struct Environment<'ast> {
+pub struct Environment {
   /// Local bindings in the current scope.
-  pub store: AHashMap<&'ast str, Binding<'ast>>,
+  pub store: AHashMap<String, Binding>,
   /// Parent scope for delegation.
-  pub outer: Option<&'ast RefCell<Environment<'ast>>>,
+  pub outer: Option<Arc<RwLock<Environment>>>,
 }
 
-impl<'ast> Environment<'ast> {
+impl Environment {
   /// Creates a new empty environment.
   pub fn new() -> Self {
     Self {
@@ -47,7 +48,7 @@ impl<'ast> Environment<'ast> {
 
   /// Creates a new environment that encloses an existing one.
   /// Small initial capacity is used to balance memory vs allocation frequency.
-  pub fn new_enclosed(outer: &'ast RefCell<Environment<'ast>>) -> Self {
+  pub fn new_enclosed(outer: Arc<RwLock<Environment>>) -> Self {
     Environment {
       store: AHashMap::with_capacity(4),
       outer: Some(outer),
@@ -57,26 +58,24 @@ impl<'ast> Environment<'ast> {
   /// Retrieves a binding from the local scope only.
   /// Inlined for performance as it's a hot path in the interpreter.
   #[inline(always)]
-  pub fn get_local(&self, name: &str) -> Option<ObjectKind<'ast>> {
+  pub fn get_local(&self, name: &str) -> Option<ObjectKind> {
     self.store.get(name).map(|b| b.value.clone())
   }
 
   /// Retrieves a variable value by traversing the scope chain.
   /// Iterative approach avoids stack overflow in deeply nested scopes.
-  pub fn get(&self, name: &str) -> Option<ObjectKind<'ast>> {
+  pub fn get(&self, name: &str) -> Option<ObjectKind> {
     if let Some(obj) = self.get_local(name) {
       return Some(obj);
     }
 
-    let mut current = self.outer;
+    let mut current = self.outer.clone();
     while let Some(outer_cell) = current {
-      // We use try_borrow here to avoid panics in case of complex recursive calls,
-      // though the interpreter design should generally prevent multiple mutable borrows.
-      let outer = outer_cell.borrow();
+      let outer = outer_cell.read();
       if let Some(obj) = outer.get_local(name) {
         return Some(obj);
       }
-      current = outer.outer;
+      current = outer.outer.clone();
     }
 
     None
@@ -86,13 +85,13 @@ impl<'ast> Environment<'ast> {
   /// If the binding already exists, it is overwritten.
   pub fn set(
     &mut self,
-    name: &'ast str,
-    value: ObjectKind<'ast>,
+    name: &str,
+    value: ObjectKind,
     public: bool,
     constant: bool,
   ) {
     self.store.insert(
-      name,
+      name.to_string(),
       Binding {
         value,
         public,
@@ -110,12 +109,12 @@ impl<'ast> Environment<'ast> {
 
   /// Returns all public bindings from the current scope.
   /// Useful for module exports and reflection.
-  pub fn get_public_bindings(&self) -> IndexMap<&'ast str, ObjectKind<'ast>> {
+  pub fn get_public_bindings(&self) -> IndexMap<String, ObjectKind> {
     self
       .store
       .iter()
       .filter(|(_, b)| b.public)
-      .map(|(name, b)| (*name, b.value.clone()))
+      .map(|(name, b)| (name.clone(), b.value.clone()))
       .collect()
   }
 }

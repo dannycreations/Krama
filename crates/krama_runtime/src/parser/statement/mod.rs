@@ -15,11 +15,8 @@ use krama_core::{
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_statement(&mut self) -> Result<Statement<'ast>, ErrorKind> {
+impl<'a> Parser<'a> {
+  pub fn parse_statement(&mut self) -> Result<Statement, ErrorKind> {
     let token = self.current_token.clone();
 
     let statement = match token.kind {
@@ -40,7 +37,7 @@ where
         let expression = self.parse_expression(PrecedenceKind::Lowest)?;
         let span = expression.span;
         let statement_kind = StatementKind::Expression {
-          expression: self.arena.alloc(expression),
+          expression: Box::new(expression),
         };
         Ok(Statement::new(statement_kind, span))
       }

@@ -5,12 +5,12 @@ mod statement;
 mod types;
 mod utils;
 
-use std::cell::{RefCell, RefMut};
+use std::sync::Arc;
 
 use ahash::AHashMap;
-use bumpalo::Bump;
 use indexmap::IndexMap;
-use krama_core::{Error, ErrorKind, Expression, ObjectKind, Program, Span};
+use krama_core::{Error, ErrorKind, Expression, ObjectKind, Span, Statement};
+use parking_lot::{RwLock, RwLockWriteGuard};
 pub use types::*;
 
 use crate::{Checker, Environment, Lexer, Parser};
@@ -18,71 +18,64 @@ use crate::{Checker, Environment, Lexer, Parser};
 /// The interpreter responsible for executing the AST.
 /// Manages execution state, including environment, modules, and local variable resolution.
 #[derive(Clone)]
-pub struct Interpreter<'ast> {
+pub struct Interpreter {
   /// The current execution environment.
-  pub environment: &'ast RefCell<Environment<'ast>>,
+  pub environment: Arc<RwLock<Environment>>,
   /// Loaded modules in the current session.
-  pub modules: &'ast RefCell<IndexMap<&'ast str, ObjectKind<'ast>>>,
-  /// Memory arena for AST and runtime object allocations.
-  pub arena: &'ast Bump,
+  pub modules: Arc<RwLock<IndexMap<String, ObjectKind>>>,
   /// Path to the file being executed, if any.
-  pub path: Option<&'ast str>,
+  pub path: Option<String>,
   /// Map of expression spans to their resolved scope distance.
-  locals: RefCell<AHashMap<Span, usize>>,
+  locals: Arc<RwLock<AHashMap<Span, usize>>>,
 }
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Creates a new interpreter instance with a global environment.
-  pub fn new(arena: &'ast Bump, path: Option<&'ast str>) -> Self {
+  pub fn new(path: Option<String>) -> Self {
     let env = Environment::with_globals();
 
     Self {
-      environment: arena.alloc(RefCell::new(env)),
-      modules: arena.alloc(RefCell::new(IndexMap::default())),
-      arena,
+      environment: Arc::new(RwLock::new(env)),
+      modules: Arc::new(RwLock::new(IndexMap::default())),
       path,
-      locals: RefCell::new(AHashMap::default()),
+      locals: Arc::new(RwLock::new(AHashMap::default())),
     }
   }
 
   /// Creates a new interpreter instance sharing the same arena and modules but with an enclosed environment.
   pub fn new_enclosed(&self) -> Self {
     Self {
-      environment: self
-        .arena
-        .alloc(RefCell::new(Environment::new_enclosed(self.environment))),
-      modules: self.modules,
-      arena: self.arena,
-      path: self.path,
+      environment: Arc::new(RwLock::new(Environment::new_enclosed(
+        self.environment.clone(),
+      ))),
+      modules: self.modules.clone(),
+      path: self.path.clone(),
       locals: self.locals.clone(),
     }
   }
 
   /// Retrieves a variable value from a specific scope distance.
-  pub fn get_at(
-    &self,
-    distance: usize,
-    name: &str,
-  ) -> Option<ObjectKind<'ast>> {
-    let mut env_cell = self.environment;
+  pub fn get_at(&self, distance: usize, name: &str) -> Option<ObjectKind> {
+    let mut current_env = self.environment.clone();
     for _ in 0..distance {
-      let next = env_cell.borrow().outer?;
-      env_cell = next;
+      let next = current_env.read().outer.clone()?;
+      current_env = next;
     }
-    env_cell.borrow().get_local(name)
+    let env = current_env.read();
+    env.get_local(name)
   }
 
   /// Assigns a value to a variable at a specific scope distance.
   pub fn assign_at(
     &self,
     distance: usize,
-    name: &'ast str,
-    value: ObjectKind<'ast>,
+    name: &str,
+    value: ObjectKind,
     span: Span,
-  ) -> Result<(), Error<'ast>> {
-    let mut env_cell = self.environment;
+  ) -> Result<(), Error> {
+    let mut current_env = self.environment.clone();
     for _ in 0..distance {
-      let next = env_cell.borrow().outer.ok_or_else(|| {
+      let next = current_env.read().outer.clone().ok_or_else(|| {
         Error::new(
           ErrorKind::RuntimeError(format!(
             "Invalid scope distance {} for '{}'",
@@ -91,9 +84,9 @@ impl<'ast> Interpreter<'ast> {
           span,
         )
       })?;
-      env_cell = next;
+      current_env = next;
     }
-    let mut env = env_cell.borrow_mut();
+    let mut env = current_env.write();
     if env.is_constant(name) {
       return Err(Error::new(
         ErrorKind::TypeError(format!("Cannot assign to constant '{}'", name)),
@@ -104,24 +97,16 @@ impl<'ast> Interpreter<'ast> {
     Ok(())
   }
 
-  /// Allocates a string into the interpreter's arena.
-  pub fn alloc_str(&self, s: &str) -> &'ast str {
-    self.arena.alloc_str(s)
-  }
-
   /// Performs static analysis on the source code without execution.
-  pub fn check(&self, source: &'ast str) -> Result<(), Error<'ast>> {
+  pub fn check(&self, source: &str) -> Result<(), Error> {
     self.parse_and_check(source)?;
     Ok(())
   }
 
   /// Evaluates the source code and returns the result of the last expression.
-  pub async fn eval(
-    &self,
-    source: &'ast str,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
-    let program = self.parse_and_check(source)?;
-    let result = self.eval_statements(&program.statements).await?;
+  pub async fn eval(&self, source: &str) -> Result<ObjectKind, Error> {
+    let statements = self.parse_and_check(source)?;
+    let result = self.eval_statements(&statements).await?;
 
     // Use centralized unwrap_return_err to simplify error handling logic.
     let effective_result = result.unwrap_return_err();
@@ -137,33 +122,26 @@ impl<'ast> Interpreter<'ast> {
   }
 
   /// Parses and runs semantic analysis (checking) on the source.
-  pub fn parse_and_check(
-    &self,
-    source: &'ast str,
-  ) -> Result<Program<'ast>, Error<'ast>> {
-    let lexer = Lexer::new(source, self.path);
-    let mut parser = Parser::new(lexer, self.arena);
-    let program = parser
+  pub fn parse_and_check(&self, source: &str) -> Result<Vec<Statement>, Error> {
+    let lexer = Lexer::new(source, self.path.clone());
+    let mut parser = Parser::new(lexer);
+    let statements = parser
       .parse()
       .map_err(|e| self.ensure_error_context(e, source))?;
 
     let mut checker = Checker::new();
     let locals = checker
-      .check(&program)
+      .check(&statements)
       .map_err(|e| self.ensure_error_context(e, source))?;
 
-    *self.locals.borrow_mut() = locals.into_iter().collect();
-    Ok(program)
+    *self.locals.write() = locals.into_iter().collect();
+    Ok(statements)
   }
 
   /// Ensures an error has source and file context for better diagnostics.
-  fn ensure_error_context(
-    &self,
-    e: Error<'ast>,
-    source: &'ast str,
-  ) -> Error<'ast> {
+  fn ensure_error_context(&self, e: Error, source: &str) -> Error {
     if e.source.is_none() {
-      e.with_context(source, self.path.unwrap_or("<unknown>"))
+      e.with_context(source, self.path.as_deref().unwrap_or("<unknown>"))
     } else {
       e
     }
@@ -172,19 +150,13 @@ impl<'ast> Interpreter<'ast> {
   /// Safely borrows the environment mutably, wrapping borrow errors in errors.
   pub fn env_mut(
     &self,
-    span: Span,
-  ) -> Result<RefMut<'_, Environment<'ast>>, Error<'ast>> {
-    self
-      .environment
-      .try_borrow_mut()
-      .map_err(|e| Error::new(ErrorKind::RuntimeError(e.to_string()), span))
+    _span: Span,
+  ) -> Result<RwLockWriteGuard<'_, Environment>, Error> {
+    Ok(self.environment.write())
   }
 
   /// Returns the resolved scope distance for a given expression.
-  pub fn get_resolved_distance(
-    &self,
-    expr: &Expression<'ast>,
-  ) -> Option<usize> {
-    self.locals.borrow().get(&expr.span).copied()
+  pub fn get_resolved_distance(&self, expr: &Expression) -> Option<usize> {
+    self.locals.read().get(&expr.span).copied()
   }
 }

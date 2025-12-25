@@ -1,6 +1,5 @@
 use std::{
   fmt::{Display, Formatter, Result as FmtResult},
-  marker::PhantomData,
   ops::Deref,
 };
 
@@ -10,24 +9,18 @@ use crate::Span;
 /// Optimized with #[repr(C)] to ensure predictable layout and minimal padding.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(C)]
-pub struct Node<'ast, T> {
+pub struct Node<T> {
   /// The specific data for this node (e.g., ExpressionKind or StatementKind).
   pub kind: T,
   /// The source code range this node covers.
   pub span: Span,
-  /// Ensures the lifetime 'ast is bound to the Node.
-  pub _marker: PhantomData<&'ast ()>,
 }
 
-impl<'ast, T> Node<'ast, T> {
+impl<T> Node<T> {
   /// Creates a new AST node.
   #[inline(always)]
   pub fn new(kind: T, span: Span) -> Self {
-    Self {
-      kind,
-      span,
-      _marker: PhantomData,
-    }
+    Self { kind, span }
   }
 
   /// Returns the span of this node.
@@ -38,16 +31,16 @@ impl<'ast, T> Node<'ast, T> {
 }
 
 // Simplified IntoNode trait to reduce boilerplate during AST creation.
-pub trait IntoNode<'ast>: Sized {
+pub trait IntoNode: Sized {
   #[inline(always)]
-  fn into_node(self, span: Span) -> Node<'ast, Self> {
+  fn into_node(self, span: Span) -> Node<Self> {
     Node::new(self, span)
   }
 }
 
-impl<'ast, T> IntoNode<'ast> for T {}
+impl<T> IntoNode for T {}
 
-impl<'ast, T> Display for Node<'ast, T>
+impl<T> Display for Node<T>
 where
   T: Display,
 {
@@ -56,7 +49,7 @@ where
   }
 }
 
-impl<'ast, T> Deref for Node<'ast, T> {
+impl<T> Deref for Node<T> {
   type Target = T;
 
   #[inline(always)]

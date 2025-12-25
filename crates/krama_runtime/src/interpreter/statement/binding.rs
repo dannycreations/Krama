@@ -4,15 +4,15 @@ use krama_core::{
 
 use crate::interpreter::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Applies a binding (Identifier or Destructuring) to the environment.
   pub fn apply_binding(
     &self,
-    binding: &ConstBinding<'ast>,
-    value: ObjectKind<'ast>,
+    binding: &ConstBinding,
+    value: ObjectKind,
     public: bool,
     span: Span,
-  ) -> Result<(), Error<'ast>> {
+  ) -> Result<(), Error> {
     match binding {
       ConstBinding::Identifier(name) => {
         self.env_mut(span)?.set(name, value, public, true);
@@ -30,12 +30,12 @@ impl<'ast> Interpreter<'ast> {
   /// Handles destructuring logic for module imports.
   pub fn apply_destructuring(
     &self,
-    alias: Option<&'ast str>,
-    items: &[Destructure<'ast>],
-    value: ObjectKind<'ast>,
+    alias: Option<&str>,
+    items: &[Destructure],
+    value: ObjectKind,
     public: bool,
     span: Span,
-  ) -> Result<(), Error<'ast>> {
+  ) -> Result<(), Error> {
     if let ObjectKind::Scope(scope) = &value {
       if let Some(alias_name) = alias {
         self
@@ -43,15 +43,15 @@ impl<'ast> Interpreter<'ast> {
           .set(alias_name, value.clone(), public, true);
       }
       for item in items {
-        if let Some(export) = scope.get_binding(item.name) {
-          let name = item.alias.unwrap_or(item.name);
+        if let Some(export) = scope.read().get_binding(&item.name) {
+          let name = item.alias.as_ref().unwrap_or(&item.name);
           self.env_mut(span)?.set(name, export.clone(), public, true);
         } else {
           return Err(Error::new(
             ErrorKind::ReferenceError(format!(
               "'{}' is not exported from module '{}'",
               item.name,
-              scope.name.unwrap_or("<anonymous>")
+              scope.read().name.as_deref().unwrap_or("<anonymous>")
             )),
             span,
           ));

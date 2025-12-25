@@ -1,17 +1,11 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ErrorKind, ForBinding, PrecedenceKind, Statement, StatementKind, TokenKind,
 };
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_while_statement(
-    &mut self,
-  ) -> Result<Statement<'ast>, ErrorKind> {
+impl<'a> Parser<'a> {
+  pub fn parse_while_statement(&mut self) -> Result<Statement, ErrorKind> {
     let start_span = self.current_token.span;
     self.advance();
 
@@ -24,14 +18,14 @@ where
 
     Ok(Statement::new(
       StatementKind::While {
-        condition: self.arena.alloc(condition),
-        body: self.arena.alloc(body),
+        condition: Box::new(condition),
+        body: Box::new(body),
       },
       start_span,
     ))
   }
 
-  pub fn parse_for_statement(&mut self) -> Result<Statement<'ast>, ErrorKind> {
+  pub fn parse_for_statement(&mut self) -> Result<Statement, ErrorKind> {
     let start_span = self.current_token.span;
     self.advance();
 
@@ -50,22 +44,23 @@ where
     Ok(Statement::new(
       StatementKind::For {
         binding,
-        iterable: self.arena.alloc(iterable),
-        body: self.arena.alloc(body),
+        iterable: Box::new(iterable),
+        body: Box::new(body),
       },
       start_span,
     ))
   }
 
-  fn parse_for_binding(&mut self) -> Result<ForBinding<'ast>, ErrorKind> {
-    match self.current_token.kind {
+  fn parse_for_binding(&mut self) -> Result<ForBinding, ErrorKind> {
+    match &self.current_token.kind {
       TokenKind::Identifier(name) => {
+        let name = name.to_string();
         self.advance();
         Ok(ForBinding::Identifier(name))
       }
       TokenKind::LBracket => {
         self.advance();
-        let mut elements = BumpVec::new_in(self.arena);
+        let mut elements = Vec::new();
         while self.current_token.kind != TokenKind::RBracket {
           elements.push(self.parse_for_binding()?);
           if self.current_token.kind == TokenKind::Comma {

@@ -1,20 +1,16 @@
-use bumpalo::{collections::Vec as BumpVec, Bump};
+use std::sync::Arc;
+
 use futures::future::LocalBoxFuture;
 
 use crate::{Enum, ErrorKind, FunctionBody, ObjectKind, Parameter, Type};
 
 /// Callback type for native functions implemented in Rust.
 pub type NativeFnCb =
-  for<'ast> fn(
-    &'ast Bump,
-    &'ast [ObjectKind<'ast>],
-  ) -> LocalBoxFuture<'ast, Result<ObjectKind<'ast>, ErrorKind>>;
+  fn(&[ObjectKind]) -> LocalBoxFuture<'static, Result<ObjectKind, ErrorKind>>;
 
 /// Callback type for properties that return a value based on the object instance.
 pub type PropertyFnCb =
-  for<'ast> fn(
-    ObjectKind<'ast>,
-  ) -> LocalBoxFuture<'ast, Result<ObjectKind<'ast>, ErrorKind>>;
+  fn(ObjectKind) -> LocalBoxFuture<'static, Result<ObjectKind, ErrorKind>>;
 
 /// Represents a function implemented in native Rust code.
 #[derive(Debug, Clone, Copy)]
@@ -25,16 +21,16 @@ pub struct NativeFunction {
 
 /// Represents a function defined by the user in source code.
 #[derive(Debug, Clone, PartialEq)]
-pub struct UserFunction<'ast> {
-  pub parameters: BumpVec<'ast, Parameter<'ast>>,
-  pub body: FunctionBody<'ast>,
-  pub kind: Option<Type<'ast>>,
+pub struct UserFunction {
+  pub parameters: Vec<Parameter>,
+  pub body: FunctionBody,
+  pub kind: Option<Type>,
 }
 
 /// Categorizes the different types of callable objects.
-#[derive(Debug, Copy, Clone)]
-pub enum FunctionKind<'ast> {
+#[derive(Debug, Clone)]
+pub enum FunctionKind {
   Native(NativeFunction),
-  User(&'ast UserFunction<'ast>),
-  Enum(&'ast Enum<'ast>),
+  User(Arc<UserFunction>),
+  Enum(Arc<Enum>),
 }

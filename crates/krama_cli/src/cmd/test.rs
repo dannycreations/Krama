@@ -4,7 +4,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use bumpalo::Bump;
 use clap::Parser;
 use krama_runtime::{Interpreter, TestResult};
 use tokio::fs;
@@ -59,23 +58,20 @@ impl Test {
     let mut passed = 0;
     let mut failed = 0;
 
-    let arena = Bump::new();
     let content = fs::read_to_string(path).await?;
     let path_str = path.to_str().context("path is not valid UTF-8")?;
 
-    let content_in_arena = arena.alloc_str(&content);
-    let path_in_arena = arena.alloc_str(path_str);
-    let interpreter = Interpreter::new(&arena, Some(path_in_arena));
+    let interpreter = Interpreter::new(Some(path_str.to_string()));
 
-    let program = match interpreter.parse_and_check(content_in_arena) {
-      Ok(program) => program,
+    let statements = match interpreter.parse_and_check(&content) {
+      Ok(statements) => statements,
       Err(error) => {
         error.report();
         return Ok((0, 1));
       }
     };
 
-    let results = interpreter.run_tests(&program.statements).await;
+    let results = interpreter.run_tests(&statements).await;
 
     for result in results {
       match result {

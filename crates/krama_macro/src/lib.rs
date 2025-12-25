@@ -107,28 +107,32 @@ fn transform_fn(
   let mut new_sig = sig.clone();
   new_sig.asyncness = None;
 
-  let has_ast_lifetime = new_sig
-    .generics
-    .lifetimes()
-    .any(|lt| lt.lifetime.ident == "ast");
-  if !has_ast_lifetime {
-    return SynError::new_spanned(
-      sig,
-      format!(
-        "{} function must have a `'ast` lifetime parameter",
-        error_msg_prefix
-      ),
-    )
-    .to_compile_error();
-  }
-
   new_sig.output = syn::parse_quote! {
-    -> futures::future::LocalBoxFuture<'ast, Result<krama_core::ObjectKind<'ast>, krama_core::ErrorKind>>
+    -> futures::future::LocalBoxFuture<'static, Result<krama_core::ObjectKind, krama_core::ErrorKind>>
   };
+
+  let mut pre_block = TokenStream2::new();
+  for arg in &sig.inputs {
+    match arg {
+      syn::FnArg::Typed(pat) => {
+        let pat_name = &pat.pat;
+        let ty = &pat.ty;
+
+        // Check if the type is a reference (starts with &)
+        if let syn::Type::Reference(_) = **ty {
+          pre_block.extend(quote! {
+              let #pat_name = #pat_name.to_vec();
+          });
+        }
+      }
+      _ => panic!("Receiver not supported"),
+    }
+  }
 
   quote! {
     #vis #new_sig {
       use futures::future::FutureExt;
+      #pre_block
       async move #body.boxed_local()
     }
 

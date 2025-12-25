@@ -5,16 +5,13 @@ use krama_core::{Error, ExpressionKind, Statement, StatementKind};
 use crate::Interpreter;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TestResult<'ast> {
+pub enum TestResult {
   Success(String),
-  Failure(String, Error<'ast>),
+  Failure(String, Error),
 }
 
-impl<'ast> Interpreter<'ast> {
-  pub async fn run_tests(
-    &self,
-    statements: &[Statement<'ast>],
-  ) -> Vec<TestResult<'ast>> {
+impl Interpreter {
+  pub async fn run_tests(&self, statements: &[Statement]) -> Vec<TestResult> {
     let test_futures = statements
       .iter()
       .filter_map(|statement| {

@@ -7,22 +7,22 @@ use krama_core::{
 
 use crate::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates an 'if' expression, including pattern matching support.
   pub async fn eval_if_expression(
     &self,
-    condition: &Expression<'ast>,
-    then_branch: &Expression<'ast>,
-    else_branch: Option<&'ast Expression<'ast>>,
-    kind: Option<&Type<'ast>>,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    condition: &Expression,
+    then_branch: &Expression,
+    else_branch: Option<&Expression>,
+    kind: Option<&Type>,
+  ) -> Result<ObjectKind, Error> {
     // 1. Check if the condition is a pattern match (e.g., if (Ok(v) = expr)).
     if let Some(bindings) = self.try_match_assignment(condition).await? {
       let new_interpreter = self.new_enclosed();
       for (name, val) in bindings {
         new_interpreter
           .env_mut(condition.span)?
-          .set(name, val, false, false);
+          .set(&name, val, false, false);
       }
       return new_interpreter.eval_expression(then_branch, kind).await;
     }
@@ -41,10 +41,10 @@ impl<'ast> Interpreter<'ast> {
   /// Evaluates a 'match' expression by iterating through patterns in each arm.
   pub async fn eval_match_expression(
     &self,
-    subject: &Expression<'ast>,
-    arms: &[Match<'ast>],
+    subject: &Expression,
+    arms: &[Match],
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     let subject_val = self.eval_expression(subject, None).await?;
 
     // Use centralized unwrap_return_err to simplify error handling logic.
@@ -61,7 +61,7 @@ impl<'ast> Interpreter<'ast> {
           let interpreter = if !bindings.is_empty() {
             let new_interp = self.new_enclosed();
             for (name, val) in bindings {
-              new_interp.env_mut(span)?.set(name, val, false, false);
+              new_interp.env_mut(span)?.set(&name, val, false, false);
             }
             Cow::Owned(new_interp)
           } else {
@@ -104,13 +104,10 @@ impl<'ast> Interpreter<'ast> {
   /// Returns Ok(Some(bindings)) if the pattern matches.
   async fn eval_match_pattern<'s>(
     &'s self,
-    subject: &'s ObjectKind<'ast>,
-    pattern: &'s MatchPattern<'ast>,
+    subject: &'s ObjectKind,
+    pattern: &'s MatchPattern,
     span: Span,
-  ) -> Result<Option<Vec<(&'ast str, ObjectKind<'ast>)>>, Error<'ast>>
-  where
-    'ast: 's,
-  {
+  ) -> Result<Option<Vec<(String, ObjectKind)>>, Error> {
     match (pattern, subject) {
       // 1. Expression-based patterns (Result variants).
       (MatchPattern::Expression(expression), _) => {
@@ -121,10 +118,10 @@ impl<'ast> Interpreter<'ast> {
         } = &expression.kind
         {
           if let ExpressionKind::Identifier(name) = &function.kind {
-            if (*name == "Ok" || *name == "Err") && arguments.len() == 1 {
+            if (name == "Ok" || name == "Err") && arguments.len() == 1 {
               let is_match = matches!(
-                (name, subject),
-                (&"Ok", ObjectKind::Ok(_)) | (&"Err", ObjectKind::Err(_))
+                (name.as_str(), subject),
+                ("Ok", ObjectKind::Ok(_)) | ("Err", ObjectKind::Err(_))
               );
 
               if is_match {
@@ -135,7 +132,10 @@ impl<'ast> Interpreter<'ast> {
 
                 let arg = &arguments[0];
                 if let ExpressionKind::Identifier(bind_name) = &arg.kind {
-                  return Ok(Some(vec![(*bind_name, (*inner_val).clone())]));
+                  return Ok(Some(vec![(
+                    bind_name.clone(),
+                    *(*inner_val).clone(),
+                  )]));
                 } else {
                   // Nested pattern matching (currently only direct value equality).
                   let arg_val = self.eval_expression(arg, None).await?;

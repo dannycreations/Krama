@@ -1,18 +1,12 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{ErrorKind, StatementBlock, TokenKind};
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_block_statement(
-    &mut self,
-  ) -> Result<StatementBlock<'ast>, ErrorKind> {
+impl<'a> Parser<'a> {
+  pub fn parse_block_statement(&mut self) -> Result<StatementBlock, ErrorKind> {
     let start_span = self.current_token.span;
     self.advance();
-    let mut statements = BumpVec::new_in(self.arena);
+    let mut statements = Vec::new();
 
     while self.current_token.kind != TokenKind::RBrace
       && self.current_token.kind != TokenKind::Eof

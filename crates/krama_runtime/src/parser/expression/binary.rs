@@ -4,27 +4,21 @@ use krama_core::{
 
 use super::{ParseResult, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
+impl<'a> Parser<'a> {
   /// Parses an infix expression (binary or assignment) using Pratt parsing.
-  pub fn parse_infix_expression(
-    &mut self,
-    left: Expression<'ast>,
-  ) -> ParseResult<'a, 'ast> {
+  pub fn parse_infix_expression(&mut self, left: Expression) -> ParseResult {
     let precedence = self.current_precedence();
     let token = self.current_token.clone();
 
-    if let Some(op) = AssignmentOperator::from_token(token.kind) {
+    if let Some(op) = AssignmentOperator::from_token(token.kind.clone()) {
       self.advance();
       let left_span = left.span;
       let right = self.parse_expression(precedence)?;
       return Ok(Expression::new(
         ExpressionKind::Assignment {
-          left: self.arena.alloc(left),
+          left: Box::new(left),
           operator: op,
-          right: self.arena.alloc(right),
+          right: Box::new(right),
         },
         token.span.merge(&left_span),
       ));
@@ -37,9 +31,9 @@ where
       let right_span = right.span;
       return Ok(Expression::new(
         ExpressionKind::Binary {
-          left: self.arena.alloc(left),
+          left: Box::new(left),
           operator: op,
-          right: self.arena.alloc(right),
+          right: Box::new(right),
         },
         left_span.merge(&right_span),
       ));

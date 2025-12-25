@@ -1,12 +1,7 @@
 use std::{
   fmt::{Display, Formatter, Result as FmtResult},
   ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Rem, Shl, Shr, Sub},
-  ptr,
-};
-
-use bumpalo::{
-  collections::{String as BumpString, Vec as BumpVec},
-  Bump,
+  sync::Arc,
 };
 
 use super::{FunctionKind, NativeFunction, ObjectKind};
@@ -18,43 +13,39 @@ impl PartialEq for NativeFunction {
   }
 }
 
-impl<'ast> PartialEq for FunctionKind<'ast> {
+impl PartialEq for FunctionKind {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (FunctionKind::Native(a), FunctionKind::Native(b)) => a == b,
-      (FunctionKind::User(a), FunctionKind::User(b)) => ptr::eq(*a, *b),
-      (FunctionKind::Enum(a), FunctionKind::Enum(b)) => ptr::eq(*a, *b),
+      (FunctionKind::User(a), FunctionKind::User(b)) => Arc::ptr_eq(a, b),
+      (FunctionKind::Enum(a), FunctionKind::Enum(b)) => Arc::ptr_eq(a, b),
       _ => false,
     }
   }
 }
 
-impl<'ast> PartialEq for ObjectKind<'ast> {
+impl PartialEq for ObjectKind {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (Self::Integer(l), Self::Integer(r)) => l == r,
       (Self::Float(l), Self::Float(r)) => l == r,
       (Self::Boolean(l), Self::Boolean(r)) => l == r,
-      (Self::String(l), Self::String(r)) => ptr::eq(*l, *r) || l == r,
+      (Self::String(l), Self::String(r)) => l == r,
       (Self::Array { elements: l, .. }, Self::Array { elements: r, .. }) => {
-        ptr::eq(*l, *r)
+        Arc::ptr_eq(l, r)
       }
-      (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => {
-        ptr::eq(*l, *r) || l == r
-      }
+      (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => l == r,
       (
         Self::Object { properties: l, .. },
         Self::Object { properties: r, .. },
-      ) => ptr::eq(*l, *r),
+      ) => Arc::ptr_eq(l, r),
       (Self::Null, Self::Null) | (Self::Void, Self::Void) => true,
-      (Self::Scope(l), Self::Scope(r)) => ptr::eq(*l, *r),
+      (Self::Scope(l), Self::Scope(r)) => Arc::ptr_eq(l, r),
       (Self::Function(l), Self::Function(r)) => l == r,
-      (Self::Return(l), Self::Return(r)) => ptr::eq(*l, *r),
+      (Self::Return(l), Self::Return(r)) => l == r,
       (Self::Break, Self::Break) | (Self::Continue, Self::Continue) => true,
-      (Self::Ok(l), Self::Ok(r)) | (Self::Err(l), Self::Err(r)) => {
-        ptr::eq(*l, *r) || l == r
-      }
+      (Self::Ok(l), Self::Ok(r)) | (Self::Err(l), Self::Err(r)) => l == r,
       (
         Self::Enum {
           name: ln,
@@ -67,20 +58,20 @@ impl<'ast> PartialEq for ObjectKind<'ast> {
           fields: rf,
         },
       ) => ln == rn && lv == rv && lf == rf,
-      (Self::Struct(l), Self::Struct(r)) => ptr::eq(*l, *r),
+      (Self::Struct(l), Self::Struct(r)) => Arc::ptr_eq(l, r),
       (Self::Type(l), Self::Type(r)) => l == r,
       _ => false,
     }
   }
 }
 
-impl<'ast> ObjectKind<'ast> {
+impl ObjectKind {
   /// Helper for string concatenation.
-  fn concat_strings(l: &str, r: &str, arena: &'ast Bump) -> Self {
-    let mut s = BumpString::with_capacity_in(l.len() + r.len(), arena);
+  fn concat_strings(l: &str, r: &str) -> Self {
+    let mut s = String::with_capacity(l.len() + r.len());
     s.push_str(l);
     s.push_str(r);
-    Self::String(s.into_bump_str())
+    Self::String(s)
   }
 
   /// Evaluates a binary operation on this object.
@@ -88,7 +79,6 @@ impl<'ast> ObjectKind<'ast> {
     &self,
     operator: BinaryOperator,
     other: &Self,
-    arena: &'ast Bump,
   ) -> Result<Self, ErrorKind> {
     // Propagate early exits from either side.
     if self.is_control_signal() {
@@ -100,7 +90,7 @@ impl<'ast> ObjectKind<'ast> {
 
     match (self, other) {
       (Self::Integer(l), Self::Integer(r)) => {
-        self.perform_int_op(operator, *l, *r, arena)
+        self.perform_int_op(operator, *l, *r)
       }
       (Self::Float(l), Self::Float(r)) => {
         self.perform_float_op(operator, *l, *r)
@@ -112,13 +102,13 @@ impl<'ast> ObjectKind<'ast> {
         self.perform_float_op(operator, *l, *r as f64)
       }
       (Self::String(l), Self::String(r)) => {
-        self.perform_string_op(operator, l, r, arena)
+        self.perform_string_op(operator, l, r)
       }
       (Self::String(l), r) if operator == BinaryOperator::Add => {
-        Ok(Self::concat_strings(l, &r.to_string(), arena))
+        Ok(Self::concat_strings(l, &r.to_string()))
       }
       (l, Self::String(r)) if operator == BinaryOperator::Add => {
-        Ok(Self::concat_strings(&l.to_string(), r, arena))
+        Ok(Self::concat_strings(&l.to_string(), r))
       }
       (Self::Boolean(l), Self::Boolean(r)) => {
         self.perform_bool_op(operator, *l, *r)
@@ -128,7 +118,7 @@ impl<'ast> ObjectKind<'ast> {
         BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
         BinaryOperator::In => {
           if let (Self::String(l), Self::Object { properties, .. }) = (l, r) {
-            return Ok(Self::Boolean(properties.read().contains_key(*l)));
+            return Ok(Self::Boolean(properties.read().contains_key(l)));
           }
           Err(ErrorKind::TypeError(format!(
             "Unsupported types for 'in' operation: {} and {}",
@@ -169,7 +159,6 @@ impl<'ast> ObjectKind<'ast> {
     op: BinaryOperator,
     l: i64,
     r: i64,
-    arena: &'ast Bump,
   ) -> Result<Self, ErrorKind> {
     if let Some(res) = Self::compare_numbers(l, r, op) {
       return Ok(Self::Boolean(res));
@@ -194,16 +183,16 @@ impl<'ast> ObjectKind<'ast> {
       BinaryOperator::RightShift => Ok(Self::Integer(l.shr(r))),
       BinaryOperator::Range => {
         if r < l {
-          return Ok(Self::Tuple { elements: &[] });
+          return Ok(Self::Tuple {
+            elements: Vec::new(),
+          });
         }
         let count = (r.wrapping_sub(l)) as usize + 1;
-        let mut elements = BumpVec::with_capacity_in(count, arena);
+        let mut elements = Vec::with_capacity(count);
         for i in l..=r {
           elements.push(Self::Integer(i));
         }
-        Ok(Self::Tuple {
-          elements: elements.into_bump_slice(),
-        })
+        Ok(Self::Tuple { elements })
       }
       _ => Err(ErrorKind::TypeError(format!(
         "Unsupported operator for integers: {:?}",
@@ -241,14 +230,13 @@ impl<'ast> ObjectKind<'ast> {
     op: BinaryOperator,
     l: &str,
     r: &str,
-    arena: &'ast Bump,
   ) -> Result<Self, ErrorKind> {
     if let Some(res) = Self::compare_numbers(l, r, op) {
       return Ok(Self::Boolean(res));
     }
 
     match op {
-      BinaryOperator::Add => Ok(Self::concat_strings(l, r, arena)),
+      BinaryOperator::Add => Ok(Self::concat_strings(l, r)),
       _ => Err(ErrorKind::TypeError(format!(
         "Unsupported operator for strings: {:?}",
         op
@@ -293,14 +281,14 @@ impl<'ast> ObjectKind<'ast> {
   }
 }
 
-impl<'ast> From<&ObjectKind<'ast>> for bool {
+impl From<&ObjectKind> for bool {
   #[inline]
-  fn from(obj: &ObjectKind<'ast>) -> bool {
+  fn from(obj: &ObjectKind) -> bool {
     obj.is_truthy()
   }
 }
 
-impl<'ast> Display for ObjectKind<'ast> {
+impl Display for ObjectKind {
   fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
       Self::Null => write!(f, "null"),
@@ -349,7 +337,11 @@ impl<'ast> Display for ObjectKind<'ast> {
         }
         write!(f, "}}")
       }
-      Self::Scope(s) => write!(f, "Scope({})", s.name.unwrap_or("anonymous")),
+      Self::Scope(s) => write!(
+        f,
+        "Scope({})",
+        s.read().name.as_deref().unwrap_or("anonymous")
+      ),
       Self::Function(kind) => match kind {
         FunctionKind::Native(n) => write!(f, "fn {}() [native]", n.name),
         FunctionKind::User(_) => write!(f, "fn() [user]"),

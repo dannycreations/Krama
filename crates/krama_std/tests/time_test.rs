@@ -7,5 +7,5 @@ test_eval_ok!(
     import("std:time").sleep(10)
     "done"
   "#,
-  ObjectKind::String("done")
+  ObjectKind::String("done".to_string())
 );

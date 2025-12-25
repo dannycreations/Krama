@@ -6,24 +6,24 @@ use strum_macros::AsRefStr;
 use super::Span;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Token<'a> {
-  pub kind: TokenKind<'a>,
+pub struct Token {
+  pub kind: TokenKind,
   pub span: Span,
 }
 
-impl<'a> Token<'a> {
-  pub fn new(kind: TokenKind<'a>, span: Span) -> Self {
+impl Token {
+  pub fn new(kind: TokenKind, span: Span) -> Self {
     Self { kind, span }
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, AsRefStr, Logos)]
+#[derive(Debug, Clone, PartialEq, AsRefStr, Logos)]
 #[strum(serialize_all = "lowercase")]
 #[logos(skip r"[ \t\f]+")]
 #[logos(skip r"//[^\n]*")]
 #[logos(skip r"/\*([^*]|\*+[^*/])*\*+/")]
 #[logos(skip r"\n")]
-pub enum TokenKind<'a> {
+pub enum TokenKind {
   #[token("const")]
   Const,
   #[token("fn")]
@@ -201,20 +201,20 @@ pub enum TokenKind<'a> {
   #[token("?")]
   Question,
 
-  #[regex(r"[0-9][0-9_]*", |lex| lex.slice(), priority = 2)]
-  Integer(&'a str),
-  #[regex(r"[0-9][0-9_]*(\.[0-9][0-9_]*)?([eE][+-]?[0-9][0-9_]*)?", |lex| lex.slice(), priority = 1)]
-  Float(&'a str),
-  #[regex(r#""([^"\\]|\\.)*""#, |lex| &lex.slice()[1..lex.slice().len()-1])]
-  String(&'a str),
-  #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice())]
-  Identifier(&'a str),
+  #[regex(r"[0-9][0-9_]*", |lex| lex.slice().to_string(), priority = 2)]
+  Integer(String),
+  #[regex(r"[0-9][0-9_]*(\.[0-9][0-9_]*)?([eE][+-]?[0-9][0-9_]*)?", |lex| lex.slice().to_string(), priority = 1)]
+  Float(String),
+  #[regex(r#""([^"\\]|\\.)*""#, |lex| lex.slice()[1..lex.slice().len()-1].to_string())]
+  String(String),
+  #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
+  Identifier(String),
 
   Unknown,
   Eof,
 }
 
-impl<'a> TokenKind<'a> {
+impl TokenKind {
   pub fn is_keyword(&self) -> bool {
     use TokenKind::*;
     matches!(
@@ -263,7 +263,7 @@ impl<'a> TokenKind<'a> {
   }
 }
 
-impl<'a> fmt::Display for TokenKind<'a> {
+impl fmt::Display for TokenKind {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::Plus => write!(f, "+"),

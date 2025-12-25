@@ -1,4 +1,3 @@
-use bumpalo::Bump;
 use krama_core::{ErrorKind, ObjectKind};
 use krama_macro::register_global;
 use tokio::io::{self, AsyncWrite, AsyncWriteExt};
@@ -11,9 +10,9 @@ macro_rules! io_try {
   };
 }
 
-async fn write_objects<'ast, W>(
+async fn write_objects<W>(
   mut writer: W,
-  objects: &'ast [ObjectKind<'ast>],
+  objects: &[ObjectKind],
 ) -> Result<(), ErrorKind>
 where
   W: AsyncWrite + Unpin,
@@ -30,19 +29,13 @@ where
 }
 
 #[register_global("print")]
-pub async fn print<'ast>(
-  _: &'ast Bump,
-  objects: &'ast [ObjectKind<'ast>],
-) -> Result<ObjectKind<'ast>, ErrorKind> {
-  write_objects(io::stdout(), objects).await?;
+pub async fn print(objects: &[ObjectKind]) -> Result<ObjectKind, ErrorKind> {
+  write_objects(io::stdout(), &objects).await?;
   Ok(ObjectKind::Void)
 }
 
 #[register_global("eprint")]
-pub async fn eprint<'ast>(
-  _: &'ast Bump,
-  objects: &'ast [ObjectKind<'ast>],
-) -> Result<ObjectKind<'ast>, ErrorKind> {
-  write_objects(io::stderr(), objects).await?;
+pub async fn eprint(objects: &[ObjectKind]) -> Result<ObjectKind, ErrorKind> {
+  write_objects(io::stderr(), &objects).await?;
   Ok(ObjectKind::Void)
 }

@@ -1,21 +1,21 @@
 use indexmap::IndexMap;
 use krama_core::{
   ConstBinding, Error, ErrorKind, Expression, ExpressionKind, ForBinding,
-  FunctionBody, MatchPattern, Program, Span, Statement, StatementKind,
+  FunctionBody, MatchPattern, Span, Statement, StatementKind,
 };
 
-pub struct Checker<'a> {
-  scopes: Vec<IndexMap<&'a str, bool>>,
+pub struct Checker {
+  scopes: Vec<IndexMap<String, bool>>,
   locals: IndexMap<Span, usize>,
 }
 
-impl<'a> Default for Checker<'a> {
+impl Default for Checker {
   fn default() -> Self {
     Self::new()
   }
 }
 
-impl<'a> Checker<'a> {
+impl Checker {
   pub fn new() -> Self {
     Self {
       scopes: vec![IndexMap::default()],
@@ -25,39 +25,36 @@ impl<'a> Checker<'a> {
 
   pub fn check(
     &mut self,
-    program: &Program<'a>,
-  ) -> Result<IndexMap<Span, usize>, Error<'a>> {
-    for statement in &program.statements {
+    statements: &[Statement],
+  ) -> Result<IndexMap<Span, usize>, Error> {
+    for statement in statements {
       self.check_statement(statement)?;
     }
     Ok(self.locals.clone())
   }
 
-  fn check_statement(
-    &mut self,
-    statement: &Statement<'a>,
-  ) -> Result<(), Error<'a>> {
+  fn check_statement(&mut self, statement: &Statement) -> Result<(), Error> {
     match &statement.kind {
       StatementKind::Expression { expression } => {
         self.check_expression(expression)?
       }
       StatementKind::Let { name, value, .. } => {
         self.check_expression(value)?;
-        self.define_var(name);
+        self.define_var(name.to_string());
       }
       StatementKind::Const { binding, value, .. } => {
         self.check_expression(value)?;
         match binding {
-          ConstBinding::Identifier(name) => self.define_var(name),
+          ConstBinding::Identifier(name) => self.define_var(name.to_string()),
           ConstBinding::Destructure(items) => {
             for item in items {
-              self.define_var(item.name);
+              self.define_var(item.name.to_string());
             }
           }
           ConstBinding::ModuleAndDestructure { alias, items } => {
-            self.define_var(alias);
+            self.define_var(alias.to_string());
             for item in items {
-              self.define_var(item.name);
+              self.define_var(item.name.to_string());
             }
           }
         }
@@ -68,11 +65,11 @@ impl<'a> Checker<'a> {
         body,
         ..
       } => {
-        self.define_var(name);
+        self.define_var(name.to_string());
         self.check_function(parameters, body)?;
       }
       StatementKind::Enum { name, .. } | StatementKind::Type { name, .. } => {
-        self.define_var(name);
+        self.define_var(name.to_string());
       }
       StatementKind::Struct {
         name,
@@ -80,9 +77,9 @@ impl<'a> Checker<'a> {
         methods,
         ..
       } => {
-        self.define_var(name);
+        self.define_var(name.to_string());
         for field in fields {
-          if let Some(default) = field.default {
+          if let Some(default) = &field.default {
             self.check_expression(default)?;
           }
         }
@@ -121,18 +118,18 @@ impl<'a> Checker<'a> {
 
   fn check_function(
     &mut self,
-    params: &[krama_core::Parameter<'a>],
-    body: &FunctionBody<'a>,
-  ) -> Result<(), Error<'a>> {
+    params: &[krama_core::Parameter],
+    body: &FunctionBody,
+  ) -> Result<(), Error> {
     self.with_scope(|this| {
       for param in params {
-        this.define_var(param.name);
+        this.define_var(param.name.to_string());
       }
       this.check_body(body)
     })
   }
 
-  fn check_body(&mut self, body: &FunctionBody<'a>) -> Result<(), Error<'a>> {
+  fn check_body(&mut self, body: &FunctionBody) -> Result<(), Error> {
     match body {
       FunctionBody::Block(block) => self.check_block_content(block),
       FunctionBody::Expression(expr) => self.check_expression(expr),
@@ -141,24 +138,24 @@ impl<'a> Checker<'a> {
 
   fn check_block(
     &mut self,
-    block: &krama_core::StatementBlock<'a>,
-  ) -> Result<(), Error<'a>> {
+    block: &krama_core::StatementBlock,
+  ) -> Result<(), Error> {
     self.with_scope(|this| this.check_block_content(block))
   }
 
   fn check_block_content(
     &mut self,
-    block: &krama_core::StatementBlock<'a>,
-  ) -> Result<(), Error<'a>> {
+    block: &krama_core::StatementBlock,
+  ) -> Result<(), Error> {
     for statement in &block.statements {
       self.check_statement(statement)?;
     }
     Ok(())
   }
 
-  fn declare_for_binding(&mut self, binding: &ForBinding<'a>) {
+  fn declare_for_binding(&mut self, binding: &ForBinding) {
     match binding {
-      ForBinding::Identifier(name) => self.define_var(name),
+      ForBinding::Identifier(name) => self.define_var(name.to_string()),
       ForBinding::Array(bindings) => {
         for b in bindings {
           self.declare_for_binding(b);
@@ -167,10 +164,7 @@ impl<'a> Checker<'a> {
     }
   }
 
-  fn check_expression(
-    &mut self,
-    expression: &Expression<'a>,
-  ) -> Result<(), Error<'a>> {
+  fn check_expression(&mut self, expression: &Expression) -> Result<(), Error> {
     match &expression.kind {
       ExpressionKind::Identifier(name) => {
         if let Some(scope) = self.scopes.last() {
@@ -262,7 +256,7 @@ impl<'a> Checker<'a> {
     Ok(())
   }
 
-  fn check_local(&mut self, expression: &Expression<'a>, name: &str) {
+  fn check_local(&mut self, expression: &Expression, name: &str) {
     for (i, scope) in self.scopes.iter().enumerate().rev() {
       if scope.contains_key(name) {
         self
@@ -283,7 +277,7 @@ impl<'a> Checker<'a> {
     result
   }
 
-  fn define_var(&mut self, name: &'a str) {
+  fn define_var(&mut self, name: String) {
     if let Some(scope) = self.scopes.last_mut() {
       scope.insert(name, true);
     }

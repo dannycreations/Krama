@@ -1,4 +1,3 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ConstBinding, Destructure, ErrorKind, PrecedenceKind, Span, Statement,
   StatementKind, TokenKind,
@@ -6,11 +5,8 @@ use krama_core::{
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_let_statement(&mut self) -> Result<Statement<'ast>, ErrorKind> {
+impl<'a> Parser<'a> {
+  pub fn parse_let_statement(&mut self) -> Result<Statement, ErrorKind> {
     let start_span = self.consume(TokenKind::Let)?.span;
     let name = self.parse_identifier()?;
     let kind = self.parse_optional_type()?;
@@ -20,7 +16,7 @@ where
       StatementKind::Let {
         name,
         kind,
-        value: self.arena.alloc(value),
+        value: Box::new(value),
       },
       start_span,
     ))
@@ -30,7 +26,7 @@ where
     &mut self,
     public: bool,
     start_span: Span,
-  ) -> Result<Statement<'ast>, ErrorKind> {
+  ) -> Result<Statement, ErrorKind> {
     self.consume(TokenKind::Const)?;
     let binding = self.parse_binding()?;
     let kind = self.parse_optional_type()?;
@@ -41,13 +37,13 @@ where
         public,
         binding,
         kind,
-        value: self.arena.alloc(value),
+        value: Box::new(value),
       },
       start_span,
     ))
   }
 
-  fn parse_binding(&mut self) -> Result<ConstBinding<'ast>, ErrorKind> {
+  fn parse_binding(&mut self) -> Result<ConstBinding, ErrorKind> {
     if self.current_token.kind == TokenKind::LBrace {
       self.consume(TokenKind::LBrace)?;
       let items = self.parse_destructured_items()?;
@@ -69,8 +65,8 @@ where
 
   fn parse_destructured_items(
     &mut self,
-  ) -> Result<BumpVec<'ast, Destructure<'ast>>, ErrorKind> {
-    let mut items = BumpVec::new_in(self.arena);
+  ) -> Result<Vec<Destructure>, ErrorKind> {
+    let mut items = Vec::new();
     if self.current_token.kind == TokenKind::RBrace {
       return Ok(items);
     }
@@ -78,15 +74,11 @@ where
       let name = self.parse_identifier()?;
       let alias = if self.current_token.kind == TokenKind::As {
         self.advance();
-        Some(self.arena.alloc_str(self.parse_identifier()?))
+        Some(self.parse_identifier()?)
       } else {
         None
       };
-      // Convert &mut str to &str for the Destructure struct.
-      items.push(Destructure {
-        name,
-        alias: alias.map(|s| s as &str),
-      });
+      items.push(Destructure { name, alias });
       if self.current_token.kind != TokenKind::Comma {
         break;
       }

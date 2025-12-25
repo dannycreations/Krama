@@ -51,24 +51,28 @@ test_eval_ok!(
 
 // --- String Literals & Indexing ---
 
-test_eval_ok!(literal_string, "\"hello\"", ObjectKind::String("hello"));
+test_eval_ok!(
+  literal_string,
+  "\"hello\"",
+  ObjectKind::String("hello".to_string())
+);
 
 test_eval_ok!(
   literal_string_concatenation,
   "\"hello\" + \" world\"",
-  ObjectKind::String("hello world")
+  ObjectKind::String("hello world".to_string())
 );
 
 test_eval_ok!(
   literal_string_index,
   "const a = \"hello\"; a[0]",
-  ObjectKind::String("h")
+  ObjectKind::String("h".to_string())
 );
 
 test_eval_ok!(
   literal_string_index_negative,
   "const a = \"hello\"; a[-1]",
-  ObjectKind::String("o")
+  ObjectKind::String("o".to_string())
 );
 
 test_eval_ok!(

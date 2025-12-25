@@ -4,15 +4,15 @@ use krama_core::{
 
 use crate::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Attempts to match an assignment expression as a pattern (e.g., Ok(v) = expr).
   /// Returns Ok(Some(bindings)) if it's a pattern assignment and it matched.
   /// Returns Ok(None) if it's NOT a pattern assignment OR it's a pattern assignment that failed.
   /// Used primarily in 'if' and 'while' conditions for elegant error handling.
   pub async fn try_match_assignment(
     &self,
-    expression: &Expression<'ast>,
-  ) -> Result<Option<Vec<(&'ast str, ObjectKind<'ast>)>>, Error<'ast>> {
+    expression: &Expression,
+  ) -> Result<Option<Vec<(String, ObjectKind)>>, Error> {
     // We only care about simple assignments for pattern matching.
     if let ExpressionKind::Assignment {
       left,
@@ -28,7 +28,7 @@ impl<'ast> Interpreter<'ast> {
       {
         if let ExpressionKind::Identifier(name) = &function.kind {
           // 1. Check if it's a Result pattern (Ok/Err).
-          if (*name == "Ok" || *name == "Err") && arguments.len() == 1 {
+          if (name == "Ok" || name == "Err") && arguments.len() == 1 {
             let right_val = self.eval_expression(right, None).await?;
 
             // Unwrap Return(Err) for pattern matching using centralized unwrap_return_err.
@@ -37,7 +37,7 @@ impl<'ast> Interpreter<'ast> {
 
             // 2. Verify variant match.
             let is_match = matches!(
-              (*name, effective_val),
+              (name.as_str(), effective_val),
               ("Ok", ObjectKind::Ok(_)) | ("Err", ObjectKind::Err(_))
             );
 
@@ -50,7 +50,10 @@ impl<'ast> Interpreter<'ast> {
               // 3. Extract binding name from the pattern argument.
               if let ExpressionKind::Identifier(bind_name) = &arguments[0].kind
               {
-                return Ok(Some(vec![(*bind_name, (*inner_val).clone())]));
+                return Ok(Some(vec![(
+                  bind_name.to_string(),
+                  *(*inner_val).clone(),
+                )]));
               }
               // Pattern matched but no variable was bound (e.g., Ok(_)).
               return Ok(Some(Vec::new()));

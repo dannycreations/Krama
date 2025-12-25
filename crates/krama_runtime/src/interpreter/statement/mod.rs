@@ -1,6 +1,8 @@
 mod binding;
 mod iteration;
 
+use std::sync::Arc;
+
 use ahash::AHashMap;
 use futures::future::{FutureExt, LocalBoxFuture};
 use krama_core::{
@@ -14,15 +16,12 @@ use crate::interpreter::{
   Interpreter,
 };
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates a single statement.
   pub fn eval_statement<'s>(
     &'s self,
-    statement: &'s Statement<'ast>,
-  ) -> LocalBoxFuture<'s, Result<ObjectKind<'ast>, Error<'ast>>>
-  where
-    'ast: 's,
-  {
+    statement: &'s Statement,
+  ) -> LocalBoxFuture<'s, Result<ObjectKind, Error>> {
     async move {
       let span = statement.span;
       match &statement.kind {
@@ -72,26 +71,24 @@ impl<'ast> Interpreter<'ast> {
         } => {
           let mut properties = AHashMap::with_capacity(variants.len());
           for variant in variants {
-            let variant_name = variant.name;
+            let variant_name = variant.name.clone();
             let obj = if let Some(fields) = &variant.fields {
-              ObjectKind::Function(FunctionKind::Enum(self.arena.alloc(Enum {
-                name,
-                variant: variant_name,
+              ObjectKind::Function(FunctionKind::Enum(Arc::new(Enum {
+                name: name.clone(),
+                variant: variant_name.clone(),
                 field_count: fields.len(),
               })))
             } else {
               ObjectKind::Enum {
-                name,
-                variant: variant_name,
+                name: name.clone(),
+                variant: variant_name.clone(),
                 fields: None,
               }
             };
             properties.insert(variant_name, obj);
           }
           let enum_obj = ObjectKind::Object {
-            properties: self
-              .arena
-              .alloc(RwLock::new(properties.into_iter().collect())),
+            properties: Arc::new(RwLock::new(properties.into_iter().collect())),
             definition: None,
             constant: true,
           };
@@ -104,8 +101,8 @@ impl<'ast> Interpreter<'ast> {
           fields,
           methods,
         } => {
-          let struct_def = self.arena.alloc(Struct {
-            name,
+          let struct_def = Arc::new(Struct {
+            name: name.clone(),
             fields: fields.clone(),
             methods: methods.clone(),
           });
@@ -132,7 +129,7 @@ impl<'ast> Interpreter<'ast> {
             Some(expr) => self.eval_expression(expr, None).await?,
             None => ObjectKind::Void,
           };
-          Ok(ObjectKind::Return(self.arena.alloc(value)))
+          Ok(ObjectKind::Return(Box::new(value)))
         }
         StatementKind::Break => Ok(ObjectKind::Break),
         StatementKind::Continue => Ok(ObjectKind::Continue),
@@ -141,7 +138,7 @@ impl<'ast> Interpreter<'ast> {
             if let Some(bindings) = self.try_match_assignment(condition).await?
             {
               for (name, val) in bindings {
-                self.env_mut(span)?.set(name, val, false, false);
+                self.env_mut(span)?.set(&name, val, false, false);
               }
             } else {
               // Special case for pattern matching in while
@@ -153,7 +150,7 @@ impl<'ast> Interpreter<'ast> {
               {
                 if let ExpressionKind::Call { function, .. } = &left.kind {
                   if let ExpressionKind::Identifier(name) = &function.kind {
-                    if *name == "Ok" || *name == "Err" {
+                    if name == "Ok" || name == "Err" {
                       break;
                     }
                   }
@@ -210,9 +207,9 @@ impl<'ast> Interpreter<'ast> {
   /// Helper to evaluate an expression and check its type.
   pub async fn eval_and_check_type(
     &self,
-    expr: &Expression<'ast>,
-    kind_hint: Option<&Type<'ast>>,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    expr: &Expression,
+    kind_hint: Option<&Type>,
+  ) -> Result<ObjectKind, Error> {
     let resolved = kind_hint.map(|k| resolve_type(self, k)).transpose()?;
     let value = self.eval_expression(expr, resolved.as_ref()).await?;
     if let Some(kind) = &resolved {
@@ -224,8 +221,8 @@ impl<'ast> Interpreter<'ast> {
   /// Evaluates a sequence of statements.
   pub async fn eval_statements<'s>(
     &'s self,
-    statements: &'s [Statement<'ast>],
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    statements: &'s [Statement],
+  ) -> Result<ObjectKind, Error> {
     let mut result = ObjectKind::Void;
     for statement in statements {
       result = self.eval_statement(statement).await?;
@@ -239,16 +236,16 @@ impl<'ast> Interpreter<'ast> {
   /// Evaluates a statement block.
   pub async fn eval_block_statement(
     &self,
-    block: &StatementBlock<'ast>,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    block: &StatementBlock,
+  ) -> Result<ObjectKind, Error> {
     self.eval_statements(&block.statements).await
   }
 
   /// Evaluates a statement block with a new enclosed scope.
   pub async fn eval_block_statement_with_new_scope(
     &self,
-    block: &StatementBlock<'ast>,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    block: &StatementBlock,
+  ) -> Result<ObjectKind, Error> {
     self.new_enclosed().eval_statements(&block.statements).await
   }
 }

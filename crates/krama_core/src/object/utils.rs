@@ -2,7 +2,7 @@ use strum::EnumProperty;
 
 use super::ObjectKind;
 
-impl<'ast> ObjectKind<'ast> {
+impl ObjectKind {
   /// Checks if the object is a control flow signal (Return, Break, or Continue).
   #[inline(always)]
   pub fn is_control_signal(&self) -> bool {
@@ -43,12 +43,12 @@ impl<'ast> ObjectKind<'ast> {
   pub fn type_name(&self) -> &str {
     match self {
       Self::Enum { name, .. } => name,
-      Self::Struct(def) => def.name,
+      Self::Struct(def) => &def.name,
       Self::Object {
         definition: Some(def),
         ..
-      } => def.name,
-      Self::Scope(s) if s.name.is_some() => "module",
+      } => &def.name,
+      Self::Scope(s) if s.read().name.is_some() => "module",
       Self::Scope(_) => "global",
       // Fallback to strum-generated property for primitive types.
       _ => self.get_str("name").unwrap_or("unknown"),

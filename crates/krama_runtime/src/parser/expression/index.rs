@@ -2,14 +2,8 @@ use krama_core::{Expression, ExpressionKind, PrecedenceKind, TokenKind};
 
 use super::{ParseResult, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_index_expression(
-    &mut self,
-    left: Expression<'ast>,
-  ) -> ParseResult<'a, 'ast> {
+impl<'a> Parser<'a> {
+  pub fn parse_index_expression(&mut self, left: Expression) -> ParseResult {
     self.advance();
 
     let index = self.parse_expression(PrecedenceKind::Lowest)?;
@@ -18,8 +12,8 @@ where
     let span = left.span.merge(&self.current_token.span);
     Ok(Expression::new(
       ExpressionKind::Index {
-        object: self.arena.alloc(left),
-        index: self.arena.alloc(index),
+        object: Box::new(left),
+        index: Box::new(index),
       },
       span,
     ))

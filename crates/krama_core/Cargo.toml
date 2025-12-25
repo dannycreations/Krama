@@ -12,7 +12,6 @@ doctest = false
 [dependencies]
 ahash.workspace = true
 ariadne.workspace = true
-bumpalo.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 linkme.workspace = true

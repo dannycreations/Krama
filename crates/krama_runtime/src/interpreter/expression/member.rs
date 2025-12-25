@@ -1,4 +1,5 @@
-use bumpalo::Bump;
+use std::sync::Arc;
+
 use krama_core::{
   Error, ErrorKind, Expression, ExpressionKind, FunctionKind, ObjectKind, Span,
   StructMethod, UserFunction,
@@ -7,17 +8,17 @@ use krama_std::PROPS;
 
 use crate::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates a member access expression (e.g., object.property).
   /// Supports objects, structs, modules, and built-in properties.
   pub async fn eval_member_expression(
     &self,
-    object: ObjectKind<'ast>,
-    property: &Expression<'ast>,
+    object: ObjectKind,
+    property: &Expression,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     // 1. Extract property name from the identifier.
-    let property_name = if let ExpressionKind::Identifier(name) = property.kind
+    let property_name = if let ExpressionKind::Identifier(name) = &property.kind
     {
       name
     } else {
@@ -38,12 +39,12 @@ impl<'ast> Interpreter<'ast> {
         if let Some(value) = properties.read().get(property_name) {
           if let Some(definition) = definition {
             if let Some(field_def) =
-              definition.fields.iter().find(|f| f.name == property_name)
+              definition.fields.iter().find(|f| f.name == *property_name)
             {
               self.ensure_accessible(
                 field_def.public,
                 property_name,
-                definition.name,
+                &definition.name,
                 span,
               )?;
             }
@@ -52,21 +53,21 @@ impl<'ast> Interpreter<'ast> {
         }
 
         // b. Check methods if it's a struct instance.
-        if let Some(definition) = definition {
+        if let Some(ref definition) = definition {
           if let Some(method) =
-            definition.methods.iter().find(|m| m.name == property_name)
+            definition.methods.iter().find(|m| m.name == *property_name)
           {
             self.ensure_accessible(
               method.public,
               property_name,
-              definition.name,
+              &definition.name,
               span,
             )?;
-            return Ok(Self::from_method(method, self.arena));
+            return Ok(Self::from_method(method));
           }
         }
 
-        if let Some(definition) = definition {
+        if let Some(ref definition) = definition {
           Err(Error::new(
             ErrorKind::ReferenceError(format!(
               "Property or method '{}' not found in struct '{}'",
@@ -82,15 +83,15 @@ impl<'ast> Interpreter<'ast> {
       // 4. Handle Struct definitions (Static methods).
       ObjectKind::Struct(definition) => {
         if let Some(method) =
-          definition.methods.iter().find(|m| m.name == property_name)
+          definition.methods.iter().find(|m| m.name == *property_name)
         {
           self.ensure_accessible(
             method.public,
             property_name,
-            definition.name,
+            &definition.name,
             span,
           )?;
-          return Ok(Self::from_method(method, self.arena));
+          return Ok(Self::from_method(method));
         }
 
         Err(Error::new(
@@ -103,8 +104,11 @@ impl<'ast> Interpreter<'ast> {
       }
 
       // 5. Handle Scopes (Modules).
-      ObjectKind::Scope(scope) => {
-        scope.get_binding(property_name).cloned().ok_or_else(|| {
+      ObjectKind::Scope(scope) => scope
+        .read()
+        .get_binding(property_name)
+        .cloned()
+        .ok_or_else(|| {
           Error::new(
             ErrorKind::ReferenceError(format!(
               "Property '{}' not found in module",
@@ -112,15 +116,14 @@ impl<'ast> Interpreter<'ast> {
             )),
             span,
           )
-        })
-      }
+        }),
 
       // 6. Handle Built-in properties (Standard library extensions).
       _ => {
         let type_name = object.type_name();
         if let Some(callback) = PROPS
           .get(type_name)
-          .and_then(|type_props| type_props.get(property_name))
+          .and_then(|type_props| type_props.get(property_name.as_str()))
         {
           return (callback)(object)
             .await
@@ -139,11 +142,8 @@ impl<'ast> Interpreter<'ast> {
   }
 
   /// Allocates a new UserFunction from a StructMethod.
-  fn from_method(
-    method: &StructMethod<'ast>,
-    arena: &'ast Bump,
-  ) -> ObjectKind<'ast> {
-    ObjectKind::Function(FunctionKind::User(arena.alloc(UserFunction {
+  fn from_method(method: &StructMethod) -> ObjectKind {
+    ObjectKind::Function(FunctionKind::User(Arc::new(UserFunction {
       parameters: method.parameters.clone(),
       body: method.body.clone(),
       kind: method.kind.clone(),

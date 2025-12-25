@@ -2,11 +2,8 @@ use krama_core::{ErrorKind, Expression, ExpressionKind, Token, TokenKind};
 
 use super::{ParseResult, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_import_expression(&mut self) -> ParseResult<'a, 'ast> {
+impl<'a> Parser<'a> {
+  pub fn parse_import_expression(&mut self) -> ParseResult {
     let start_span = self.current_token.span;
     self.advance();
 
@@ -21,7 +18,7 @@ where
       Token {
         kind: TokenKind::String(path),
         ..
-      } => self.arena.alloc_str(path),
+      } => path.to_string(),
       _ => {
         return Err(ErrorKind::SyntaxError(
           "Expected a string literal for the import path".to_string(),

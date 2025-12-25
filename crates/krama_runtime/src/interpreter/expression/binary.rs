@@ -3,15 +3,15 @@ use krama_core::{BinaryOperator, Error, Expression, ObjectKind, Span};
 
 use crate::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates a binary expression, handling short-circuiting for logical operators.
   pub async fn eval_binary_expression(
     &self,
-    left: &Expression<'ast>,
+    left: &Expression,
     operator: BinaryOperator,
-    right: &Expression<'ast>,
+    right: &Expression,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     // 1. Handle short-circuiting for logical operators (OR/AND).
     if matches!(
       operator,
@@ -40,7 +40,6 @@ impl<'ast> Interpreter<'ast> {
     )?;
 
     // Delegate to core ObjectKind logic.
-    l.binary_op(operator, &r, self.arena)
-      .map_err(|k| k.at(span))
+    l.binary_op(operator, &r).map_err(|k| k.at(span))
   }
 }

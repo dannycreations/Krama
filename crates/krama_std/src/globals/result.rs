@@ -1,21 +1,14 @@
-use bumpalo::Bump;
 use krama_core::ObjectKind;
 use krama_macro::register_global;
 
 #[register_global("Ok")]
-pub async fn ok<'ast>(
-  arena: &'ast Bump,
-  args: &'ast [ObjectKind<'ast>],
-) -> Result<ObjectKind<'ast>, ErrorKind> {
+pub async fn ok(args: &[ObjectKind]) -> Result<ObjectKind, ErrorKind> {
   let value = args.first().cloned().unwrap_or(ObjectKind::Void);
-  Ok(ObjectKind::Ok(arena.alloc(value)))
+  Ok(ObjectKind::Ok(Box::new(value)))
 }
 
 #[register_global("Err")]
-pub async fn err<'ast>(
-  arena: &'ast Bump,
-  args: &'ast [ObjectKind<'ast>],
-) -> Result<ObjectKind<'ast>, ErrorKind> {
+pub async fn err(args: &[ObjectKind]) -> Result<ObjectKind, ErrorKind> {
   let value = args.first().cloned().unwrap_or(ObjectKind::Void);
-  Ok(ObjectKind::Err(arena.alloc(value)))
+  Ok(ObjectKind::Err(Box::new(value)))
 }

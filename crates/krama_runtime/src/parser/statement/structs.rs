@@ -1,4 +1,3 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ErrorKind, FunctionBody, PrecedenceKind, Span, Statement, StatementKind,
   StructField, StructMethod, TokenKind,
@@ -6,22 +5,19 @@ use krama_core::{
 
 use crate::parser::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
+impl<'a> Parser<'a> {
   /// Parses a struct definition (`struct Name { ... }`).
   pub fn parse_struct_statement(
     &mut self,
     public: bool,
     start_span: Span,
-  ) -> Result<Statement<'ast>, ErrorKind> {
+  ) -> Result<Statement, ErrorKind> {
     self.consume(TokenKind::Struct)?;
     let name = self.parse_identifier()?;
     self.consume(TokenKind::LBrace)?;
 
-    let mut fields = BumpVec::new_in(self.arena);
-    let mut methods = BumpVec::new_in(self.arena);
+    let mut fields = Vec::new();
+    let mut methods = Vec::new();
 
     while self.current_token.kind != TokenKind::RBrace {
       let is_pub = if self.current_token.kind == TokenKind::Pub {
@@ -59,7 +55,7 @@ where
   fn parse_struct_field(
     &mut self,
     public: bool,
-  ) -> Result<StructField<'ast>, ErrorKind> {
+  ) -> Result<StructField, ErrorKind> {
     let start_span = self.current_token.span;
     let name = self.parse_identifier()?;
     self.consume(TokenKind::Colon)?;
@@ -67,11 +63,7 @@ where
 
     let default = if self.current_token.kind == TokenKind::Equal {
       self.advance();
-      Some(
-        &*self
-          .arena
-          .alloc(self.parse_expression(PrecedenceKind::Lowest)?),
-      )
+      Some(Box::new(self.parse_expression(PrecedenceKind::Lowest)?))
     } else {
       None
     };
@@ -98,7 +90,7 @@ where
   fn parse_struct_method(
     &mut self,
     public: bool,
-  ) -> Result<StructMethod<'ast>, ErrorKind> {
+  ) -> Result<StructMethod, ErrorKind> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::Fn)?;
     let name = self.parse_identifier()?;

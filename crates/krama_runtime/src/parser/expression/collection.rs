@@ -2,11 +2,8 @@ use krama_core::{Expression, ExpressionKind, TokenKind};
 
 use super::{ParseResult, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_collection_expression(&mut self) -> ParseResult<'a, 'ast> {
+impl<'a> Parser<'a> {
+  pub fn parse_collection_expression(&mut self) -> ParseResult {
     let start_span = self.consume(TokenKind::LBracket)?.span;
 
     let elements =

@@ -1,4 +1,3 @@
-use bumpalo::collections::Vec as BumpVec;
 use indexmap::IndexMap;
 use krama_core::{Error, ObjectKind, ObjectProperty, Type, TypeKind};
 
@@ -6,27 +5,27 @@ use super::Interpreter;
 
 /// Validates that an object matches the expected type.
 /// Delegates the core logic to Type::check in krama_core.
-pub fn check_type<'ast>(
-  expected_type: &Type<'ast>,
-  object: &ObjectKind<'ast>,
-) -> Result<(), Error<'ast>> {
+pub fn check_type(
+  expected_type: &Type,
+  object: &ObjectKind,
+) -> Result<(), Error> {
   expected_type
     .check(object)
     .map_err(|k| k.at(expected_type.span))
 }
 
 /// Recursively resolves type aliases and complex types by looking up identifiers in the environment.
-pub fn resolve_type<'ast>(
-  interpreter: &Interpreter<'ast>,
-  kind: &Type<'ast>,
-) -> Result<Type<'ast>, Error<'ast>> {
+pub fn resolve_type(
+  interpreter: &Interpreter,
+  kind: &Type,
+) -> Result<Type, Error> {
   // Use a helper to avoid re-wrapping identical types.
   let resolved_kind = match &kind.kind {
     // 1. Resolve type aliases from the environment.
     TypeKind::Identifier(name) => {
       // We look up in the environment to see if the identifier refers to a type definition.
       if let Some(ObjectKind::Type(resolved)) =
-        interpreter.environment.borrow().get(name)
+        interpreter.environment.read().get(name)
       {
         return Ok(resolved.clone());
       }
@@ -35,12 +34,12 @@ pub fn resolve_type<'ast>(
     }
     // 2. Recursively resolve array element types.
     TypeKind::Array { element, size } => TypeKind::Array {
-      element: interpreter.arena.alloc(resolve_type(interpreter, element)?),
-      size: *size,
+      element: Box::new(resolve_type(interpreter, element)?),
+      size: size.clone(),
     },
     // 3. Recursively resolve tuple component types.
     TypeKind::Tuple(types) => {
-      let mut resolved_types = BumpVec::new_in(interpreter.arena);
+      let mut resolved_types = Vec::new();
       for t in types {
         resolved_types.push(resolve_type(interpreter, t)?);
       }
@@ -51,7 +50,7 @@ pub fn resolve_type<'ast>(
       let mut resolved_properties = IndexMap::with_capacity(properties.len());
       for (name, prop) in properties {
         resolved_properties.insert(
-          *name,
+          name.clone(),
           ObjectProperty {
             kind: resolve_type(interpreter, &prop.kind)?,
             optional: prop.optional,

@@ -1,4 +1,3 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ErrorKind, Expression, ExpressionKind, FunctionBody, Parameter,
   PrecedenceKind, TokenKind, Type,
@@ -6,12 +5,9 @@ use krama_core::{
 
 use super::{ParseResult, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
+impl<'a> Parser<'a> {
   /// Parses a function expression (`fn(...) {...}`).
-  pub fn parse_fn_expression(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_fn_expression(&mut self) -> ParseResult {
     let start_span = self.current_token.span;
     self.consume(TokenKind::Fn)?;
     self.consume(TokenKind::LParen)?;
@@ -32,10 +28,8 @@ where
   }
 
   /// Parses function parameters, handling optional types and default values.
-  pub fn parse_fn_parameters(
-    &mut self,
-  ) -> Result<BumpVec<'ast, Parameter<'ast>>, ErrorKind> {
-    let mut parameters = BumpVec::new_in(self.arena);
+  pub fn parse_fn_parameters(&mut self) -> Result<Vec<Parameter>, ErrorKind> {
+    let mut parameters = Vec::new();
     if self.current_token.kind == TokenKind::RParen {
       return Ok(parameters);
     }
@@ -47,11 +41,7 @@ where
 
       let default = if self.current_token.kind == TokenKind::Equal {
         self.advance();
-        Some(
-          &*self
-            .arena
-            .alloc(self.parse_expression(PrecedenceKind::Lowest)?),
-        )
+        Some(Box::new(self.parse_expression(PrecedenceKind::Lowest)?))
       } else {
         None
       };
@@ -75,7 +65,7 @@ where
   /// Parses the body and return type of an arrow function (`(...) : T => expr`).
   pub fn parse_arrow_fn_body_and_return_type(
     &mut self,
-  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), ErrorKind> {
+  ) -> Result<(FunctionBody, Option<Type>), ErrorKind> {
     let kind = self.parse_optional_type()?;
 
     self.consume(TokenKind::Arrow)?;
@@ -86,14 +76,14 @@ where
     }
 
     let body_expr = self.parse_expression(PrecedenceKind::Lowest)?;
-    let body = FunctionBody::Expression(self.arena.alloc(body_expr));
+    let body = FunctionBody::Expression(Box::new(body_expr));
     Ok((body, kind))
   }
 
   /// Parses the body and return type of a classic function (`fn(...) : T {...}`).
   pub fn parse_classic_fn_body_and_return_type(
     &mut self,
-  ) -> Result<(FunctionBody<'ast>, Option<Type<'ast>>), ErrorKind> {
+  ) -> Result<(FunctionBody, Option<Type>), ErrorKind> {
     let kind = self.parse_optional_type()?;
 
     if self.current_token.kind == TokenKind::Arrow {
@@ -104,7 +94,7 @@ where
       );
     }
 
-    let body_block = self.arena.alloc(self.parse_block_statement()?);
+    let body_block = Box::new(self.parse_block_statement()?);
     let body = FunctionBody::Block(body_block);
     Ok((body, kind))
   }

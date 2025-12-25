@@ -22,20 +22,17 @@ use krama_core::{
 
 use crate::interpreter::{types::check_type, Interpreter};
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates an expression and returns its resulting object.
   pub fn eval_expression<'s>(
     &'s self,
-    expression: &'s Expression<'ast>,
-    kind: Option<&'s krama_core::Type<'ast>>,
-  ) -> LocalBoxFuture<'s, Result<ObjectKind<'ast>, Error<'ast>>>
-  where
-    'ast: 's,
-  {
+    expression: &'s Expression,
+    kind: Option<&'s krama_core::Type>,
+  ) -> LocalBoxFuture<'s, Result<ObjectKind, Error>> {
     async move {
       let span = expression.span;
       let result = match &expression.kind {
-        ExpressionKind::Literal(literal) => self.eval_literal(*literal),
+        ExpressionKind::Literal(literal) => self.eval_literal(literal.clone()),
         ExpressionKind::Identifier(name) => {
           self.eval_identifier(expression, name, span).await
         }
@@ -101,7 +98,12 @@ impl<'ast> Interpreter<'ast> {
           else_branch,
         } => {
           self
-            .eval_if_expression(condition, then_branch, *else_branch, kind)
+            .eval_if_expression(
+              condition,
+              then_branch,
+              else_branch.as_deref(),
+              kind,
+            )
             .await
         }
         ExpressionKind::Match { subject, arms } => {
@@ -137,7 +139,7 @@ impl<'ast> Interpreter<'ast> {
         && result.is_result_err()
         && !result.is_control_signal()
       {
-        return Ok(ObjectKind::Return(self.arena.alloc(result)));
+        return Ok(ObjectKind::Return(Box::new(result)));
       }
 
       Ok(result)
@@ -146,8 +148,8 @@ impl<'ast> Interpreter<'ast> {
   }
 
   /// Retrieves the 'this' object from the current environment.
-  pub fn get_this(&self, span: Span) -> Result<ObjectKind<'ast>, Error<'ast>> {
-    self.environment.borrow().get("this").ok_or_else(|| {
+  pub fn get_this(&self, span: Span) -> Result<ObjectKind, Error> {
+    self.environment.read().get("this").ok_or_else(|| {
       Error::new(
         ErrorKind::ReferenceError(
           "'this' is not defined in the current scope".into(),
@@ -161,8 +163,8 @@ impl<'ast> Interpreter<'ast> {
   #[inline]
   pub fn eval_literal(
     &self,
-    literal: LiteralKind<'ast>,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    literal: LiteralKind,
+  ) -> Result<ObjectKind, Error> {
     Ok(match literal {
       LiteralKind::Integer(i) => ObjectKind::Integer(i),
       LiteralKind::Float(f) => ObjectKind::Float(f),

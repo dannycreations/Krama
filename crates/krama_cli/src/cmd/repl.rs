@@ -1,7 +1,6 @@
 use std::process;
 
 use anyhow::Result;
-use bumpalo::{collections::String as BumpString, Bump};
 use clap::Parser;
 use krama_core::{ErrorKind, ObjectKind};
 use krama_runtime::Interpreter;
@@ -15,12 +14,11 @@ pub struct Repl;
 
 impl Repl {
   pub async fn execute(&self) -> Result<()> {
-    let arena = Bump::new();
-    let interpreter = Interpreter::new(&arena, Some("repl"));
+    let interpreter = Interpreter::new(Some("repl".to_string()));
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
     let mut line = String::new();
-    let mut history = BumpString::new_in(&arena);
+    let mut history = String::new();
 
     loop {
       let prompt = if history.is_empty() { "> " } else { "... " };
@@ -39,7 +37,7 @@ impl Repl {
                       if line.trim() == "exit" {
                           break;
                       }
-                      Self::process_line(&interpreter, &arena, &mut history, &line).await?;
+                      Self::process_line(&interpreter, &mut history, &line).await?;
                   }
                   Err(e) => {
                       eprintln!("Error: {:?}", e);
@@ -52,14 +50,13 @@ impl Repl {
     Ok(())
   }
 
-  async fn process_line<'a>(
-    interpreter: &Interpreter<'a>,
-    arena: &'a Bump,
-    history: &mut BumpString<'a>,
+  async fn process_line(
+    interpreter: &Interpreter,
+    history: &mut String,
     line: &str,
   ) -> Result<()> {
     history.push_str(line);
-    let source = arena.alloc_str(history.as_str());
+    let source = history.as_str();
 
     if let Err(error) = interpreter.check(source) {
       if let ErrorKind::SyntaxError(msg) = &error.kind {

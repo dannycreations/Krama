@@ -1,4 +1,3 @@
-use bumpalo::collections::Vec as BumpVec;
 use indexmap::IndexMap;
 use krama_core::{
   ErrorKind, LiteralKind, ObjectProperty, TokenKind, Type, TypeKind,
@@ -6,11 +5,8 @@ use krama_core::{
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
+impl<'a> Parser<'a> {
+  pub fn parse_type(&mut self) -> Result<Type, ErrorKind> {
     let mut kind = if self.current_token.kind == TokenKind::LBracket {
       self.parse_tuple_type()?
     } else if self.current_token.kind == TokenKind::LBrace {
@@ -26,9 +22,7 @@ where
     Ok(kind)
   }
 
-  pub fn parse_optional_type(
-    &mut self,
-  ) -> Result<Option<Type<'ast>>, ErrorKind> {
+  pub fn parse_optional_type(&mut self) -> Result<Option<Type>, ErrorKind> {
     if self.current_token.kind == TokenKind::Colon {
       self.advance();
       self.parse_type().map(Some)
@@ -37,11 +31,11 @@ where
     }
   }
 
-  fn parse_tuple_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
+  fn parse_tuple_type(&mut self) -> Result<Type, ErrorKind> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::LBracket)?;
 
-    let mut types = BumpVec::new_in(self.arena);
+    let mut types = Vec::new();
 
     if self.current_token.kind != TokenKind::RBracket {
       loop {
@@ -65,7 +59,7 @@ where
     ))
   }
 
-  fn parse_object_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
+  fn parse_object_type(&mut self) -> Result<Type, ErrorKind> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::LBrace)?;
 
@@ -106,14 +100,15 @@ where
 
   fn parse_array_type(
     &mut self,
-    element_type: Type<'ast>,
-  ) -> Result<Type<'ast>, ErrorKind> {
+    element_type: Type,
+  ) -> Result<Type, ErrorKind> {
     let span = element_type.span;
     self.consume(TokenKind::LBracket)?;
 
     let size = if self.current_token.kind == TokenKind::RBracket {
       None
-    } else if let TokenKind::Integer(val) = self.current_token.kind {
+    } else if let TokenKind::Integer(val) = &self.current_token.kind {
+      let val = val.clone();
       self.advance();
       let parsed_val: i64 = val.replace('_', "").parse().map_err(|_| {
         ErrorKind::SyntaxError(format!(
@@ -131,14 +126,14 @@ where
 
     Ok(Type::new(
       TypeKind::Array {
-        element: self.arena.alloc(element_type),
+        element: Box::new(element_type),
         size,
       },
       span.merge(&end_span),
     ))
   }
 
-  fn parse_base_type(&mut self) -> Result<Type<'ast>, ErrorKind> {
+  fn parse_base_type(&mut self) -> Result<Type, ErrorKind> {
     let token = self.current_token.clone();
     let span = token.span;
     let kind = match token.kind {
@@ -158,8 +153,8 @@ where
       TokenKind::F64 => TypeKind::F64,
       TokenKind::Bool => TypeKind::Bool,
       TokenKind::Str => TypeKind::Str,
-      TokenKind::Identifier(ident) => TypeKind::Identifier(ident),
-      TokenKind::This => TypeKind::Identifier("this"),
+      TokenKind::Identifier(ident) => TypeKind::Identifier(ident.to_string()),
+      TokenKind::This => TypeKind::Identifier("this".to_string()),
       _ => return Err(ErrorKind::SyntaxError("Expected type".to_string())),
     };
     self.advance();

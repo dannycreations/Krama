@@ -1,18 +1,11 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ErrorKind, Expression, ExpressionKind, PrecedenceKind, TokenKind,
 };
 
 use super::{ParseResult, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_call_expression(
-    &mut self,
-    function: Expression<'ast>,
-  ) -> ParseResult<'a, 'ast> {
+impl<'a> Parser<'a> {
+  pub fn parse_call_expression(&mut self, function: Expression) -> ParseResult {
     let token = self.current_token.clone();
     self.consume(TokenKind::LParen)?;
 
@@ -22,7 +15,7 @@ where
     let span = token.span.merge(&end_token.span);
     Ok(Expression::new(
       ExpressionKind::Call {
-        function: self.arena.alloc(function),
+        function: Box::new(function),
         arguments,
       },
       span,
@@ -32,8 +25,8 @@ where
   pub fn parse_comma_separated_expressions(
     &mut self,
     end_token: TokenKind,
-  ) -> Result<BumpVec<'ast, Expression<'ast>>, ErrorKind> {
-    let mut expressions = BumpVec::new_in(self.arena);
+  ) -> Result<Vec<Expression>, ErrorKind> {
+    let mut expressions = Vec::new();
 
     if self.current_token.kind == end_token {
       return Ok(expressions);

@@ -1,24 +1,23 @@
-use std::vec::Vec;
+use std::{sync::Arc, vec::Vec};
 
-use bumpalo::collections::Vec as BumpVec;
 use futures::future::try_join_all;
 use krama_core::{Error, Expression, ObjectKind, Span, Type, TypeKind};
 use parking_lot::RwLock;
 
 use crate::interpreter::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates a collection literal (array or tuple).
   pub async fn eval_collection(
     &self,
-    elements: &[Expression<'ast>],
-    kind_hint: Option<&Type<'ast>>,
+    elements: &[Expression],
+    kind_hint: Option<&Type>,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     // 1. Determine element type hint from the parent collection hint.
     let el_hint = kind_hint.and_then(|hint| {
       if let TypeKind::Array { element, .. } = &hint.kind {
-        Some(*element)
+        Some(element.as_ref())
       } else {
         None
       }
@@ -36,18 +35,14 @@ impl<'ast> Interpreter<'ast> {
     if let Some(hint) = kind_hint {
       match &hint.kind {
         TypeKind::Array { .. } => {
-          let mut evals = BumpVec::with_capacity_in(results.len(), self.arena);
-          evals.extend(results);
           return Ok(ObjectKind::Array {
-            elements: self.arena.alloc(RwLock::new(evals)),
+            elements: Arc::new(RwLock::new(results)),
             kind: hint.clone(),
             constant: false,
           });
         }
         TypeKind::Tuple(_) => {
-          return Ok(ObjectKind::Tuple {
-            elements: self.arena.alloc_slice_fill_iter(results),
-          })
+          return Ok(ObjectKind::Tuple { elements: results })
         }
         _ => {}
       }
@@ -56,10 +51,10 @@ impl<'ast> Interpreter<'ast> {
     // 4. Default to Array if empty, or Tuple if non-empty and no hint is available.
     if results.is_empty() {
       Ok(ObjectKind::Array {
-        elements: self.arena.alloc(RwLock::new(BumpVec::new_in(self.arena))),
+        elements: Arc::new(RwLock::new(Vec::new())),
         kind: Type::new(
           TypeKind::Array {
-            element: self.arena.alloc(Type::new(TypeKind::Void, span)),
+            element: Box::new(Type::new(TypeKind::Void, span)),
             size: None,
           },
           span,
@@ -67,20 +62,18 @@ impl<'ast> Interpreter<'ast> {
         constant: false,
       })
     } else {
-      Ok(ObjectKind::Tuple {
-        elements: self.arena.alloc_slice_fill_iter(results),
-      })
+      Ok(ObjectKind::Tuple { elements: results })
     }
   }
 
   /// Evaluates an object literal expression by resolving its properties.
   pub async fn eval_object_literal(
     &self,
-    properties: &[(Expression<'ast>, Expression<'ast>)],
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+    properties: &[(Expression, Expression)],
+  ) -> Result<ObjectKind, Error> {
     let object = self.eval_properties(properties).await?;
     Ok(ObjectKind::Object {
-      properties: self.arena.alloc(RwLock::new(object)),
+      properties: Arc::new(RwLock::new(object)),
       definition: None,
       constant: false,
     })

@@ -2,16 +2,13 @@ use krama_core::{ErrorKind, Span, Statement, StatementKind, TokenKind};
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
+impl<'a> Parser<'a> {
   /// Parses a function statement (`fn name(...) {...}`).
   pub fn parse_fn_statement(
     &mut self,
     public: bool,
     start_span: Span,
-  ) -> Result<Statement<'ast>, ErrorKind> {
+  ) -> Result<Statement, ErrorKind> {
     self.advance();
     let name = self.parse_identifier()?;
     self.consume(TokenKind::LParen)?;

@@ -1,20 +1,24 @@
-use std::path::{Path, PathBuf};
+use std::{
+  path::{Path, PathBuf},
+  sync::Arc,
+};
 
 use ahash::AHashMap;
 use krama_core::{Error, ErrorKind, FunctionKind, ObjectKind, Scope, Span};
 use krama_std::MODULES;
+use parking_lot::RwLock;
 use path_clean::PathClean;
 use tokio::fs;
 
 use super::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates an import expression, supporting both standard library and file-based modules.
   pub async fn eval_import(
     &self,
-    path: &'ast str,
+    path: &str,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     if path.starts_with("std:") {
       self.eval_std_module(path, span)
     } else {
@@ -27,10 +31,11 @@ impl<'ast> Interpreter<'ast> {
     &self,
     path: &str,
     span: &Span,
-  ) -> Result<(PathBuf, String), Error<'ast>> {
+  ) -> Result<(PathBuf, String), Error> {
     // 1. Determine base path for resolution.
     let base_path = self
       .path
+      .as_ref()
       .and_then(|p| Path::new(p).parent())
       .unwrap_or_else(|| Path::new(""));
 
@@ -59,37 +64,37 @@ impl<'ast> Interpreter<'ast> {
   /// Loads and caches a standard library module.
   fn eval_std_module(
     &self,
-    path: &'ast str,
+    path: &str,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
-    let module_name = self.arena.alloc_str(path.strip_prefix("std:").unwrap());
+  ) -> Result<ObjectKind, Error> {
+    let module_name = path.strip_prefix("std:").unwrap().to_string();
 
     // Check module cache.
-    if let Some(module) = self.modules.borrow().get(module_name) {
+    if let Some(module) = self.modules.read().get(&module_name) {
       return Ok(module.clone());
     }
 
     // Initialize module from krama_std definitions.
     MODULES
-      .get(module_name)
+      .get(module_name.as_str())
       .map(|bindings| {
         let mut scope_bindings = AHashMap::with_capacity(bindings.len());
         for (name, native_fn) in bindings {
           scope_bindings.insert(
-            *name,
+            name.to_string(),
             ObjectKind::Function(FunctionKind::Native(*native_fn)),
           );
         }
 
         let module = Scope {
-          name: Some(module_name),
+          name: Some(module_name.clone()),
           bindings: scope_bindings,
         };
-        let object = ObjectKind::Scope(self.arena.alloc(module));
+        let object = ObjectKind::Scope(Arc::new(RwLock::new(module)));
         self
           .modules
-          .borrow_mut()
-          .insert(module_name, object.clone());
+          .write()
+          .insert(module_name.clone(), object.clone());
         object
       })
       .ok_or_else(|| {
@@ -106,9 +111,9 @@ impl<'ast> Interpreter<'ast> {
   /// Loads, executes, and caches a file-based module.
   async fn eval_file_module(
     &self,
-    path: &'ast str,
+    path: &str,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     let (resolved_path, source) = self.resolve_import_path(path, &span).await?;
     let resolved_path_str = resolved_path.to_str().ok_or_else(|| {
       Error::new(
@@ -116,36 +121,36 @@ impl<'ast> Interpreter<'ast> {
         span,
       )
     })?;
-    let resolved_path_key = self.alloc_str(resolved_path_str);
+    let resolved_path_key = resolved_path_str.to_string();
 
     // Check module cache.
-    if let Some(module) = self.modules.borrow().get(resolved_path_key) {
+    if let Some(module) = self.modules.read().get(&resolved_path_key) {
       return Ok(module.clone());
     }
 
-    let source_str = self.arena.alloc_str(&source);
-
     // 1. Create a fresh interpreter for the module.
-    let new_interpreter = Interpreter::new(self.arena, Some(resolved_path_key));
-    new_interpreter.eval(source_str).await?;
+    let new_interpreter = Interpreter::new(Some(resolved_path_key.clone()));
+
+    // Evaluate the module source
+    new_interpreter.eval(&source).await?;
 
     // 2. Extract public bindings from the module's environment.
     let bindings = new_interpreter
       .environment
-      .borrow()
+      .read()
       .get_public_bindings()
       .into_iter()
       .collect();
 
-    let module = ObjectKind::Scope(self.arena.alloc(Scope {
-      name: Some(resolved_path_key),
+    let module = ObjectKind::Scope(Arc::new(RwLock::new(Scope {
+      name: Some(resolved_path_key.clone()),
       bindings,
-    }));
+    })));
 
     // 3. Cache the module for future imports.
     self
       .modules
-      .borrow_mut()
+      .write()
       .insert(resolved_path_key, module.clone());
 
     Ok(module)

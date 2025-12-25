@@ -1,14 +1,13 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use bumpalo::collections::Vec as BumpVec;
 use indexmap::IndexMap;
 
 use crate::{ErrorKind, LiteralKind, Node, ObjectKind};
 
-pub type Type<'ast> = Node<'ast, TypeKind<'ast>>;
+pub type Type = Node<TypeKind>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeKind<'ast> {
+pub enum TypeKind {
   I8,
   I16,
   I32,
@@ -27,24 +26,24 @@ pub enum TypeKind<'ast> {
   Str,
   Null,
   Void,
-  Identifier(&'ast str),
+  Identifier(String),
   Array {
-    element: &'ast Type<'ast>,
-    size: Option<LiteralKind<'ast>>,
+    element: Box<Type>,
+    size: Option<LiteralKind>,
   },
-  Tuple(BumpVec<'ast, Type<'ast>>),
-  Object(IndexMap<&'ast str, ObjectProperty<'ast>>),
+  Tuple(Vec<Type>),
+  Object(IndexMap<String, ObjectProperty>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ObjectProperty<'ast> {
-  pub kind: Type<'ast>,
+pub struct ObjectProperty {
+  pub kind: Type,
   pub optional: bool,
 }
 
-impl<'ast> Type<'ast> {
+impl Type {
   /// Validates that an object matches this type.
-  pub fn check(&self, object: &ObjectKind<'ast>) -> Result<(), ErrorKind> {
+  pub fn check(&self, object: &ObjectKind) -> Result<(), ErrorKind> {
     match (&self.kind, object) {
       // Integer types
       (
@@ -125,7 +124,7 @@ impl<'ast> Type<'ast> {
       ) => {
         let obj_props = obj_props.read();
         for (name, prop) in properties {
-          if let Some(val) = obj_props.get(name) {
+          if let Some(val) = obj_props.get(name.as_str()) {
             prop.kind.check(val)?;
           } else if !prop.optional {
             return Err(ErrorKind::TypeError(format!(
@@ -146,7 +145,7 @@ impl<'ast> Type<'ast> {
   }
 }
 
-impl<'ast> Display for TypeKind<'ast> {
+impl Display for TypeKind {
   fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
       Self::I8 => write!(f, "i8"),

@@ -1,4 +1,5 @@
-use bumpalo::collections::Vec as BumpVec;
+use std::sync::Arc;
+
 use indexmap::IndexMap;
 use krama_core::{
   AssignmentOperator, Error, ErrorKind, Expression, ExpressionKind,
@@ -9,31 +10,31 @@ use parking_lot::RwLock;
 use crate::Interpreter;
 
 /// Represents a target that can be assigned to (L-Value).
-pub enum LValue<'ast> {
+pub enum LValue {
   Variable {
-    name: &'ast str,
+    name: String,
     distance: Option<usize>,
   },
   Property {
-    properties: &'ast RwLock<IndexMap<&'ast str, ObjectKind<'ast>>>,
-    name: &'ast str,
+    properties: Arc<RwLock<IndexMap<String, ObjectKind>>>,
+    name: String,
   },
   Index {
-    elements: &'ast RwLock<BumpVec<'ast, ObjectKind<'ast>>>,
+    elements: Arc<RwLock<Vec<ObjectKind>>>,
     index: i64,
     fixed_size: Option<i64>,
   },
 }
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates an assignment expression.
   pub async fn eval_assignment_expression(
     &self,
-    left: &Expression<'ast>,
+    left: &Expression,
     operator: AssignmentOperator,
-    right: &Expression<'ast>,
+    right: &Expression,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     let right_val = self.eval_expression(right, None).await?;
     if right_val.is_control_signal() {
       return Ok(right_val);
@@ -50,7 +51,7 @@ impl<'ast> Interpreter<'ast> {
       }
 
       left_val
-        .binary_op(operator.into(), &right_val, self.arena)
+        .binary_op(operator.into(), &right_val)
         .map_err(|k| k.at(span))?
     };
 
@@ -62,10 +63,10 @@ impl<'ast> Interpreter<'ast> {
   pub async fn eval_update_expression(
     &self,
     operator: UpdateOperator,
-    argument: &Expression<'ast>,
+    argument: &Expression,
     prefix: bool,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     let target = self.resolve_lvalue(argument, span).await?;
     let original_value = self.get_lvalue_value(&target, argument, span).await?;
     if original_value.is_control_signal() {
@@ -73,7 +74,7 @@ impl<'ast> Interpreter<'ast> {
     }
 
     let new_value = original_value
-      .binary_op(operator.into(), &ObjectKind::Integer(1), self.arena)
+      .binary_op(operator.into(), &ObjectKind::Integer(1))
       .map_err(|k| k.at(span))?;
 
     self.set_lvalue_value(target, new_value.clone(), span)?;
@@ -83,12 +84,12 @@ impl<'ast> Interpreter<'ast> {
   /// Resolves an expression into an LValue target.
   pub async fn resolve_lvalue(
     &self,
-    expr: &Expression<'ast>,
+    expr: &Expression,
     span: Span,
-  ) -> Result<LValue<'ast>, Error<'ast>> {
+  ) -> Result<LValue, Error> {
     match &expr.kind {
       ExpressionKind::Identifier(name) => Ok(LValue::Variable {
-        name,
+        name: name.to_string(),
         distance: self.get_resolved_distance(expr),
       }),
 
@@ -101,7 +102,7 @@ impl<'ast> Interpreter<'ast> {
           ));
         }
 
-        let name = if let ExpressionKind::Identifier(name) = property.kind {
+        let name = if let ExpressionKind::Identifier(name) = &property.kind {
           name
         } else {
           return Err(
@@ -124,7 +125,10 @@ impl<'ast> Interpreter<'ast> {
                 .at(span),
               );
             }
-            Ok(LValue::Property { properties, name })
+            Ok(LValue::Property {
+              properties: properties.clone(),
+              name: name.to_string(),
+            })
           }
           _ => Err(
             ErrorKind::TypeError(format!(
@@ -176,7 +180,7 @@ impl<'ast> Interpreter<'ast> {
               }
             };
             Ok(LValue::Property {
-              properties,
+              properties: properties.clone(),
               name: key,
             })
           }
@@ -205,7 +209,7 @@ impl<'ast> Interpreter<'ast> {
               None
             };
             Ok(LValue::Index {
-              elements,
+              elements: elements.clone(),
               index,
               fixed_size,
             })
@@ -228,10 +232,10 @@ impl<'ast> Interpreter<'ast> {
   /// Retrieves the current value of an LValue.
   pub async fn get_lvalue_value(
     &self,
-    target: &LValue<'ast>,
-    expr: &Expression<'ast>,
+    target: &LValue,
+    expr: &Expression,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     match target {
       LValue::Variable { name, .. } => {
         self.eval_identifier(expr, name, span).await
@@ -239,7 +243,7 @@ impl<'ast> Interpreter<'ast> {
       LValue::Property { properties, name } => Ok(
         properties
           .read()
-          .get(*name)
+          .get(name)
           .cloned()
           .unwrap_or(ObjectKind::Void),
       ),
@@ -252,17 +256,17 @@ impl<'ast> Interpreter<'ast> {
   /// Updates the value of an LValue target.
   pub fn set_lvalue_value(
     &self,
-    target: LValue<'ast>,
-    value: ObjectKind<'ast>,
+    target: LValue,
+    value: ObjectKind,
     span: Span,
-  ) -> Result<(), Error<'ast>> {
+  ) -> Result<(), Error> {
     match target {
       LValue::Variable { name, distance } => {
         if let Some(distance) = distance {
-          self.assign_at(distance, name, value, span)
+          self.assign_at(distance, &name, value, span)
         } else {
           let mut env = self.env_mut(span)?;
-          if env.is_constant(name) {
+          if env.is_constant(&name) {
             return Err(
               ErrorKind::TypeError(format!(
                 "Cannot assign to constant '{}'",
@@ -273,7 +277,7 @@ impl<'ast> Interpreter<'ast> {
           }
           // We use get_mut here because resolve_lvalue already verified the variable exists
           // and we already checked for constant.
-          if let Some(binding) = env.store.get_mut(name) {
+          if let Some(binding) = env.store.get_mut(&name) {
             binding.value = value;
             Ok(())
           } else {

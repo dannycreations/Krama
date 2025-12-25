@@ -16,7 +16,7 @@ test_eval_match! {
 test_eval_ok! {
   object_property_access,
   "const a = { name: \"admin\", age: 20 }; a.name",
-  ObjectKind::String("admin")
+  ObjectKind::String("admin".to_string())
 }
 
 test_eval_ok! {
@@ -28,7 +28,7 @@ test_eval_ok! {
 test_eval_ok! {
   object_property_assignment,
   "let a = { name: \"admin\", age: 20 }; a.name = \"guest\"; a.name",
-  ObjectKind::String("guest")
+  ObjectKind::String("guest".to_string())
 }
 
 test_eval_ok! {
@@ -52,13 +52,13 @@ test_eval_ok! {
 test_eval_ok! {
   object_nested_access,
   "const a = { user: { name: \"admin\" } }; a.user.name",
-  ObjectKind::String("admin")
+  ObjectKind::String("admin".to_string())
 }
 
 test_eval_ok! {
   object_nested_assignment,
   "let a = { user: { name: \"admin\" } }; a.user.name = \"guest\"; a.user.name",
-  ObjectKind::String("guest")
+  ObjectKind::String("guest".to_string())
 }
 
 test_eval_err! {

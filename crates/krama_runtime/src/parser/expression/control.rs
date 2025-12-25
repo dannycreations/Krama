@@ -1,4 +1,3 @@
-use bumpalo::collections::Vec as BumpVec;
 use krama_core::{
   ErrorKind, Expression, ExpressionKind, FunctionBody, Match, MatchPattern,
   PrecedenceKind, TokenKind,
@@ -6,11 +5,8 @@ use krama_core::{
 
 use super::{ParseResult, Parser};
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_if_expression(&mut self) -> ParseResult<'a, 'ast> {
+impl<'a> Parser<'a> {
+  pub fn parse_if_expression(&mut self) -> ParseResult {
     let start_span = self.current_token.span;
     self.advance();
 
@@ -20,27 +16,27 @@ where
 
     self.consume(TokenKind::RParen)?;
 
-    let then_branch = self.arena.alloc(self.parse_block_statement()?);
+    let then_branch = Box::new(self.parse_block_statement()?);
     let then_span = then_branch.span;
 
     let else_branch = if self.current_token.kind == TokenKind::Else {
       self.advance();
-      let else_block = self.arena.alloc(self.parse_block_statement()?);
+      let else_block = Box::new(self.parse_block_statement()?);
       let else_span = else_block.span;
-      Some(&*self.arena.alloc(Expression::new(
+      Some(Box::new(Expression::new(
         ExpressionKind::Block(else_block),
         else_span,
       )))
     } else if self.current_token.kind == TokenKind::Elif {
-      Some(&*self.arena.alloc(self.parse_if_expression()?))
+      Some(Box::new(self.parse_if_expression()?))
     } else {
       None
     };
 
     Ok(Expression::new(
       ExpressionKind::If {
-        condition: self.arena.alloc(condition),
-        then_branch: self.arena.alloc(Expression::new(
+        condition: Box::new(condition),
+        then_branch: Box::new(Expression::new(
           ExpressionKind::Block(then_branch),
           then_span,
         )),
@@ -50,7 +46,7 @@ where
     ))
   }
 
-  pub fn parse_match_expression(&mut self) -> ParseResult<'a, 'ast> {
+  pub fn parse_match_expression(&mut self) -> ParseResult {
     let start_span = self.current_token.span;
     self.advance();
 
@@ -61,7 +57,7 @@ where
     self.consume(TokenKind::RParen)?;
     self.consume(TokenKind::LBrace)?;
 
-    let mut arms = BumpVec::new_in(self.arena);
+    let mut arms = Vec::new();
     while self.current_token.kind != TokenKind::RBrace {
       if self.current_token.kind != TokenKind::RBrace {
         arms.push(self.parse_match_arm()?);
@@ -79,15 +75,15 @@ where
 
     Ok(Expression::new(
       ExpressionKind::Match {
-        subject: self.arena.alloc(subject),
+        subject: Box::new(subject),
         arms,
       },
       start_span,
     ))
   }
 
-  fn parse_match_arm(&mut self) -> Result<Match<'ast>, ErrorKind> {
-    let mut patterns = BumpVec::new_in(self.arena);
+  fn parse_match_arm(&mut self) -> Result<Match, ErrorKind> {
+    let mut patterns = Vec::new();
     patterns.push(self.parse_match_pattern()?);
 
     while self.current_token.kind == TokenKind::Comma {
@@ -105,9 +101,9 @@ where
     let body = if self.current_token.kind == TokenKind::Arrow {
       self.advance();
       let expr = self.parse_expression(PrecedenceKind::Lowest)?;
-      FunctionBody::Expression(self.arena.alloc(expr))
+      FunctionBody::Expression(Box::new(expr))
     } else if self.current_token.kind == TokenKind::LBrace {
-      let block = self.arena.alloc(self.parse_block_statement()?);
+      let block = Box::new(self.parse_block_statement()?);
       FunctionBody::Block(block)
     } else {
       return Err(ErrorKind::SyntaxError(format!(
@@ -124,7 +120,7 @@ where
     Ok(Match { patterns, body })
   }
 
-  fn parse_match_pattern(&mut self) -> Result<MatchPattern<'ast>, ErrorKind> {
+  fn parse_match_pattern(&mut self) -> Result<MatchPattern, ErrorKind> {
     if self.current_token.kind == TokenKind::Else {
       self.advance();
       return Ok(MatchPattern::Else);

@@ -110,12 +110,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
-name = "bumpalo"
-version = "3.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510"
-
-[[package]]
 name = "bytes"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -358,7 +352,6 @@ name = "krama_cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "clap",
  "krama_core",
  "krama_runtime",
@@ -372,7 +365,6 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "ariadne",
- "bumpalo",
  "futures",
  "indexmap",
  "linkme",
@@ -398,7 +390,6 @@ name = "krama_runtime"
 version = "0.1.0"
 dependencies = [
  "ahash",
- "bumpalo",
  "futures",
  "indexmap",
  "krama_core",
@@ -414,7 +405,6 @@ name = "krama_std"
 version = "0.1.0"
 dependencies = [
  "ahash",
- "bumpalo",
  "futures",
  "krama_core",
  "krama_macro",

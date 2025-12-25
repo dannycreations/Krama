@@ -2,11 +2,8 @@ use krama_core::{ErrorKind, Statement, TokenKind};
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_pub_statement(&mut self) -> Result<Statement<'ast>, ErrorKind> {
+impl<'a> Parser<'a> {
+  pub fn parse_pub_statement(&mut self) -> Result<Statement, ErrorKind> {
     let start_span = self.current_token.span;
     self.advance();
     match self.current_token.kind {

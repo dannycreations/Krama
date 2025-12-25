@@ -6,14 +6,14 @@ use krama_core::{
 
 use crate::{check_type, Interpreter};
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates a function call, handling both direct calls and method calls.
   pub async fn eval_call(
     &self,
-    function: &Expression<'ast>,
-    arguments: &[Expression<'ast>],
+    function: &Expression,
+    arguments: &[Expression],
     span: Span,
-  ) -> Result<ObjectKind<'ast>, krama_core::Error<'ast>> {
+  ) -> Result<ObjectKind, krama_core::Error> {
     let (func_obj, this_binding) =
       if let ExpressionKind::Member { object, property } = &function.kind {
         let obj_val = self.eval_expression(object, None).await?;
@@ -30,19 +30,17 @@ impl<'ast> Interpreter<'ast> {
         )
       };
 
-    let results = if arguments.is_empty() {
+    let evaluated_args = if arguments.is_empty() {
       Vec::new()
     } else {
       try_join_all(arguments.iter().map(|arg| self.eval_expression(arg, None)))
         .await?
     };
 
-    let evaluated_args = self.arena.alloc_slice_fill_iter(results);
-
     self
       .eval_call_expression_with_this(
         func_obj,
-        evaluated_args,
+        &evaluated_args,
         this_binding,
         span,
       )
@@ -52,21 +50,19 @@ impl<'ast> Interpreter<'ast> {
   /// Evaluates a function call with a specific 'this' binding.
   pub async fn eval_call_expression_with_this(
     &self,
-    function: ObjectKind<'ast>,
-    arguments: &'ast [ObjectKind<'ast>],
-    this: ObjectKind<'ast>,
+    function: ObjectKind,
+    arguments: &[ObjectKind],
+    this: ObjectKind,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     match function {
       ObjectKind::Function(function) => match function {
-        FunctionKind::Native(native_fn) => {
-          (native_fn.callback)(self.arena, arguments)
-            .await
-            .map_err(|kind| Error::new(kind, span))
-        }
+        FunctionKind::Native(native_fn) => (native_fn.callback)(arguments)
+          .await
+          .map_err(|kind| Error::new(kind, span)),
         FunctionKind::User(user_fn) => {
           self
-            .eval_user_function_call_with_this(user_fn, arguments, this, span)
+            .eval_user_function_call_with_this(&user_fn, arguments, this, span)
             .await
         }
         FunctionKind::Enum(constructor) => {
@@ -83,9 +79,9 @@ impl<'ast> Interpreter<'ast> {
             ));
           }
           Ok(ObjectKind::Enum {
-            name: constructor.name,
-            variant: constructor.variant,
-            fields: Some(arguments),
+            name: constructor.name.clone(),
+            variant: constructor.variant.clone(),
+            fields: Some(arguments.to_vec()),
           })
         }
       },
@@ -102,11 +98,11 @@ impl<'ast> Interpreter<'ast> {
   /// Internal helper to execute a user-defined function.
   async fn eval_user_function_call_with_this(
     &self,
-    user_fn: &'ast UserFunction<'ast>,
-    arguments: &'ast [ObjectKind<'ast>],
-    this: ObjectKind<'ast>,
+    user_fn: &UserFunction,
+    arguments: &[ObjectKind],
+    this: ObjectKind,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     if arguments.len() > user_fn.parameters.len() {
       return Err(Error::new(
         ErrorKind::TypeError(format!(
@@ -121,15 +117,15 @@ impl<'ast> Interpreter<'ast> {
     let new_interpreter = self.new_enclosed();
 
     if !matches!(this, ObjectKind::Void) {
-      let mut env = new_interpreter.environment.borrow_mut();
+      let mut env = new_interpreter.environment.write();
       env.set("this", this.clone(), false, true);
 
       let struct_name = match &this {
         ObjectKind::Object {
           definition: Some(definition),
           ..
-        } => Some(definition.name),
-        ObjectKind::Struct(definition) => Some(definition.name),
+        } => Some(definition.name.clone()),
+        ObjectKind::Struct(definition) => Some(definition.name.clone()),
         _ => None,
       };
 
@@ -141,7 +137,7 @@ impl<'ast> Interpreter<'ast> {
     for (i, param) in user_fn.parameters.iter().enumerate() {
       let value = if let Some(arg) = arguments.get(i) {
         arg.clone()
-      } else if let Some(default) = param.default {
+      } else if let Some(default) = &param.default {
         new_interpreter.eval_expression(default, None).await?
       } else {
         return Err(Error::new(
@@ -159,8 +155,8 @@ impl<'ast> Interpreter<'ast> {
 
       new_interpreter
         .environment
-        .borrow_mut()
-        .set(param.name, value, false, false);
+        .write()
+        .set(&param.name, value, false, false);
     }
 
     let result = match &user_fn.body {

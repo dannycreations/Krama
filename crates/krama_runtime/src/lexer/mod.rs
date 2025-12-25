@@ -3,12 +3,12 @@ use logos::Logos;
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
-  logos: logos::Lexer<'a, TokenKind<'a>>,
-  file: Option<&'a str>,
+  logos: logos::Lexer<'a, TokenKind>,
+  file: Option<String>,
 }
 
 impl<'a> Lexer<'a> {
-  pub fn new(source: &'a str, file: Option<&'a str>) -> Self {
+  pub fn new(source: &'a str, file: Option<String>) -> Self {
     Self {
       logos: TokenKind::lexer(source),
       file,
@@ -25,8 +25,8 @@ impl<'a> Lexer<'a> {
     Span::new(span.start, span.end)
   }
 
-  pub fn file(&self) -> Option<&'a str> {
-    self.file
+  pub fn file(&self) -> Option<&str> {
+    self.file.as_deref()
   }
 
   pub fn source(&self) -> &'a str {
@@ -35,7 +35,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-  type Item = Token<'a>;
+  type Item = Token;
 
   fn next(&mut self) -> Option<Self::Item> {
     let kind = self.logos.next()?;

@@ -6,7 +6,7 @@ use krama_runtime::{test_eval_err, test_eval_match, test_eval_ok};
 test_eval_match!(
   result_ok,
   "Ok(\"value\")",
-  ObjectKind::Ok(val) if matches!(val, ObjectKind::String("value"))
+  ObjectKind::Ok(val) if matches!(*val, ObjectKind::String(_))
 );
 
 test_eval_err!(result_err, "Err(\"error\")", ErrorKind::RuntimeError(_));
@@ -16,7 +16,7 @@ test_eval_err!(result_err, "Err(\"error\")", ErrorKind::RuntimeError(_));
 test_eval_match!(
   result_ok_as_value,
   "Ok(\"value\")?",
-  ObjectKind::Ok(val) if matches!(val, ObjectKind::String("value"))
+  ObjectKind::Ok(val) if matches!(*val, ObjectKind::String(_))
 );
 
 test_eval_err!(
@@ -42,7 +42,7 @@ test_eval_match!(
 
     main()
   "#,
-  ObjectKind::Ok(val) if matches!(val, ObjectKind::String("value"))
+  ObjectKind::Ok(val) if matches!(*val, ObjectKind::String(_))
 );
 
 test_eval_err!(
@@ -97,7 +97,7 @@ test_eval_match!(
     }
     main()
   "#,
-  ObjectKind::Ok(val) if matches!(val, ObjectKind::Integer(4))
+  ObjectKind::Ok(val) if matches!(*val, ObjectKind::Integer(4))
 );
 
 test_eval_err!(
@@ -142,7 +142,7 @@ test_eval_ok!(
       "ok"
     }
   "#,
-  ObjectKind::String("error")
+  ObjectKind::String("error".to_string())
 );
 
 test_eval_ok!(

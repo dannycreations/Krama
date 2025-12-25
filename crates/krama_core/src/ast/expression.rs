@@ -1,98 +1,96 @@
-use bumpalo::collections::Vec as BumpVec;
-
 use crate::{
   AssignmentOperator, BinaryOperator, LiteralKind, Node, Parameter,
   StatementBlock, Type, UnaryOperator, UpdateOperator,
 };
 
-pub type Expression<'ast> = Node<'ast, ExpressionKind<'ast>>;
+pub type Expression = Node<ExpressionKind>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum FunctionBody<'ast> {
-  Block(&'ast StatementBlock<'ast>),
-  Expression(&'ast Expression<'ast>),
+pub enum FunctionBody {
+  Block(Box<StatementBlock>),
+  Expression(Box<Expression>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ExpressionKind<'ast> {
-  Identifier(&'ast str),
-  Literal(LiteralKind<'ast>),
+pub enum ExpressionKind {
+  Identifier(String),
+  Literal(LiteralKind),
   This,
   StructConstruction {
-    properties: BumpVec<'ast, (Expression<'ast>, Expression<'ast>)>,
+    properties: Vec<(Expression, Expression)>,
   },
-  Block(&'ast StatementBlock<'ast>),
+  Block(Box<StatementBlock>),
   Collection {
-    elements: BumpVec<'ast, Expression<'ast>>,
+    elements: Vec<Expression>,
   },
   Object {
-    properties: BumpVec<'ast, (Expression<'ast>, Expression<'ast>)>,
+    properties: Vec<(Expression, Expression)>,
   },
   Assignment {
-    left: &'ast Expression<'ast>,
+    left: Box<Expression>,
     operator: AssignmentOperator,
-    right: &'ast Expression<'ast>,
+    right: Box<Expression>,
   },
   Binary {
-    left: &'ast Expression<'ast>,
+    left: Box<Expression>,
     operator: BinaryOperator,
-    right: &'ast Expression<'ast>,
+    right: Box<Expression>,
   },
   Unary {
     operator: UnaryOperator,
-    right: &'ast Expression<'ast>,
+    right: Box<Expression>,
   },
   Update {
     operator: UpdateOperator,
-    argument: &'ast Expression<'ast>,
+    argument: Box<Expression>,
     prefix: bool,
   },
   If {
-    condition: &'ast Expression<'ast>,
-    then_branch: &'ast Expression<'ast>,
-    else_branch: Option<&'ast Expression<'ast>>,
+    condition: Box<Expression>,
+    then_branch: Box<Expression>,
+    else_branch: Option<Box<Expression>>,
   },
   Match {
-    subject: &'ast Expression<'ast>,
-    arms: BumpVec<'ast, Match<'ast>>,
+    subject: Box<Expression>,
+    arms: Vec<Match>,
   },
   Import {
-    path: &'ast str,
-    items: Option<BumpVec<'ast, &'ast str>>,
+    path: String,
+    items: Option<Vec<String>>,
   },
   Call {
-    function: &'ast Expression<'ast>,
-    arguments: BumpVec<'ast, Expression<'ast>>,
+    function: Box<Expression>,
+    arguments: Vec<Expression>,
   },
   Fn {
-    parameters: BumpVec<'ast, Parameter<'ast>>,
-    body: FunctionBody<'ast>,
-    kind: Option<Type<'ast>>,
+    parameters: Vec<Parameter>,
+    body: FunctionBody,
+    kind: Option<Type>,
   },
   Member {
-    object: &'ast Expression<'ast>,
-    property: &'ast Expression<'ast>,
+    object: Box<Expression>,
+    property: Box<Expression>,
   },
   Index {
-    object: &'ast Expression<'ast>,
-    index: &'ast Expression<'ast>,
+    object: Box<Expression>,
+    index: Box<Expression>,
   },
   Typed {
-    expr: &'ast Expression<'ast>,
-    kind: Type<'ast>,
+    expr: Box<Expression>,
+    kind: Type,
   },
-  Try(&'ast Expression<'ast>),
+  Try(Box<Expression>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Match<'ast> {
-  pub patterns: BumpVec<'ast, MatchPattern<'ast>>,
-  pub body: FunctionBody<'ast>,
+pub struct Match {
+  pub patterns: Vec<MatchPattern>,
+  pub body: FunctionBody,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum MatchPattern<'ast> {
-  Expression(Expression<'ast>),
-  Range(Expression<'ast>, Expression<'ast>),
+pub enum MatchPattern {
+  Expression(Expression),
+  Range(Expression, Expression),
   Else,
 }

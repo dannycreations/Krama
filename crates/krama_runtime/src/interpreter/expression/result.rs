@@ -2,13 +2,13 @@ use krama_core::{Expression, ObjectKind, Span};
 
 use crate::interpreter::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Evaluates the postfix '?' operator (Try expression).
   pub async fn eval_result(
     &self,
-    expr: &Expression<'ast>,
+    expr: &Expression,
     _span: Span,
-  ) -> Result<ObjectKind<'ast>, krama_core::Error<'ast>> {
+  ) -> Result<ObjectKind, krama_core::Error> {
     let val = self.eval_expression(expr, None).await?;
 
     // The '?' operator unwraps Return(Err(e)) to Err(e).
@@ -17,7 +17,7 @@ impl<'ast> Interpreter<'ast> {
     // be propagated or unwrapped by the calling function.
     if let ObjectKind::Return(inner) = &val {
       if inner.is_result_err() {
-        return Ok((*inner).clone());
+        return Ok((**inner).clone());
       }
     }
 

@@ -2,13 +2,13 @@ use krama_core::{Error, ErrorKind, ObjectKind, Span};
 
 use crate::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   pub async fn eval_index_expression(
     &self,
-    mut object: ObjectKind<'ast>,
-    index: ObjectKind<'ast>,
+    mut object: ObjectKind,
+    index: ObjectKind,
     span: Span,
-  ) -> Result<ObjectKind<'ast>, Error<'ast>> {
+  ) -> Result<ObjectKind, Error> {
     match &mut object {
       ObjectKind::Array { elements, .. } => {
         let idx = self.ensure_int_index(&index, span)?;
@@ -23,9 +23,7 @@ impl<'ast> Interpreter<'ast> {
         let real_idx = self.resolve_index(idx, s.len());
 
         Ok(if let Some(i) = real_idx {
-          ObjectKind::String(
-            self.arena.alloc_str(&s.chars().nth(i).unwrap().to_string()),
-          )
+          ObjectKind::String(s.chars().nth(i).unwrap().to_string())
         } else {
           ObjectKind::Void
         })
@@ -46,7 +44,7 @@ impl<'ast> Interpreter<'ast> {
         Ok(
           properties
             .read()
-            .get(key)
+            .get(&key)
             .cloned()
             .unwrap_or(ObjectKind::Void),
         )
@@ -64,9 +62,9 @@ impl<'ast> Interpreter<'ast> {
   #[inline]
   pub fn ensure_int_index(
     &self,
-    index: &ObjectKind<'ast>,
+    index: &ObjectKind,
     span: Span,
-  ) -> Result<i64, Error<'ast>> {
+  ) -> Result<i64, Error> {
     if let ObjectKind::Integer(i) = index {
       Ok(*i)
     } else {
@@ -93,11 +91,7 @@ impl<'ast> Interpreter<'ast> {
   }
 
   #[inline]
-  pub fn get_by_index(
-    &self,
-    elements: &[ObjectKind<'ast>],
-    idx: i64,
-  ) -> ObjectKind<'ast> {
+  pub fn get_by_index(&self, elements: &[ObjectKind], idx: i64) -> ObjectKind {
     if let Some(i) = self.resolve_index(idx, elements.len()) {
       elements[i].clone()
     } else {

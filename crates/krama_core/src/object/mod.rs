@@ -1,4 +1,5 @@
-use bumpalo::collections::Vec as BumpVec;
+use std::sync::Arc;
+
 use indexmap::IndexMap;
 use parking_lot::RwLock;
 use strum_macros::EnumProperty as EnumPropertyMacro;
@@ -21,7 +22,7 @@ pub use standard::*;
 /// Uses `ObjectKind` to represent everything from primitives to complex structures.
 #[derive(Debug, Clone, EnumPropertyMacro)]
 #[repr(C, u8)]
-pub enum ObjectKind<'ast> {
+pub enum ObjectKind {
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]
@@ -33,44 +34,44 @@ pub enum ObjectKind<'ast> {
   #[strum(props(name = "float"))]
   Float(f64),
   #[strum(props(name = "string"))]
-  String(&'ast str),
+  String(String),
   #[strum(props(name = "array"))]
   Array {
-    elements: &'ast RwLock<BumpVec<'ast, ObjectKind<'ast>>>,
-    kind: Type<'ast>,
+    elements: Arc<RwLock<Vec<ObjectKind>>>,
+    kind: Type,
     constant: bool,
   },
   #[strum(props(name = "tuple"))]
   Tuple {
-    elements: &'ast [ObjectKind<'ast>],
+    elements: Vec<ObjectKind>,
   },
   #[strum(props(name = "object"))]
   Object {
-    properties: &'ast RwLock<IndexMap<&'ast str, ObjectKind<'ast>>>,
-    definition: Option<&'ast Struct<'ast>>,
+    properties: Arc<RwLock<IndexMap<String, ObjectKind>>>,
+    definition: Option<Arc<Struct>>,
     constant: bool,
   },
-  Scope(&'ast Scope<'ast>),
+  Scope(Arc<RwLock<Scope>>),
   #[strum(props(name = "function"))]
-  Function(FunctionKind<'ast>),
+  Function(FunctionKind),
   #[strum(props(name = "return"))]
-  Return(&'ast ObjectKind<'ast>),
+  Return(Box<ObjectKind>),
   #[strum(props(name = "break"))]
   Break,
   #[strum(props(name = "continue"))]
   Continue,
   #[strum(props(name = "ok"))]
-  Ok(&'ast ObjectKind<'ast>),
+  Ok(Box<ObjectKind>),
   #[strum(props(name = "err"))]
-  Err(&'ast ObjectKind<'ast>),
+  Err(Box<ObjectKind>),
   #[strum(props(name = "enum"))]
   Enum {
-    name: &'ast str,
-    variant: &'ast str,
-    fields: Option<&'ast [ObjectKind<'ast>]>,
+    name: String,
+    variant: String,
+    fields: Option<Vec<ObjectKind>>,
   },
   #[strum(props(name = "struct"))]
-  Struct(&'ast Struct<'ast>),
+  Struct(Arc<Struct>),
   #[strum(props(name = "type"))]
-  Type(Type<'ast>),
+  Type(Type),
 }

@@ -2,15 +2,12 @@ use krama_core::{ErrorKind, Span, Statement, StatementKind, TokenKind};
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
+impl<'a> Parser<'a> {
   pub fn parse_type_statement(
     &mut self,
     public: bool,
     start_span: Span,
-  ) -> Result<Statement<'ast>, ErrorKind> {
+  ) -> Result<Statement, ErrorKind> {
     self.consume(TokenKind::Type)?;
 
     let name = self.parse_identifier()?;

@@ -3,12 +3,12 @@ use krama_core::{Error, ErrorKind, Expression, ObjectKind};
 
 use crate::interpreter::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Shared logic for evaluating property-based structures (Object, StructConstruction).
   pub async fn eval_properties(
     &self,
-    properties: &[(Expression<'ast>, Expression<'ast>)],
-  ) -> Result<IndexMap<&'ast str, ObjectKind<'ast>>, Error<'ast>> {
+    properties: &[(Expression, Expression)],
+  ) -> Result<IndexMap<String, ObjectKind>, Error> {
     let mut fields = IndexMap::with_capacity(properties.len());
     for (key, value) in properties {
       let key_obj = self.eval_expression(key, None).await?;

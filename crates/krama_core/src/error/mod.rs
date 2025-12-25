@@ -7,14 +7,14 @@ pub use span::*;
 
 /// Represents a diagnostic error in the compiler/interpreter.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Error<'a> {
+pub struct Error {
   pub kind: ErrorKind,
   pub span: Span,
-  pub source: Option<&'a str>,
-  pub file: Option<&'a str>,
+  pub source: Option<String>,
+  pub file: Option<String>,
 }
 
-impl<'a> Error<'a> {
+impl Error {
   /// Creates a new diagnostic error without context.
   pub fn new(kind: ErrorKind, span: Span) -> Self {
     Self {
@@ -26,9 +26,9 @@ impl<'a> Error<'a> {
   }
 
   /// Attach source code and file path context to the error for reporting.
-  pub fn with_context(mut self, source: &'a str, file: &'a str) -> Self {
-    self.source = Some(source);
-    self.file = Some(file);
+  pub fn with_context(mut self, source: &str, file: &str) -> Self {
+    self.source = Some(source.to_string());
+    self.file = Some(file.to_string());
     self
   }
 
@@ -58,7 +58,7 @@ impl<'a> Error<'a> {
         .with_color(Color::Red),
     )
     .finish()
-    .print((&file, Source::from(source)))
+    .print((&file, Source::from(&source)))
     .unwrap();
   }
 }
@@ -91,7 +91,7 @@ impl ErrorKind {
   }
 
   /// Wraps the ErrorKind with a span to create a full Error.
-  pub fn at<'a>(self, span: Span) -> Error<'a> {
+  pub fn at(self, span: Span) -> Error {
     Error::new(self, span)
   }
 }

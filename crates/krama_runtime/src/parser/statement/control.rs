@@ -4,13 +4,8 @@ use krama_core::{
 
 use super::Parser;
 
-impl<'a, 'ast> Parser<'a, 'ast>
-where
-  'ast: 'a,
-{
-  pub fn parse_return_statement(
-    &mut self,
-  ) -> Result<Statement<'ast>, ErrorKind> {
+impl<'a> Parser<'a> {
+  pub fn parse_return_statement(&mut self) -> Result<Statement, ErrorKind> {
     let start_span = self.current_token.span;
     self.advance();
 
@@ -25,23 +20,19 @@ where
 
     Ok(Statement::new(
       StatementKind::Return {
-        value: value.map(|v| &*self.arena.alloc(v)),
+        value: value.map(Box::new),
       },
       start_span,
     ))
   }
 
-  pub fn parse_break_statement(
-    &mut self,
-  ) -> Result<Statement<'ast>, ErrorKind> {
+  pub fn parse_break_statement(&mut self) -> Result<Statement, ErrorKind> {
     let start_span = self.current_token.span;
     self.advance();
     Ok(Statement::new(StatementKind::Break, start_span))
   }
 
-  pub fn parse_continue_statement(
-    &mut self,
-  ) -> Result<Statement<'ast>, ErrorKind> {
+  pub fn parse_continue_statement(&mut self) -> Result<Statement, ErrorKind> {
     let start_span = self.current_token.span;
     self.advance();
     Ok(Statement::new(StatementKind::Continue, start_span))

@@ -1,20 +1,21 @@
-use bumpalo::collections::Vec as BumpVec;
+use std::sync::Arc;
+
 use krama_core::{
   FunctionBody, FunctionKind, ObjectKind, Parameter, Type, UserFunction,
 };
 
 use super::Interpreter;
 
-impl<'ast> Interpreter<'ast> {
+impl Interpreter {
   /// Allocates a new UserFunction in the interpreter's arena.
   /// Centralizes function creation to avoid duplication in eval.rs and statement.rs.
   pub fn alloc_user_function(
     &self,
-    parameters: BumpVec<'ast, Parameter<'ast>>,
-    body: FunctionBody<'ast>,
-    kind: Option<Type<'ast>>,
-  ) -> ObjectKind<'ast> {
-    let user_fn = self.arena.alloc(UserFunction {
+    parameters: Vec<Parameter>,
+    body: FunctionBody,
+    kind: Option<Type>,
+  ) -> ObjectKind {
+    let user_fn = Arc::new(UserFunction {
       parameters,
       body,
       kind,
