@@ -1,6 +1,6 @@
 use krama_core::{
-  ErrorKind, ErrorResult, Expression, ExpressionKind, FunctionBody, Match,
-  MatchPattern, ObjectKind, ObjectResult, Span, Type,
+  ErrorKind, ErrorResult, Expression, FunctionBody, Match, MatchPattern,
+  ObjectKind, ObjectResult, Span, Type,
 };
 
 use crate::Interpreter;
@@ -116,55 +116,11 @@ impl Interpreter {
     span: Span,
   ) -> ErrorResult<Option<Vec<(String, ObjectKind)>>> {
     match (pattern, subject) {
-      // 1. Expression-based patterns (Result variants).
+      // 1. Expression-based patterns.
       (MatchPattern::Expression(expression), _) => {
-        // Handle Result variant patterns: Ok(v) or Err(e)
-        if let ExpressionKind::Call {
-          function,
-          arguments,
-        } = &expression.kind
-        {
-          if let ExpressionKind::Identifier(name) = &function.kind {
-            if (name == "Ok" || name == "Err") && arguments.len() == 1 {
-              let is_match = matches!(
-                (name.as_str(), subject),
-                ("Ok", ObjectKind::Ok(_)) | ("Err", ObjectKind::Err(_))
-              );
-
-              if is_match {
-                let inner_val = match subject {
-                  ObjectKind::Ok(v) | ObjectKind::Err(v) => v,
-                  _ => unreachable!(),
-                };
-
-                let arg = &arguments[0];
-                if let ExpressionKind::Identifier(bind_name) = &arg.kind {
-                  return Ok(Some(vec![(
-                    bind_name.clone(),
-                    *(*inner_val).clone(),
-                  )]));
-                } else {
-                  // Nested pattern matching (currently only direct value equality).
-                  let arg_val = self.eval_expression(arg, None).await?;
-                  if arg_val == **inner_val {
-                    return Ok(Some(Vec::new()));
-                  }
-                }
-              }
-              return Ok(None);
-            }
-          }
-        }
-
-        // 2. Direct value matching (Equality).
-        let pattern_val = self.eval_expression(expression, None).await?;
-        if pattern_val == *subject {
-          Ok(Some(Vec::new()))
-        } else {
-          Ok(None)
-        }
+        self.match_pattern_internal(subject, expression, span).await
       }
-      // 3. Range patterns for integers.
+      // 2. Range patterns for integers.
       (MatchPattern::Range(start, end), ObjectKind::Integer(i)) => {
         let (start_val, end_val) = tokio::try_join!(
           self.eval_expression(start, None),
