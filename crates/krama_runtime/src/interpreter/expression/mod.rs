@@ -149,7 +149,7 @@ impl Interpreter {
 
   /// Retrieves the 'this' object from the current environment.
   pub fn get_this(&self, span: Span) -> Result<ObjectKind, Error> {
-    self.environment.read().get("this").ok_or_else(|| {
+    self.stack.read().get("this").ok_or_else(|| {
       Error::new(
         ErrorKind::ReferenceError(
           "'this' is not defined in the current scope".into(),

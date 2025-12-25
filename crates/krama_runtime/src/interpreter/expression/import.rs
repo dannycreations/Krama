@@ -4,7 +4,9 @@ use std::{
 };
 
 use ahash::AHashMap;
-use krama_core::{Error, ErrorKind, FunctionKind, ObjectKind, Scope, Span};
+use krama_core::{
+  Binding, Error, ErrorKind, FunctionKind, ObjectKind, Scope, Span,
+};
 use krama_std::MODULES;
 use parking_lot::RwLock;
 use path_clean::PathClean;
@@ -82,13 +84,18 @@ impl Interpreter {
         for (name, native_fn) in bindings {
           scope_bindings.insert(
             name.to_string(),
-            ObjectKind::Function(FunctionKind::Native(*native_fn)),
+            Binding {
+              value: ObjectKind::Function(FunctionKind::Native(*native_fn)),
+              public: true,
+              constant: true,
+            },
           );
         }
 
         let module = Scope {
           name: Some(module_name.clone()),
           bindings: scope_bindings,
+          parent: None,
         };
         let object = ObjectKind::Scope(Arc::new(RwLock::new(module)));
         self
@@ -134,17 +141,25 @@ impl Interpreter {
     // Evaluate the module source
     new_interpreter.eval(&source).await?;
 
-    // 2. Extract public bindings from the module's environment.
-    let bindings = new_interpreter
-      .environment
-      .read()
-      .get_public_bindings()
-      .into_iter()
-      .collect();
+    // 2. Extract public bindings from the module's stack (top-level scope).
+    let public_values = new_interpreter.stack.read().get_public_bindings();
+
+    let mut bindings = AHashMap::with_capacity(public_values.len());
+    for (name, value) in public_values {
+      bindings.insert(
+        name,
+        Binding {
+          value,
+          public: true,
+          constant: true, // Exports are constant consumers
+        },
+      );
+    }
 
     let module = ObjectKind::Scope(Arc::new(RwLock::new(Scope {
       name: Some(resolved_path_key.clone()),
       bindings,
+      parent: None,
     })));
 
     // 3. Cache the module for future imports.

@@ -1,8 +1,5 @@
-use std::sync::Arc;
-
 use indexmap::IndexMap;
 use krama_core::{Error, ErrorKind, Expression, ObjectKind, Span};
-use parking_lot::RwLock;
 
 use crate::interpreter::{types::check_type, Interpreter};
 
@@ -43,10 +40,11 @@ impl Interpreter {
       final_fields.insert(field.name.clone(), value);
     }
 
-    Ok(ObjectKind::Object {
-      properties: Arc::new(RwLock::new(final_fields)),
-      definition: Some(definition),
-      constant: false,
-    })
+    Ok(
+      self
+        .heap
+        .write()
+        .alloc_object(final_fields, Some(definition), false),
+    )
   }
 }

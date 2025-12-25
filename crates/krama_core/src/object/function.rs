@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use futures::future::LocalBoxFuture;
+use parking_lot::RwLock;
 
-use crate::{Enum, ErrorKind, FunctionBody, ObjectKind, Parameter, Type};
+use crate::{
+  Enum, ErrorKind, FunctionBody, ObjectKind, Parameter, Scope, Type,
+};
 
 /// Callback type for native functions implemented in Rust.
 pub type NativeFnCb =
@@ -31,6 +34,9 @@ pub struct UserFunction {
 #[derive(Debug, Clone)]
 pub enum FunctionKind {
   Native(NativeFunction),
-  User(Arc<UserFunction>),
+  User {
+    func: Arc<UserFunction>,
+    env: Option<Arc<RwLock<Scope>>>,
+  },
   Enum(Arc<Enum>),
 }

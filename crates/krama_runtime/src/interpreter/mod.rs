@@ -9,20 +9,26 @@ use std::sync::Arc;
 
 use ahash::AHashMap;
 use indexmap::IndexMap;
-use krama_core::{Error, ErrorKind, Expression, ObjectKind, Span, Statement};
-use parking_lot::{RwLock, RwLockWriteGuard};
+use krama_core::{
+  Error, ErrorKind, Expression, FunctionKind, ObjectKind, Scope, Span,
+  Statement,
+};
+use krama_std::GLOBALS;
+use parking_lot::RwLock;
 pub use types::*;
 
-use crate::{Checker, Environment, Lexer, Parser};
+use crate::{Checker, Heap, Lexer, Parser, Stack};
 
 /// The interpreter responsible for executing the AST.
-/// Manages execution state, including environment, modules, and local variable resolution.
+/// Manages execution state, including stack, heap, modules, and local variable resolution.
 #[derive(Clone)]
 pub struct Interpreter {
-  /// The current execution environment.
-  pub environment: Arc<RwLock<Environment>>,
   /// Loaded modules in the current session.
   pub modules: Arc<RwLock<IndexMap<String, ObjectKind>>>,
+  /// The call stack for the current execution thread.
+  pub stack: Arc<RwLock<Stack>>,
+  /// The heap allocator for complex objects.
+  pub heap: Arc<RwLock<Heap>>,
   /// Path to the file being executed, if any.
   pub path: Option<String>,
   /// Map of expression spans to their resolved scope distance.
@@ -32,23 +38,35 @@ pub struct Interpreter {
 impl Interpreter {
   /// Creates a new interpreter instance with a global environment.
   pub fn new(path: Option<String>) -> Self {
-    let env = Environment::with_globals();
+    let stack = Stack::new();
+
+    // Populate globals
+    {
+      let current = stack.current();
+      let mut scope = current.write();
+      scope.bindings.reserve(GLOBALS.len());
+      for (name, native_fn) in GLOBALS.iter() {
+        let function = ObjectKind::Function(FunctionKind::Native(*native_fn));
+        scope.set(name, function, true, true);
+      }
+    }
 
     Self {
-      environment: Arc::new(RwLock::new(env)),
       modules: Arc::new(RwLock::new(IndexMap::default())),
+      stack: Arc::new(RwLock::new(stack)),
+      heap: Arc::new(RwLock::new(Heap::default())),
       path,
       locals: Arc::new(RwLock::new(AHashMap::default())),
     }
   }
 
-  /// Creates a new interpreter instance sharing the same arena and modules but with an enclosed environment.
+  /// Creates a new interpreter instance sharing the same stack, heap, and modules.
+  /// Used for function calls and blocks where the context needs to be shared.
   pub fn new_enclosed(&self) -> Self {
     Self {
-      environment: Arc::new(RwLock::new(Environment::new_enclosed(
-        self.environment.clone(),
-      ))),
       modules: self.modules.clone(),
+      stack: self.stack.clone(),
+      heap: self.heap.clone(),
       path: self.path.clone(),
       locals: self.locals.clone(),
     }
@@ -56,13 +74,16 @@ impl Interpreter {
 
   /// Retrieves a variable value from a specific scope distance.
   pub fn get_at(&self, distance: usize, name: &str) -> Option<ObjectKind> {
-    let mut current_env = self.environment.clone();
+    let stack = self.stack.read();
+    let mut current_scope = stack.current();
+
     for _ in 0..distance {
-      let next = current_env.read().outer.clone()?;
-      current_env = next;
+      let next = current_scope.read().parent.clone()?;
+      current_scope = next;
     }
-    let env = current_env.read();
-    env.get_local(name)
+
+    let scope = current_scope.read();
+    scope.get_local(name).map(|b| b.value.clone())
   }
 
   /// Assigns a value to a variable at a specific scope distance.
@@ -73,9 +94,11 @@ impl Interpreter {
     value: ObjectKind,
     span: Span,
   ) -> Result<(), Error> {
-    let mut current_env = self.environment.clone();
+    let stack = self.stack.read();
+    let mut current_scope = stack.current();
+
     for _ in 0..distance {
-      let next = current_env.read().outer.clone().ok_or_else(|| {
+      let next = current_scope.read().parent.clone().ok_or_else(|| {
         Error::new(
           ErrorKind::RuntimeError(format!(
             "Invalid scope distance {} for '{}'",
@@ -84,17 +107,28 @@ impl Interpreter {
           span,
         )
       })?;
-      current_env = next;
+      current_scope = next;
     }
-    let mut env = current_env.write();
-    if env.is_constant(name) {
-      return Err(Error::new(
-        ErrorKind::TypeError(format!("Cannot assign to constant '{}'", name)),
+
+    let mut scope = current_scope.write();
+    if let Some(binding) = scope.bindings.get_mut(name) {
+      if binding.constant {
+        return Err(Error::new(
+          ErrorKind::TypeError(format!("Cannot assign to constant '{}'", name)),
+          span,
+        ));
+      }
+      binding.value = value;
+      Ok(())
+    } else {
+      Err(Error::new(
+        ErrorKind::ReferenceError(format!(
+          "Variable '{}' not found at distance {}",
+          name, distance
+        )),
         span,
-      ));
+      ))
     }
-    env.store.get_mut(name).unwrap().value = value;
-    Ok(())
   }
 
   /// Performs static analysis on the source code without execution.
@@ -147,12 +181,10 @@ impl Interpreter {
     }
   }
 
-  /// Safely borrows the environment mutably, wrapping borrow errors in errors.
-  pub fn env_mut(
-    &self,
-    _span: Span,
-  ) -> Result<RwLockWriteGuard<'_, Environment>, Error> {
-    Ok(self.environment.write())
+  /// Returns the current scope for mutation.
+  /// Caller is responsible for locking.
+  pub fn current_scope(&self) -> Arc<RwLock<Scope>> {
+    self.stack.read().current()
   }
 
   /// Returns the resolved scope distance for a given expression.

@@ -20,6 +20,10 @@ impl Interpreter {
       body,
       kind,
     });
-    ObjectKind::Function(FunctionKind::User(user_fn))
+
+    // Capture the current scope (closure environment)
+    let env = Some(self.stack.read().current());
+
+    ObjectKind::Function(FunctionKind::User { func: user_fn, env })
   }
 }

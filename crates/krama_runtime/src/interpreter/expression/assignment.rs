@@ -265,27 +265,7 @@ impl Interpreter {
         if let Some(distance) = distance {
           self.assign_at(distance, &name, value, span)
         } else {
-          let mut env = self.env_mut(span)?;
-          if env.is_constant(&name) {
-            return Err(
-              ErrorKind::TypeError(format!(
-                "Cannot assign to constant '{}'",
-                name
-              ))
-              .at(span),
-            );
-          }
-          // We use get_mut here because resolve_lvalue already verified the variable exists
-          // and we already checked for constant.
-          if let Some(binding) = env.store.get_mut(&name) {
-            binding.value = value;
-            Ok(())
-          } else {
-            Err(Error::new(
-              ErrorKind::ReferenceError(format!("Unknown variable '{}'", name)),
-              span,
-            ))
-          }
+          self.stack.write().set(&name, value, span)
         }
       }
       LValue::Property { properties, name } => {

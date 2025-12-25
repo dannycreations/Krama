@@ -21,7 +21,7 @@ impl Interpreter {
     }
 
     // 2. Slow path: Global environment lookup for variables not captured by static analysis (e.g. dynamic globals).
-    self.environment.read().get(name).ok_or_else(|| {
+    self.stack.read().get(name).ok_or_else(|| {
       Error::new(
         ErrorKind::ReferenceError(format!("'{}' is not defined", name)),
         span,

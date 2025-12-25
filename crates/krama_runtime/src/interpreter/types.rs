@@ -25,7 +25,7 @@ pub fn resolve_type(
     TypeKind::Identifier(name) => {
       // We look up in the environment to see if the identifier refers to a type definition.
       if let Some(ObjectKind::Type(resolved)) =
-        interpreter.environment.read().get(name)
+        interpreter.stack.read().get(name)
       {
         return Ok(resolved.clone());
       }

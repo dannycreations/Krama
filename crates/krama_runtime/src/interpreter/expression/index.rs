@@ -16,7 +16,7 @@ impl Interpreter {
       }
       ObjectKind::Tuple { elements } => {
         let idx = self.ensure_int_index(&index, span)?;
-        Ok(self.get_by_index(elements, idx))
+        Ok(self.get_by_index(elements.as_ref(), idx))
       }
       ObjectKind::String(s) => {
         let idx = self.ensure_int_index(&index, span)?;

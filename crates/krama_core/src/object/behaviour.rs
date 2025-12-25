@@ -17,7 +17,10 @@ impl PartialEq for FunctionKind {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (FunctionKind::Native(a), FunctionKind::Native(b)) => a == b,
-      (FunctionKind::User(a), FunctionKind::User(b)) => Arc::ptr_eq(a, b),
+      (
+        FunctionKind::User { func: a, .. },
+        FunctionKind::User { func: b, .. },
+      ) => Arc::ptr_eq(a, b),
       (FunctionKind::Enum(a), FunctionKind::Enum(b)) => Arc::ptr_eq(a, b),
       _ => false,
     }
@@ -35,7 +38,9 @@ impl PartialEq for ObjectKind {
       (Self::Array { elements: l, .. }, Self::Array { elements: r, .. }) => {
         Arc::ptr_eq(l, r)
       }
-      (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => l == r,
+      (Self::Tuple { elements: l }, Self::Tuple { elements: r }) => {
+        Arc::ptr_eq(l, r)
+      }
       (
         Self::Object { properties: l, .. },
         Self::Object { properties: r, .. },
@@ -184,7 +189,7 @@ impl ObjectKind {
       BinaryOperator::Range => {
         if r < l {
           return Ok(Self::Tuple {
-            elements: Vec::new(),
+            elements: Arc::new(Vec::new()),
           });
         }
         let count = (r.wrapping_sub(l)) as usize + 1;
@@ -192,7 +197,9 @@ impl ObjectKind {
         for i in l..=r {
           elements.push(Self::Integer(i));
         }
-        Ok(Self::Tuple { elements })
+        Ok(Self::Tuple {
+          elements: Arc::new(elements),
+        })
       }
       _ => Err(ErrorKind::TypeError(format!(
         "Unsupported operator for integers: {:?}",
@@ -344,7 +351,7 @@ impl Display for ObjectKind {
       ),
       Self::Function(kind) => match kind {
         FunctionKind::Native(n) => write!(f, "fn {}() [native]", n.name),
-        FunctionKind::User(_) => write!(f, "fn() [user]"),
+        FunctionKind::User { .. } => write!(f, "fn() [user]"),
         FunctionKind::Enum(e) => {
           write!(f, "fn {}::{}() [enum]", e.name, e.variant)
         }

@@ -43,7 +43,7 @@ pub enum ObjectKind {
   },
   #[strum(props(name = "tuple"))]
   Tuple {
-    elements: Vec<ObjectKind>,
+    elements: Arc<Vec<ObjectKind>>,
   },
   #[strum(props(name = "object"))]
   Object {

@@ -104,19 +104,30 @@ impl Interpreter {
       }
 
       // 5. Handle Scopes (Modules).
-      ObjectKind::Scope(scope) => scope
-        .read()
-        .get_binding(property_name)
-        .cloned()
-        .ok_or_else(|| {
-          Error::new(
+      ObjectKind::Scope(scope) => {
+        let scope = scope.read();
+        if let Some(binding) = scope.get_local(property_name) {
+          if binding.public {
+            Ok(binding.value.clone())
+          } else {
+            Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "Property '{}' is private",
+                property_name
+              )),
+              span,
+            ))
+          }
+        } else {
+          Err(Error::new(
             ErrorKind::ReferenceError(format!(
               "Property '{}' not found in module",
               property_name
             )),
             span,
-          )
-        }),
+          ))
+        }
+      }
 
       // 6. Handle Built-in properties (Standard library extensions).
       _ => {
@@ -143,10 +154,13 @@ impl Interpreter {
 
   /// Allocates a new UserFunction from a StructMethod.
   fn from_method(method: &StructMethod) -> ObjectKind {
-    ObjectKind::Function(FunctionKind::User(Arc::new(UserFunction {
-      parameters: method.parameters.clone(),
-      body: method.body.clone(),
-      kind: method.kind.clone(),
-    })))
+    ObjectKind::Function(FunctionKind::User {
+      func: Arc::new(UserFunction {
+        parameters: method.parameters.clone(),
+        body: method.body.clone(),
+        kind: method.kind.clone(),
+      }),
+      env: None, // Methods don't capture environment at definition time in the same way, or handle 'this' dynamically
+    })
   }
 }

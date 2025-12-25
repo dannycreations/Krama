@@ -19,12 +19,23 @@ impl Interpreter {
     // 1. Check if the condition is a pattern match (e.g., if (Ok(v) = expr)).
     if let Some(bindings) = self.try_match_assignment(condition).await? {
       let new_interpreter = self.new_enclosed();
+
+      // Push a scope for the bindings
+      new_interpreter
+        .stack
+        .write()
+        .push("if_binding".to_string(), None);
+
       for (name, val) in bindings {
         new_interpreter
-          .env_mut(condition.span)?
-          .set(&name, val, false, false);
+          .stack
+          .write()
+          .define(name, val, false, false);
       }
-      return new_interpreter.eval_expression(then_branch, kind).await;
+
+      let result = new_interpreter.eval_expression(then_branch, kind).await;
+      new_interpreter.stack.write().pop();
+      return result;
     }
 
     // 2. Fallback to normal truthy evaluation.
@@ -60,8 +71,14 @@ impl Interpreter {
           // 1. Prepare interpreter with bindings if necessary.
           let interpreter = if !bindings.is_empty() {
             let new_interp = self.new_enclosed();
-            for (name, val) in bindings {
-              new_interp.env_mut(span)?.set(&name, val, false, false);
+            new_interp.stack.write().push("match_arm".to_string(), None);
+            for (name, val) in &bindings {
+              new_interp.stack.write().define(
+                name.clone(),
+                val.clone(),
+                false,
+                false,
+              );
             }
             Cow::Owned(new_interp)
           } else {
@@ -71,17 +88,20 @@ impl Interpreter {
           // 2. Execute arm body.
           let result = match &arm.body {
             FunctionBody::Block(block) => {
-              interpreter
-                .eval_block_statement_with_new_scope(block)
-                .await?
+              // eval_block_statement_with_new_scope will push another scope, which is fine
+              interpreter.eval_block_statement_with_new_scope(block).await
             }
             FunctionBody::Expression(expression) => {
-              interpreter
-                .new_enclosed()
-                .eval_expression(expression, None)
-                .await?
+              // Expression bodies share the current scope (which includes bindings)
+              interpreter.eval_expression(expression, None).await
             }
           };
+
+          if !bindings.is_empty() {
+            interpreter.stack.write().pop();
+          }
+
+          let result = result?;
 
           // 3. Handle Return signals and control flow.
           if result.is_control_signal() {

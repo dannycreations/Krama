@@ -9,7 +9,6 @@ use krama_core::{
   AssignmentOperator, Enum, Error, Expression, ExpressionKind, FunctionKind,
   ObjectKind, Statement, StatementBlock, StatementKind, Struct, Type,
 };
-use parking_lot::RwLock;
 
 use crate::interpreter::{
   types::{check_type, resolve_type},
@@ -32,7 +31,7 @@ impl Interpreter {
           let mut value =
             self.eval_and_check_type(value, kind.as_ref()).await?;
           value.set_constant(false);
-          self.env_mut(span)?.set(name, value, false, false);
+          self.stack.write().define(name.clone(), value, false, false);
           Ok(ObjectKind::Void)
         }
         StatementKind::Const {
@@ -61,7 +60,10 @@ impl Interpreter {
             body.clone(),
             resolved_kind,
           );
-          self.env_mut(span)?.set(name, function, *public, true);
+          self
+            .stack
+            .write()
+            .define(name.clone(), function, *public, true);
           Ok(ObjectKind::Void)
         }
         StatementKind::Enum {
@@ -87,12 +89,15 @@ impl Interpreter {
             };
             properties.insert(variant_name, obj);
           }
-          let enum_obj = ObjectKind::Object {
-            properties: Arc::new(RwLock::new(properties.into_iter().collect())),
-            definition: None,
-            constant: true,
-          };
-          self.env_mut(span)?.set(name, enum_obj, *public, true);
+          let enum_obj = self.heap.write().alloc_object(
+            properties.into_iter().collect(),
+            None,
+            true,
+          );
+          self
+            .stack
+            .write()
+            .define(name.clone(), enum_obj, *public, true);
           Ok(ObjectKind::Void)
         }
         StatementKind::Struct {
@@ -106,8 +111,8 @@ impl Interpreter {
             fields: fields.clone(),
             methods: methods.clone(),
           });
-          self.env_mut(span)?.set(
-            name,
+          self.stack.write().define(
+            name.clone(),
             ObjectKind::Struct(struct_def),
             *public,
             true,
@@ -116,8 +121,8 @@ impl Interpreter {
         }
         StatementKind::Type { public, name, kind } => {
           let resolved = resolve_type(self, kind)?;
-          self.env_mut(span)?.set(
-            name,
+          self.stack.write().define(
+            name.clone(),
             ObjectKind::Type(resolved),
             *public,
             true,
@@ -138,7 +143,7 @@ impl Interpreter {
             if let Some(bindings) = self.try_match_assignment(condition).await?
             {
               for (name, val) in bindings {
-                self.env_mut(span)?.set(&name, val, false, false);
+                self.stack.write().define(name, val, false, false);
               }
             } else {
               // Special case for pattern matching in while
@@ -182,9 +187,16 @@ impl Interpreter {
           let elements =
             self.collect_iterable_elements(&iterable_val, binding, span)?;
           for element in elements {
-            let enclosed = self.new_enclosed();
-            self.assign_for_binding(&enclosed, binding, element, span)?;
-            let result = enclosed.eval_block_statement(body).await?;
+            // For loop iteration scope
+            self.stack.write().push("for_loop_iter".to_string(), None);
+
+            // We use 'self' because new_enclosed shares the stack anyway.
+            self.assign_for_binding(self, binding, element, span)?;
+            let result = self.eval_block_statement(body).await;
+
+            self.stack.write().pop();
+
+            let result = result?;
             if result.is_control_signal() {
               match result {
                 ObjectKind::Break => break,
@@ -246,6 +258,9 @@ impl Interpreter {
     &self,
     block: &StatementBlock,
   ) -> Result<ObjectKind, Error> {
-    self.new_enclosed().eval_statements(&block.statements).await
+    self.stack.write().push("block".to_string(), None);
+    let result = self.eval_statements(&block.statements).await;
+    self.stack.write().pop();
+    result
   }
 }

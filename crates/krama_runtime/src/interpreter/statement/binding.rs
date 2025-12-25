@@ -15,7 +15,7 @@ impl Interpreter {
   ) -> Result<(), Error> {
     match binding {
       ConstBinding::Identifier(name) => {
-        self.env_mut(span)?.set(name, value, public, true);
+        self.stack.write().define(name.clone(), value, public, true);
       }
       ConstBinding::Destructure(items) => {
         self.apply_destructuring(None, items, value, public, span)?;
@@ -38,14 +38,19 @@ impl Interpreter {
   ) -> Result<(), Error> {
     if let ObjectKind::Scope(scope) = &value {
       if let Some(alias_name) = alias {
-        self
-          .env_mut(span)?
-          .set(alias_name, value.clone(), public, true);
+        self.stack.write().define(
+          alias_name.to_string(),
+          value.clone(),
+          public,
+          true,
+        );
       }
       for item in items {
-        if let Some(export) = scope.read().get_binding(&item.name) {
+        let export_value =
+          scope.read().get_local(&item.name).map(|b| b.value.clone());
+        if let Some(val) = export_value {
           let name = item.alias.as_ref().unwrap_or(&item.name);
-          self.env_mut(span)?.set(name, export.clone(), public, true);
+          self.stack.write().define(name.clone(), val, public, true);
         } else {
           return Err(Error::new(
             ErrorKind::ReferenceError(format!(

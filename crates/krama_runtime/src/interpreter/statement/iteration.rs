@@ -12,7 +12,7 @@ impl Interpreter {
   ) -> Result<Vec<ObjectKind>, Error> {
     match iterable {
       ObjectKind::Array { elements, .. } => Ok(elements.read().to_vec()),
-      ObjectKind::Tuple { elements } => Ok(elements.to_vec()),
+      ObjectKind::Tuple { elements } => Ok(elements.as_ref().clone()),
       ObjectKind::String(s) => Ok(
         s.chars()
           .map(|c| ObjectKind::String(c.to_string()))
@@ -27,7 +27,7 @@ impl Interpreter {
           ForBinding::Array(bindings) if bindings.len() == 2 => {
             for (k, v) in props.iter() {
               let elements = vec![ObjectKind::String(k.clone()), v.clone()];
-              yields.push(ObjectKind::Tuple { elements });
+              yields.push(self.heap.write().alloc_tuple(elements));
             }
           }
           // Default to iterating over keys.
@@ -59,16 +59,18 @@ impl Interpreter {
   ) -> Result<(), Error> {
     match binding {
       ForBinding::Identifier(name) => {
-        interpreter
-          .environment
-          .write()
-          .set(name, value.clone(), false, false);
+        interpreter.stack.write().define(
+          name.clone(),
+          value.clone(),
+          false,
+          false,
+        );
         Ok(())
       }
       ForBinding::Array(bindings) => {
         let elements = match &value {
           ObjectKind::Array { elements, .. } => elements.read().to_vec(),
-          ObjectKind::Tuple { elements } => elements.to_vec(),
+          ObjectKind::Tuple { elements } => elements.as_ref().clone(),
           _ => {
             return Err(Error::new(
               ErrorKind::TypeError(format!(

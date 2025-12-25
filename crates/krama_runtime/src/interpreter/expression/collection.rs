@@ -1,8 +1,7 @@
-use std::{sync::Arc, vec::Vec};
+use std::vec::Vec;
 
 use futures::future::try_join_all;
 use krama_core::{Error, Expression, ObjectKind, Span, Type, TypeKind};
-use parking_lot::RwLock;
 
 use crate::interpreter::Interpreter;
 
@@ -35,14 +34,14 @@ impl Interpreter {
     if let Some(hint) = kind_hint {
       match &hint.kind {
         TypeKind::Array { .. } => {
-          return Ok(ObjectKind::Array {
-            elements: Arc::new(RwLock::new(results)),
-            kind: hint.clone(),
-            constant: false,
-          });
+          return Ok(self.heap.write().alloc_array(
+            results,
+            hint.clone(),
+            false,
+          ));
         }
         TypeKind::Tuple(_) => {
-          return Ok(ObjectKind::Tuple { elements: results })
+          return Ok(self.heap.write().alloc_tuple(results));
         }
         _ => {}
       }
@@ -50,19 +49,19 @@ impl Interpreter {
 
     // 4. Default to Array if empty, or Tuple if non-empty and no hint is available.
     if results.is_empty() {
-      Ok(ObjectKind::Array {
-        elements: Arc::new(RwLock::new(Vec::new())),
-        kind: Type::new(
+      Ok(self.heap.write().alloc_array(
+        Vec::new(),
+        Type::new(
           TypeKind::Array {
             element: Box::new(Type::new(TypeKind::Void, span)),
             size: None,
           },
           span,
         ),
-        constant: false,
-      })
+        false,
+      ))
     } else {
-      Ok(ObjectKind::Tuple { elements: results })
+      Ok(self.heap.write().alloc_tuple(results))
     }
   }
 
@@ -72,10 +71,6 @@ impl Interpreter {
     properties: &[(Expression, Expression)],
   ) -> Result<ObjectKind, Error> {
     let object = self.eval_properties(properties).await?;
-    Ok(ObjectKind::Object {
-      properties: Arc::new(RwLock::new(object)),
-      definition: None,
-      constant: false,
-    })
+    Ok(self.heap.write().alloc_object(object, None, false))
   }
 }

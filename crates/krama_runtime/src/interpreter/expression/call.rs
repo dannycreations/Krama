@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use futures::future::try_join_all;
 use krama_core::{
   Error, ErrorKind, Expression, ExpressionKind, FunctionBody, FunctionKind,
@@ -60,9 +62,15 @@ impl Interpreter {
         FunctionKind::Native(native_fn) => (native_fn.callback)(arguments)
           .await
           .map_err(|kind| Error::new(kind, span)),
-        FunctionKind::User(user_fn) => {
+        FunctionKind::User { func, env } => {
           self
-            .eval_user_function_call_with_this(&user_fn, arguments, this, span)
+            .eval_user_function_call_with_this(
+              &func,
+              env.clone(),
+              arguments,
+              this,
+              span,
+            )
             .await
         }
         FunctionKind::Enum(constructor) => {
@@ -99,6 +107,7 @@ impl Interpreter {
   async fn eval_user_function_call_with_this(
     &self,
     user_fn: &UserFunction,
+    closure_env: Option<Arc<parking_lot::RwLock<krama_core::Scope>>>,
     arguments: &[ObjectKind],
     this: ObjectKind,
     span: Span,
@@ -116,9 +125,16 @@ impl Interpreter {
 
     let new_interpreter = self.new_enclosed();
 
+    // Push a new scope onto the stack.
+    // Use the captured closure environment as the parent scope, if available.
+    new_interpreter
+      .stack
+      .write()
+      .push("function_call".to_string(), closure_env);
+
     if !matches!(this, ObjectKind::Void) {
-      let mut env = new_interpreter.environment.write();
-      env.set("this", this.clone(), false, true);
+      let mut stack = new_interpreter.stack.write();
+      stack.define("this".to_string(), this.clone(), false, true);
 
       let struct_name = match &this {
         ObjectKind::Object {
@@ -130,7 +146,12 @@ impl Interpreter {
       };
 
       if let Some(name) = struct_name {
-        env.set("__current_struct__", ObjectKind::String(name), false, true);
+        stack.define(
+          "__current_struct__".to_string(),
+          ObjectKind::String(name),
+          false,
+          true,
+        );
       }
     }
 
@@ -153,10 +174,12 @@ impl Interpreter {
         check_type(param_type, &value)?;
       }
 
-      new_interpreter
-        .environment
-        .write()
-        .set(&param.name, value, false, false);
+      new_interpreter.stack.write().define(
+        param.name.clone(),
+        value,
+        false,
+        false,
+      );
     }
 
     let result = match &user_fn.body {
@@ -166,9 +189,12 @@ impl Interpreter {
       FunctionBody::Expression(expr) => {
         new_interpreter.eval_expression(expr, None).await
       }
-    }?;
+    };
+
+    // Pop the stack frame (which is the current scope)
+    new_interpreter.stack.write().pop();
 
     // Functions always unwrap Return signals to return the underlying value.
-    Ok(result.unwrap_return().clone())
+    Ok(result?.unwrap_return().clone())
   }
 }

@@ -16,8 +16,8 @@ impl Interpreter {
     }
 
     // Check if the current scope is within the same struct definition.
-    let env = self.environment.read();
-    let current_struct = env.get("__current_struct__");
+    let stack = self.stack.read();
+    let current_struct = stack.get("__current_struct__");
     let allowed = if let Some(ObjectKind::String(name)) = current_struct {
       name == struct_name
     } else {
