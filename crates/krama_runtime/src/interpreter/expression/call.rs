@@ -22,7 +22,20 @@ impl Interpreter {
         let func = self
           .eval_member_expression(obj_val.clone(), property, span)
           .await?;
-        (func, obj_val)
+
+        // If the function already has 'this' bound (from eval_member_expression), use it.
+        // Otherwise, fall back to obj_val (for backward compatibility or other types).
+        let bound_this = if let ObjectKind::Function(FunctionKind::User {
+          this: Some(ref t),
+          ..
+        }) = func
+        {
+          t.as_ref().clone()
+        } else {
+          obj_val
+        };
+
+        (func, bound_this)
       }
       _ => (
         self.eval_expression(function, None).await?,
@@ -57,13 +70,21 @@ impl Interpreter {
         FunctionKind::Native(native_fn) => (native_fn.callback)(arguments)
           .await
           .map_err(|kind| Error::new(kind, span)),
-        FunctionKind::User { func, env } => {
+        FunctionKind::User {
+          func,
+          env,
+          this: bound_this,
+        } => {
+          let effective_this = bound_this
+            .as_ref()
+            .map(|t| t.as_ref().clone())
+            .unwrap_or(this);
           self
             .eval_user_function_call_with_this(
               &func,
               env.clone(),
               arguments,
-              this,
+              effective_this,
               span,
             )
             .await

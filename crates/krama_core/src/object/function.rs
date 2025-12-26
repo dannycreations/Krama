@@ -37,6 +37,7 @@ pub enum FunctionKind {
   User {
     func: Arc<UserFunction>,
     env: Option<Arc<RwLock<Scope>>>,
+    this: Option<Arc<ObjectKind>>,
   },
   Enum(Arc<Enum>),
 }

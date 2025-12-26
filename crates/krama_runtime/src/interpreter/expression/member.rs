@@ -58,12 +58,16 @@ impl Interpreter {
           if let Some(&index) = definition.method_map.get(property_name) {
             let method = &definition.methods[index];
             self.ensure_accessible(
-              method.public,
+              method.is_public,
               property_name,
               &definition.name,
               span,
             )?;
-            return Ok(Self::from_method(method));
+            return if method.is_static {
+              Ok(Self::from_method(method))
+            } else {
+              Ok(Self::bind_method(method, object.clone()))
+            };
           }
         }
 
@@ -86,12 +90,22 @@ impl Interpreter {
         if let Some(&index) = definition.method_map.get(property_name) {
           let method = &definition.methods[index];
           self.ensure_accessible(
-            method.public,
+            method.is_public,
             property_name,
             &definition.name,
             span,
           )?;
-          return Ok(Self::from_method(method));
+          return if method.is_static {
+            Ok(Self::from_method(method))
+          } else {
+            Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "Method '{}' in struct '{}' is an instance method and requires an instance",
+                property_name, definition.name
+              )),
+              span,
+            ))
+          };
         }
 
         Err(Error::new(
@@ -218,7 +232,21 @@ impl Interpreter {
         body: method.body.clone(),
         kind: method.kind.clone(),
       }),
-      env: None, // Methods don't capture environment at definition time in the same way, or handle 'this' dynamically
+      env: None,
+      this: None,
+    })
+  }
+
+  /// Binds a method to an instance.
+  fn bind_method(method: &StructMethod, instance: ObjectKind) -> ObjectKind {
+    ObjectKind::Function(FunctionKind::User {
+      func: Arc::new(UserFunction {
+        parameters: method.parameters.clone(),
+        body: method.body.clone(),
+        kind: method.kind.clone(),
+      }),
+      env: None,
+      this: Some(Arc::new(instance)),
     })
   }
 }

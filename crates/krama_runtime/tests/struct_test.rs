@@ -35,7 +35,7 @@ test_eval_ok! {
         this { x, y, z }
       }
       
-      pub fn sum(): f32 {
+      pub fn sum(this): f32 {
         this.x + this.y + this.z
       }
     }
@@ -91,7 +91,7 @@ test_eval_ok! {
     struct Box {
       value: i32,
       pub fn new(v: i32): this { this { value: v } }
-      pub fn get(): i32 { this.value }
+      pub fn get(this): i32 { this.value }
     }
     const b = Box.new(42)
     b.get()

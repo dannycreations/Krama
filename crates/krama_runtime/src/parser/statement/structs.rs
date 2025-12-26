@@ -89,15 +89,27 @@ impl<'a> Parser<'a> {
   /// Parses a method definition within a struct.
   fn parse_struct_method(
     &mut self,
-    public: bool,
+    is_public: bool,
   ) -> ErrorKindResult<StructMethod> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::Fn)?;
     let name = self.parse_identifier()?.into();
     self.consume(TokenKind::LParen)?;
 
+    let mut is_static = true;
+    let mut parameters = Vec::new();
+
+    // Check for 'this' as first parameter to indicate instance method
+    if self.current_token.kind == TokenKind::This {
+      is_static = false;
+      self.advance();
+      if self.current_token.kind == TokenKind::Comma {
+        self.advance();
+      }
+    }
+
     // Reuse parse_fn_parameters for consistency and to reduce duplication.
-    let parameters = self.parse_fn_parameters()?;
+    parameters.extend(self.parse_fn_parameters()?);
     self.consume(TokenKind::RParen)?;
 
     let (body, kind) = self.parse_classic_fn_body_and_return_type()?;
@@ -108,7 +120,8 @@ impl<'a> Parser<'a> {
     };
 
     Ok(StructMethod {
-      public,
+      is_public,
+      is_static,
       name,
       parameters,
       body,

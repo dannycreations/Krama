@@ -5,7 +5,7 @@ check: format
 	cargo +nightly clippy --all-features --all-targets --fix --allow-dirty -- -D warnings
 
 test: check
-	cargo nextest run --config-file nextest.toml
+	cargo nextest run --config-file nextest.toml $(filter-out $@,$(MAKECMDGOALS))
 
 bench: check
 	cargo bench

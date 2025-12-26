@@ -24,6 +24,10 @@ impl Interpreter {
     // Capture the current scope (closure environment)
     let env = Some(self.stack.read().current());
 
-    ObjectKind::Function(FunctionKind::User { func: user_fn, env })
+    ObjectKind::Function(FunctionKind::User {
+      func: user_fn,
+      env,
+      this: None,
+    })
   }
 }
