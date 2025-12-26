@@ -187,13 +187,8 @@ impl Interpreter {
             }
 
             let result = self.eval_block_statement(body).await?;
-            if result.is_control_signal() {
-              match result {
-                ObjectKind::Break => break,
-                ObjectKind::Continue => continue,
-                ObjectKind::Return(inner) if inner.is_result_err() => continue,
-                _ => return Ok(result),
-              }
+            if let Some(ctrl) = self.handle_loop_control(result) {
+              return Ok(ctrl);
             }
           }
           Ok(ObjectKind::Void)
@@ -219,13 +214,8 @@ impl Interpreter {
             self.stack.write().pop();
 
             let result = result?;
-            if result.is_control_signal() {
-              match result {
-                ObjectKind::Break => break,
-                ObjectKind::Continue => continue,
-                ObjectKind::Return(inner) if inner.is_result_err() => continue,
-                _ => return Ok(result),
-              }
+            if let Some(ctrl) = self.handle_loop_control(result) {
+              return Ok(ctrl);
             }
           }
           Ok(ObjectKind::Void)

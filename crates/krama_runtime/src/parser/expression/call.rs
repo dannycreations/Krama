@@ -6,13 +6,14 @@ use super::{ParseResult, Parser};
 
 impl<'a> Parser<'a> {
   pub fn parse_call_expression(&mut self, function: Expression) -> ParseResult {
-    let token = self.current_token.clone();
-    self.consume(TokenKind::LParen)?;
-
-    let arguments =
-      self.parse_comma_separated_expressions(TokenKind::RParen)?;
-    let end_token = self.consume(TokenKind::RParen)?;
-    let span = token.span.merge(&end_token.span);
+    let start_span = self.current_token.span;
+    let arguments = self.parse_delimited(
+      TokenKind::LParen,
+      TokenKind::RParen,
+      TokenKind::Comma,
+      |p| p.parse_expression(PrecedenceKind::Lowest),
+    )?;
+    let span = start_span.merge(&self.current_token.span);
     Ok(Expression::new(
       ExpressionKind::Call {
         function: Box::new(function),

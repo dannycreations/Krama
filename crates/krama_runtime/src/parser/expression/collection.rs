@@ -1,19 +1,20 @@
-use krama_core::{Expression, ExpressionKind, TokenKind};
+use krama_core::{Expression, ExpressionKind, PrecedenceKind, TokenKind};
 
 use super::{ParseResult, Parser};
 
 impl<'a> Parser<'a> {
   pub fn parse_collection_expression(&mut self) -> ParseResult {
-    let start_span = self.consume(TokenKind::LBracket)?.span;
-
-    let elements =
-      self.parse_comma_separated_expressions(TokenKind::RBracket)?;
-
-    let end_span = self.consume(TokenKind::RBracket)?.span;
-
+    let start_span = self.current_token.span;
+    let elements = self.parse_delimited(
+      TokenKind::LBracket,
+      TokenKind::RBracket,
+      TokenKind::Comma,
+      |p| p.parse_expression(PrecedenceKind::Lowest),
+    )?;
+    let span = start_span.merge(&self.current_token.span);
     Ok(Expression::new(
       ExpressionKind::Collection { elements },
-      start_span.merge(&end_span),
+      span,
     ))
   }
 }

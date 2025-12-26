@@ -90,4 +90,20 @@ impl Interpreter {
       Ok(None)
     }
   }
+
+  /// Handles loop control signals (Break, Continue, Return).
+  /// Returns Some(result) if the loop should terminate, None if it should continue.
+  #[inline(always)]
+  pub fn handle_loop_control(&self, result: ObjectKind) -> Option<ObjectKind> {
+    if result.is_control_signal() {
+      match result {
+        ObjectKind::Break => Some(ObjectKind::Void),
+        ObjectKind::Continue => None,
+        ObjectKind::Return(inner) if inner.is_result_err() => None,
+        _ => Some(result),
+      }
+    } else {
+      None
+    }
+  }
 }

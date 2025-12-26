@@ -8,9 +8,9 @@ macro_rules! count_args {
 macro_rules! parse_args {
   ($objects:expr, $fn_name:expr; $($arg:ident: $type:pat),*) => {
     const EXPECTED_ARGS: usize = count_args!($($arg),*);
-    if $objects.len() != EXPECTED_ARGS {
+    if $objects.len() < EXPECTED_ARGS {
       return Err(krama_core::ErrorKind::ArgumentError(format!(
-        "{} expected {} arguments, but got {}",
+        "{} expected at least {} arguments, but got {}",
         $fn_name, EXPECTED_ARGS, $objects.len()
       )));
     }

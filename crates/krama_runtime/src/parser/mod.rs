@@ -115,4 +115,33 @@ impl<'a> Parser<'a> {
   fn error(&self, message: String) -> ErrorKind {
     ErrorKind::SyntaxError(message)
   }
+
+  /// Helper to parse a delimited list of items.
+  pub fn parse_delimited<T, F>(
+    &mut self,
+    start: TokenKind,
+    end: TokenKind,
+    separator: TokenKind,
+    mut f: F,
+  ) -> ErrorKindResult<Vec<T>>
+  where
+    F: FnMut(&mut Self) -> ErrorKindResult<T>,
+  {
+    self.consume(start)?;
+    let mut items = Vec::new();
+    if self.current_token.kind != end {
+      loop {
+        items.push(f(self)?);
+        if self.current_token.kind == end {
+          break;
+        }
+        self.consume(separator.clone())?;
+        if self.current_token.kind == end {
+          break;
+        }
+      }
+    }
+    self.consume(end)?;
+    Ok(items)
+  }
 }
