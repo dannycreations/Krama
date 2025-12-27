@@ -4,7 +4,7 @@ use krama_core::{
   TypeKind,
 };
 
-use super::Parser;
+use crate::Parser;
 
 impl<'a> Parser<'a> {
   pub fn parse_type(&mut self) -> ErrorKindResult<Type> {

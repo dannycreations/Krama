@@ -1,20 +1,12 @@
-mod base;
-mod binary;
+use krama_core::{ErrorKind, PrecedenceKind, TokenKind};
+
+use crate::{ParseResult, Parser};
+
 mod call;
-mod collection;
 mod control;
-mod function;
-mod import;
-mod index;
-mod member;
-mod object;
-
-use krama_core::{
-  ErrorKind, Expression, ExpressionKind, PrecedenceKind, TokenKind,
-  UpdateOperator,
-};
-
-use super::{ParseResult, Parser};
+mod literal;
+mod primary;
+mod update;
 
 impl<'a> Parser<'a> {
   /// Central entry point for parsing expressions with precedence.
@@ -72,71 +64,5 @@ impl<'a> Parser<'a> {
         token.kind
       ))),
     }
-  }
-
-  /// Parses 'this' or struct construction.
-  fn parse_this_expression(&mut self) -> ParseResult {
-    let span = self.current_token.span;
-    self.advance();
-    if self.current_token.kind == TokenKind::LBrace {
-      // Use try_parse to avoid manual state cloning.
-      if let Ok(expr) = self.try_parse(|p| p.parse_object_expression()) {
-        if let ExpressionKind::Object { properties } = expr.kind {
-          return Ok(Expression::new(
-            ExpressionKind::StructConstruction { properties },
-            span.merge(&expr.span),
-          ));
-        }
-      }
-      return Err(ErrorKind::SyntaxError("Invalid struct construction".into()));
-    }
-    Ok(Expression::new(ExpressionKind::This, span))
-  }
-
-  /// Parses a block or an object literal depending on content.
-  fn parse_block_or_object_expression(&mut self) -> ParseResult {
-    // Use try_parse to distinguish between object literal and block statement.
-    if let Ok(expr) = self.try_parse(|p| p.parse_object_expression()) {
-      return Ok(expr);
-    }
-    let block = Box::new(self.parse_block_statement()?);
-    let span = block.span;
-    Ok(Expression::new(ExpressionKind::Block(block), span))
-  }
-
-  /// Parses an expression followed by a type annotation.
-  fn parse_typed_expression(&mut self, expr: Expression) -> ParseResult {
-    self.consume(TokenKind::Colon)?;
-    let kind = self.parse_type()?;
-    let span = expr.span.merge(&kind.span);
-    Ok(Expression::new(
-      ExpressionKind::Typed {
-        expr: Box::new(expr),
-        kind,
-      },
-      span,
-    ))
-  }
-
-  /// Parses postfix operators (++, --, ?).
-  fn parse_postfix_expression(&mut self, left: Expression) -> ParseResult {
-    let token = self.current_token.clone();
-    self.advance();
-    let span = left.span.merge(&token.span);
-    let kind = match token.kind {
-      TokenKind::PlusPlus => ExpressionKind::Update {
-        operator: UpdateOperator::Increment,
-        argument: Box::new(left),
-        prefix: false,
-      },
-      TokenKind::MinusMinus => ExpressionKind::Update {
-        operator: UpdateOperator::Decrement,
-        argument: Box::new(left),
-        prefix: false,
-      },
-      TokenKind::Question => ExpressionKind::Try(Box::new(left)),
-      _ => unreachable!(),
-    };
-    Ok(Expression::new(kind, span))
   }
 }

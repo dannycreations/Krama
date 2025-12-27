@@ -4,19 +4,18 @@ use std::{
 };
 
 use ahash::AHashMap;
+use indexmap::IndexMap;
 use krama_core::{
-  Binding, Error, ErrorKind, ErrorResult, FunctionKind, ObjectKind,
-  ObjectResult, Scope, Span,
+  Binding, Error, ErrorKind, FunctionKind, ObjectKind, ObjectResult, Span,
 };
 use krama_std::MODULES;
 use parking_lot::RwLock;
 use path_clean::PathClean;
 use tokio::fs;
 
-use super::Interpreter;
+use crate::interpreter::{types, Interpreter};
 
 impl Interpreter {
-  /// Evaluates an import expression, supporting both standard library and file-based modules.
   pub async fn eval_import(&self, path: &str, span: Span) -> ObjectResult {
     if path.starts_with("std:") {
       self.eval_std_module(path, span)
@@ -25,13 +24,11 @@ impl Interpreter {
     }
   }
 
-  /// Resolves a relative import path to an absolute path and its content.
   async fn resolve_import_path(
     &self,
     path: &str,
     span: &Span,
-  ) -> ErrorResult<(PathBuf, String)> {
-    // 1. Determine base path for resolution.
+  ) -> crate::ErrorResult<(PathBuf, String)> {
     let base_path = self
       .path
       .as_ref()
@@ -40,12 +37,10 @@ impl Interpreter {
 
     let path_buf = base_path.join(path).clean();
 
-    // 2. Try reading the exact path.
     if let Ok(content) = fs::read_to_string(&path_buf).await {
       return Ok((path_buf, content));
     }
 
-    // 3. Try appending .km extension.
     let path_with_ext = path_buf.with_extension("km");
     if let Ok(content) = fs::read_to_string(&path_with_ext).await {
       return Ok((path_with_ext, content));
@@ -60,16 +55,13 @@ impl Interpreter {
     ))
   }
 
-  /// Loads and caches a standard library module.
   fn eval_std_module(&self, path: &str, span: Span) -> ObjectResult {
     let module_name = path.strip_prefix("std:").unwrap().to_string();
 
-    // Check module cache.
     if let Some(module) = self.modules.read().get(module_name.as_str()) {
       return Ok(module.clone());
     }
 
-    // Initialize module from krama_std definitions.
     MODULES
       .get(module_name.as_str())
       .map(|bindings| {
@@ -85,7 +77,7 @@ impl Interpreter {
           );
         }
 
-        let module = Scope {
+        let module = krama_core::Scope {
           name: Some(module_name.clone().into()),
           bindings: scope_bindings,
           parent: None,
@@ -108,23 +100,18 @@ impl Interpreter {
       })
   }
 
-  /// Loads, executes, and caches a file-based module.
   async fn eval_file_module(&self, path: &str, span: Span) -> ObjectResult {
     let (resolved_path, source) = self.resolve_import_path(path, &span).await?;
     let resolved_path_key = resolved_path.to_string_lossy().to_string();
 
-    // Check module cache.
     if let Some(module) = self.modules.read().get(resolved_path_key.as_str()) {
       return Ok(module.clone());
     }
 
-    // 1. Create a fresh interpreter for the module.
     let new_interpreter = Interpreter::new(Some(resolved_path_key.clone()));
 
-    // Evaluate the module source
     new_interpreter.eval(&source).await?;
 
-    // 2. Extract public bindings from the module's stack (top-level scope).
     let public_values = new_interpreter.stack.read().get_public_bindings();
 
     let mut bindings = AHashMap::with_capacity(public_values.len());
@@ -134,23 +121,65 @@ impl Interpreter {
         Binding {
           value,
           public: true,
-          constant: true, // Exports are constant consumers
+          constant: true,
         },
       );
     }
 
-    let module = ObjectKind::Scope(Arc::new(RwLock::new(Scope {
+    let module = ObjectKind::Scope(Arc::new(RwLock::new(krama_core::Scope {
       name: Some(resolved_path_key.clone().into()),
       bindings,
       parent: None,
     })));
 
-    // 3. Cache the module for future imports.
     self
       .modules
       .write()
       .insert(resolved_path_key, module.clone());
 
     Ok(module)
+  }
+
+  pub async fn eval_struct_construction(
+    &self,
+    properties: &[(krama_core::Expression, krama_core::Expression)],
+    span: Span,
+  ) -> ObjectResult {
+    let this_obj = self.get_this(span)?;
+    let ObjectKind::Struct(definition) = this_obj else {
+      return Err(Error::new(
+        ErrorKind::TypeError(format!(
+          "'this' is not a struct definition, found {}",
+          this_obj.type_name()
+        )),
+        span,
+      ));
+    };
+
+    let fields = self.eval_properties(properties).await?;
+    let mut final_fields = IndexMap::with_capacity(definition.fields.len());
+    for field in &definition.fields {
+      let value = match fields.get(field.name.as_ref()) {
+        Some(val) => val.clone(),
+        None => match &field.default {
+          Some(default) => self.eval_expression(default, None).await?,
+          None => {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!("Missing field '{}'", field.name)),
+              span,
+            ))
+          }
+        },
+      };
+      types::check_type(&field.kind, &value)?;
+      final_fields.insert(field.name.clone(), value);
+    }
+
+    Ok(
+      self
+        .heap
+        .write()
+        .alloc_object(final_fields, Some(definition), false),
+    )
   }
 }

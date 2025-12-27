@@ -5,11 +5,18 @@ use parking_lot::RwLock;
 use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
 
-use crate::{EnumInstance, FunctionKind, Scope, Struct, Type};
+use super::{
+  function::FunctionKind,
+  scope::Scope,
+  types::{EnumInstance, Struct},
+};
+use crate::{LiteralKind, Type};
+
+mod binary;
+mod display;
+mod unary;
 
 /// The fundamental value type in the language.
-/// Uses `ObjectKind` to represent everything from primitives to complex structures.
-/// Optimized with Arc for shared ownership and Box for large variants to keep enum size small.
 #[derive(Debug, Clone, EnumPropertyMacro)]
 #[repr(C, u8)]
 pub enum ObjectKind {
@@ -27,7 +34,6 @@ pub enum ObjectKind {
   String(Arc<str>),
   #[strum(props(name = "array"))]
   Array {
-    // Use Arc<RwLock<Vec>> for interior mutability and shared ownership.
     elements: Arc<RwLock<Vec<ObjectKind>>>,
     kind: Type,
     constant: bool,
@@ -36,7 +42,6 @@ pub enum ObjectKind {
   Tuple(Arc<[ObjectKind]>),
   #[strum(props(name = "object"))]
   Object {
-    // Use Arc<RwLock<IndexMap>> to avoid cloning large maps.
     properties: Arc<RwLock<IndexMap<Arc<str>, ObjectKind>>>,
     definition: Option<Arc<Struct>>,
     constant: bool,
@@ -63,13 +68,11 @@ pub enum ObjectKind {
 }
 
 impl ObjectKind {
-  /// Optimized check for control signals to avoid deep matching in hot paths.
   #[inline(always)]
   pub fn is_control_signal(&self) -> bool {
     matches!(self, Self::Return(_) | Self::Break | Self::Continue)
   }
 
-  /// Efficiently unwraps a return signal if present.
   #[inline(always)]
   pub fn unwrap_return(&self) -> &Self {
     if let Self::Return(v) = self {
@@ -79,7 +82,6 @@ impl ObjectKind {
     }
   }
 
-  /// Efficiently unwraps a return error signal if present.
   #[inline(always)]
   pub fn unwrap_return_err(&self) -> &Self {
     if let Self::Return(v) = self {
@@ -90,7 +92,6 @@ impl ObjectKind {
     self
   }
 
-  /// Quick check for truthiness.
   #[inline(always)]
   pub fn is_truthy(&self) -> bool {
     match self {
@@ -106,7 +107,6 @@ impl ObjectKind {
     }
   }
 
-  /// Returns the type name of the object.
   pub fn type_name(&self) -> &str {
     match self {
       Self::Enum(instance) => &instance.name,
@@ -121,7 +121,6 @@ impl ObjectKind {
     }
   }
 
-  /// Sets the constancy of an object. Only applicable to heap-allocated collections.
   pub fn set_constant(&mut self, is_constant: bool) {
     match self {
       Self::Array { constant, .. } | Self::Object { constant, .. } => {
@@ -131,15 +130,65 @@ impl ObjectKind {
     }
   }
 
-  /// Checks if the object is a Result::Err or a Return(Result::Err).
   #[inline(always)]
   pub fn is_result_err(&self) -> bool {
     matches!(self, Self::Err(_))
   }
 }
 
+impl PartialEq for ObjectKind {
+  #[inline]
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Self::Integer(l), Self::Integer(r)) => l == r,
+      (Self::Float(l), Self::Float(r)) => l == r,
+      (Self::Boolean(l), Self::Boolean(r)) => l == r,
+      (Self::String(l), Self::String(r)) => Arc::ptr_eq(l, r) || *l == *r,
+      (Self::Array { elements: l, .. }, Self::Array { elements: r, .. }) => {
+        Arc::ptr_eq(l, r)
+      }
+      (Self::Tuple(l), Self::Tuple(r)) => Arc::ptr_eq(l, r),
+      (
+        Self::Object { properties: l, .. },
+        Self::Object { properties: r, .. },
+      ) => Arc::ptr_eq(l, r),
+      (Self::Null, Self::Null) | (Self::Void, Self::Void) => true,
+      (Self::Scope(l), Self::Scope(r)) => Arc::ptr_eq(l, r),
+      (Self::Function(l), Self::Function(r)) => l == r,
+      (Self::Return(l), Self::Return(r)) => Arc::ptr_eq(l, r) || l == r,
+      (Self::Break, Self::Break) | (Self::Continue, Self::Continue) => true,
+      (Self::Ok(l), Self::Ok(r)) | (Self::Err(l), Self::Err(r)) => {
+        Arc::ptr_eq(l, r) || l == r
+      }
+      (Self::Enum(l), Self::Enum(r)) => l == r,
+      (Self::Struct(l), Self::Struct(r)) => Arc::ptr_eq(l, r),
+      (Self::Type(l), Self::Type(r)) => l == r,
+      _ => false,
+    }
+  }
+}
+
 impl From<EnumInstance> for ObjectKind {
   fn from(instance: EnumInstance) -> Self {
     Self::Enum(Box::new(instance))
+  }
+}
+
+impl From<LiteralKind> for ObjectKind {
+  fn from(literal: LiteralKind) -> Self {
+    match literal {
+      LiteralKind::Integer(i) => Self::Integer(i),
+      LiteralKind::Float(f) => Self::Float(f),
+      LiteralKind::String(s) => Self::String(s),
+      LiteralKind::Boolean(b) => Self::Boolean(b),
+      LiteralKind::Null => Self::Null,
+    }
+  }
+}
+
+impl From<&ObjectKind> for bool {
+  #[inline]
+  fn from(obj: &ObjectKind) -> bool {
+    obj.is_truthy()
   }
 }

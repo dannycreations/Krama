@@ -3,8 +3,10 @@ use std::sync::Arc;
 use futures::future::LocalBoxFuture;
 use parking_lot::RwLock;
 
+use super::kind::ObjectKind;
 use crate::{
-  Enum, ErrorKindResult, FunctionBody, ObjectKind, Parameter, Scope, Type,
+  object::{scope::Scope, types::Enum},
+  ErrorKindResult, FunctionBody, Parameter, Type,
 };
 
 /// Callback type for native functions implemented in Rust.
@@ -20,6 +22,12 @@ pub type PropertyFnCb =
 pub struct NativeFunction {
   pub name: &'static str,
   pub callback: NativeFnCb,
+}
+
+impl PartialEq for NativeFunction {
+  fn eq(&self, other: &Self) -> bool {
+    self.name == other.name && self.callback as usize == other.callback as usize
+  }
 }
 
 /// Represents a function defined by the user in source code.
@@ -40,4 +48,18 @@ pub enum FunctionKind {
     this: Option<Arc<ObjectKind>>,
   },
   Enum(Arc<Enum>),
+}
+
+impl PartialEq for FunctionKind {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (FunctionKind::Native(a), FunctionKind::Native(b)) => a == b,
+      (
+        FunctionKind::User { func: a, .. },
+        FunctionKind::User { func: b, .. },
+      ) => Arc::ptr_eq(a, b),
+      (FunctionKind::Enum(a), FunctionKind::Enum(b)) => Arc::ptr_eq(a, b),
+      _ => false,
+    }
+  }
 }

@@ -1,35 +1,23 @@
-mod assignment;
-mod binary;
-mod call;
-mod collection;
-mod control;
-mod identifier;
-mod import;
-mod index;
-mod member;
-mod properties;
-mod result;
-mod structs;
-mod unary;
-
 use std::sync::Arc;
 
-use futures::{
-  future::{FutureExt, LocalBoxFuture},
-  try_join,
-};
-use krama_core::{
-  Error, ErrorKind, Expression, ExpressionKind, ObjectKind, ObjectResult, Span,
-};
+use futures::future::{FutureExt, LocalBoxFuture};
+use krama_core::{Expression, ExpressionKind, ObjectKind, ObjectResult, Type};
 
 use crate::interpreter::Interpreter;
+
+mod call;
+mod control;
+mod lvalue;
+mod member;
+mod module;
+mod primary;
 
 impl Interpreter {
   /// Evaluates an expression and returns its resulting object.
   pub fn eval_expression<'s>(
     &'s self,
     expression: &'s Expression,
-    kind: Option<&'s krama_core::Type>,
+    kind: Option<&'s Type>,
   ) -> LocalBoxFuture<'s, ObjectResult> {
     async move {
       let span = expression.span;
@@ -84,7 +72,7 @@ impl Interpreter {
           self.eval_member_expression(object, property, span).await
         }
         ExpressionKind::Index { object, index } => {
-          let (object, index) = try_join!(
+          let (object, index) = futures::try_join!(
             self.eval_expression(object, None),
             self.eval_expression(index, None)
           )?;
@@ -127,14 +115,11 @@ impl Interpreter {
           self.eval_import(path, span).await
         }
         ExpressionKind::Typed { expr, kind } => {
-          // Use eval_and_check_type to deduplicate type validation logic.
           self.eval_and_check_type(expr, Some(kind)).await
         }
         ExpressionKind::Try(expr) => self.eval_result(expr, span).await,
       }?;
-      // Implicitly propagate errors by wrapping Err in Return if not handled by Try.
-      // This ensures errors bubble up through the call stack unless explicitly caught.
-      // O(1) check for ErrorKind::Try to avoid unnecessary clones or deep matches.
+
       if !matches!(expression.kind, ExpressionKind::Try(_))
         && result.is_result_err()
       {
@@ -144,17 +129,5 @@ impl Interpreter {
       }
     }
     .boxed_local()
-  }
-
-  /// Retrieves the 'this' object from the current environment.
-  pub fn get_this(&self, span: Span) -> ObjectResult {
-    self.stack.read().get("this").ok_or_else(|| {
-      Error::new(
-        ErrorKind::ReferenceError(
-          "'this' is not defined in the current scope".into(),
-        ),
-        span,
-      )
-    })
   }
 }

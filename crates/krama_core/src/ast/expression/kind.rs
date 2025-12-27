@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
+use super::Expression;
 use crate::{
-  AssignmentOperator, BinaryOperator, LiteralKind, Node, Parameter,
-  StatementBlock, Type, UnaryOperator, UpdateOperator,
+  AssignmentOperator, BinaryOperator, LiteralKind, Parameter, StatementBlock,
+  Type, UnaryOperator, UpdateOperator,
 };
-
-pub type Expression = Node<ExpressionKind>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionBody {

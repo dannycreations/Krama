@@ -1,19 +1,14 @@
-mod assignment;
-mod block;
-mod control;
-mod enums;
-mod function;
-mod iteration;
-mod public;
-mod structs;
-mod test;
-mod types;
-
 use krama_core::{
-  ErrorKindResult, PrecedenceKind, Statement, StatementKind, TokenKind,
+  ErrorKind, ErrorKindResult, PrecedenceKind, Statement, StatementBlock,
+  StatementKind, TokenKind,
 };
 
-use super::Parser;
+use crate::Parser;
+
+mod control;
+mod declaration;
+mod iteration;
+mod test;
 
 impl<'a> Parser<'a> {
   pub fn parse_statement(&mut self) -> ErrorKindResult<Statement> {
@@ -48,5 +43,31 @@ impl<'a> Parser<'a> {
     }
 
     Ok(statement)
+  }
+
+  pub fn parse_block_statement(&mut self) -> ErrorKindResult<StatementBlock> {
+    let start_span = self.current_token.span;
+    self.advance();
+    let mut statements = Vec::new();
+
+    while self.current_token.kind != TokenKind::RBrace
+      && self.current_token.kind != TokenKind::Eof
+    {
+      statements.push(self.parse_statement()?);
+    }
+
+    if self.current_token.kind == TokenKind::Eof {
+      return Err(ErrorKind::SyntaxError(format!(
+        "Unexpected end of file: missing {}",
+        TokenKind::RBrace
+      )));
+    }
+
+    let end_span = self.current_token.span;
+    self.advance();
+    Ok(StatementBlock {
+      statements,
+      span: start_span.merge(&end_span),
+    })
   }
 }

@@ -58,7 +58,6 @@ async fn read_dir(objects: &[ObjectKind]) -> ObjectResult {
     })?;
     entries.push(ObjectKind::String(entry.into()));
   }
-
   Ok(ObjectKind::Array {
     elements: Arc::new(RwLock::new(entries)),
     kind: Type::new(TypeKind::Str, Span::empty()),

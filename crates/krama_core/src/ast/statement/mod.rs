@@ -1,6 +1,9 @@
+mod kind;
 use std::sync::Arc;
 
-use crate::{Expression, FunctionBody, Node, Span, Type};
+pub use kind::*;
+
+use crate::{Expression, Node, Span, Type};
 
 pub type Statement = Node<StatementKind>;
 
@@ -56,7 +59,7 @@ pub struct StructMethod {
   pub is_static: bool,
   pub name: Arc<str>,
   pub parameters: Vec<Parameter>,
-  pub body: FunctionBody,
+  pub body: crate::FunctionBody,
   pub kind: Option<Type>,
   pub span: Span,
 }
@@ -65,63 +68,4 @@ pub struct StructMethod {
 pub enum ForBinding {
   Identifier(Arc<str>),
   Array(Vec<ForBinding>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum StatementKind {
-  Test {
-    name: Box<Expression>,
-    body: Box<StatementBlock>,
-  },
-  Const {
-    public: bool,
-    binding: ConstBinding,
-    kind: Option<Type>,
-    value: Box<Expression>,
-  },
-  Let {
-    name: Arc<str>,
-    kind: Option<Type>,
-    value: Box<Expression>,
-  },
-  Fn {
-    public: bool,
-    name: Arc<str>,
-    parameters: Vec<Parameter>,
-    body: FunctionBody,
-    kind: Option<Type>,
-  },
-  Enum {
-    public: bool,
-    name: Arc<str>,
-    variants: Vec<EnumVariant>,
-  },
-  Struct {
-    public: bool,
-    name: Arc<str>,
-    fields: Vec<StructField>,
-    methods: Vec<StructMethod>,
-  },
-  Type {
-    public: bool,
-    name: Arc<str>,
-    kind: Type,
-  },
-  Expression {
-    expression: Box<Expression>,
-  },
-  Return {
-    value: Option<Box<Expression>>,
-  },
-  While {
-    condition: Box<Expression>,
-    body: Box<StatementBlock>,
-  },
-  For {
-    binding: ForBinding,
-    iterable: Box<Expression>,
-    body: Box<StatementBlock>,
-  },
-  Break,
-  Continue,
 }

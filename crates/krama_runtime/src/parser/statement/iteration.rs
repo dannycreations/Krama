@@ -3,20 +3,16 @@ use krama_core::{
   StatementKind, TokenKind,
 };
 
-use super::Parser;
+use crate::Parser;
 
 impl<'a> Parser<'a> {
   pub fn parse_while_statement(&mut self) -> ErrorKindResult<Statement> {
     let start_span = self.current_token.span;
     self.advance();
-
     self.consume(TokenKind::LParen)?;
-
     let condition = self.parse_expression(PrecedenceKind::Lowest)?;
-
     self.consume(TokenKind::RParen)?;
     let body = self.parse_block_statement()?;
-
     Ok(Statement::new(
       StatementKind::While {
         condition: Box::new(condition),
@@ -29,19 +25,12 @@ impl<'a> Parser<'a> {
   pub fn parse_for_statement(&mut self) -> ErrorKindResult<Statement> {
     let start_span = self.current_token.span;
     self.advance();
-
     self.consume(TokenKind::LParen)?;
-
     let binding = self.parse_for_binding()?;
-
     self.consume(TokenKind::In)?;
-
     let iterable = self.parse_expression(PrecedenceKind::Lowest)?;
-
     self.consume(TokenKind::RParen)?;
-
     let body = self.parse_block_statement()?;
-
     Ok(Statement::new(
       StatementKind::For {
         binding,

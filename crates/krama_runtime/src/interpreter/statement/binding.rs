@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use krama_core::{
-  ConstBinding, Destructure, Error, ErrorKind, ErrorResult, ObjectKind, Span,
+  ConstBinding, Destructure, Error, ErrorKind, ErrorResult, ForBinding,
+  ObjectKind, Span,
 };
 
 use crate::interpreter::Interpreter;
 
 impl Interpreter {
-  /// Applies a binding (Identifier or Destructuring) to the environment.
   pub fn apply_binding(
     &self,
     binding: &ConstBinding,
@@ -29,10 +29,9 @@ impl Interpreter {
     Ok(())
   }
 
-  /// Handles destructuring logic for module imports.
   pub fn apply_destructuring(
     &self,
-    alias: Option<&str>,
+    alias: Option<&Arc<str>>,
     items: &[Destructure],
     value: ObjectKind,
     public: bool,
@@ -41,7 +40,7 @@ impl Interpreter {
     if let ObjectKind::Scope(scope) = &value {
       if let Some(alias_name) = alias {
         self.stack.write().define(
-          Arc::from(alias_name),
+          alias_name.clone(),
           value.clone(),
           public,
           true,
@@ -72,6 +71,44 @@ impl Interpreter {
         ),
         span,
       ))
+    }
+  }
+
+  pub fn assign_for_binding(
+    &self,
+    binding: &ForBinding,
+    value: ObjectKind,
+    span: Span,
+  ) -> ErrorResult {
+    match binding {
+      ForBinding::Identifier(name) => {
+        self
+          .stack
+          .write()
+          .define(name.clone(), value.clone(), false, false);
+        Ok(())
+      }
+      ForBinding::Array(bindings) => {
+        let elements = match &value {
+          ObjectKind::Array { elements, .. } => elements.read().to_vec(),
+          ObjectKind::Tuple(elements) => elements.as_ref().to_vec(),
+          _ => {
+            return Err(Error::new(
+              ErrorKind::TypeError(format!(
+                "Expected array or tuple for destructuring, found {}",
+                value.type_name()
+              )),
+              span,
+            ));
+          }
+        };
+
+        for (i, binding) in bindings.iter().enumerate() {
+          let val = elements.get(i).cloned().unwrap_or(ObjectKind::Void);
+          self.assign_for_binding(binding, val, span)?;
+        }
+        Ok(())
+      }
     }
   }
 }

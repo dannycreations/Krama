@@ -9,7 +9,6 @@ async fn assert(objects: &[ObjectKind]) -> ObjectResult {
       "Assertion failed: condition is not truthy".to_string(),
     ));
   }
-
   Ok(ObjectKind::Void)
 }
 
@@ -22,6 +21,5 @@ async fn assert_eq(objects: &[ObjectKind]) -> ObjectResult {
       a, b
     )));
   }
-
   Ok(ObjectKind::Void)
 }

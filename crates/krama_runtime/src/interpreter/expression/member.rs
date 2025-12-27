@@ -1,23 +1,17 @@
-use std::sync::Arc;
-
 use krama_core::{
-  Error, ErrorKind, ErrorResult, Expression, ExpressionKind, FunctionKind,
-  ObjectKind, ObjectResult, Span, StructMethod, UserFunction,
+  Error, ErrorKind, Expression, ExpressionKind, ObjectKind, ObjectResult, Span,
 };
 use krama_std::PROPS;
 
-use crate::Interpreter;
+use crate::interpreter::Interpreter;
 
 impl Interpreter {
-  /// Evaluates a member access expression (e.g., object.property).
-  /// Supports objects, structs, modules, and built-in properties.
   pub async fn eval_member_expression(
     &self,
     object: ObjectKind,
     property: &Expression,
     span: Span,
   ) -> ObjectResult {
-    // 1. Extract property name from the identifier.
     let property_name = if let ExpressionKind::Identifier(name) = &property.kind
     {
       name
@@ -29,16 +23,13 @@ impl Interpreter {
     };
 
     match &object {
-      // 2. Handle Object literals and Struct instances.
       ObjectKind::Object {
         properties,
         definition,
         ..
       } => {
-        // a. O(1) property lookup.
         if let Some(value) = properties.read().get(property_name) {
           if let Some(definition) = definition {
-            // O(1) field visibility check using pre-computed field_map.
             if let Some(&index) = definition.field_map.get(property_name) {
               let field_def = &definition.fields[index];
               self.ensure_accessible(
@@ -52,9 +43,7 @@ impl Interpreter {
           return Ok(value.clone());
         }
 
-        // b. Check methods if it's a struct instance.
         if let Some(ref definition) = definition {
-          // Optimized O(1) method lookup using pre-computed method_map.
           if let Some(&index) = definition.method_map.get(property_name) {
             let method = &definition.methods[index];
             self.ensure_accessible(
@@ -84,9 +73,7 @@ impl Interpreter {
         }
       }
 
-      // 4. Handle Struct definitions (Static methods).
       ObjectKind::Struct(definition) => {
-        // Optimized O(1) method lookup using pre-computed method_map.
         if let Some(&index) = definition.method_map.get(property_name) {
           let method = &definition.methods[index];
           self.ensure_accessible(
@@ -99,12 +86,12 @@ impl Interpreter {
             Ok(Self::from_method(method))
           } else {
             Err(Error::new(
-              ErrorKind::TypeError(format!(
-                "Method '{}' in struct '{}' is an instance method and requires an instance",
-                property_name, definition.name
-              )),
-              span,
-            ))
+                            ErrorKind::TypeError(format!(
+                                "Method '{}' in struct '{}' is an instance method and requires an instance",
+                                property_name, definition.name
+                            )),
+                            span,
+                        ))
           };
         }
 
@@ -117,7 +104,6 @@ impl Interpreter {
         ))
       }
 
-      // 5. Handle Scopes (Modules).
       ObjectKind::Scope(scope) => {
         let scope = scope.read();
         if let Some(binding) = scope.get_local(property_name) {
@@ -143,7 +129,6 @@ impl Interpreter {
         }
       }
 
-      // 6. Handle Enum variants.
       ObjectKind::Enum(instance) => {
         if property_name.as_ref() == "variant" {
           return Ok(ObjectKind::String(instance.variant.clone()));
@@ -171,7 +156,6 @@ impl Interpreter {
         ))
       }
 
-      // 7. Handle Built-in properties (Standard library extensions).
       _ => {
         let type_name = object.type_name();
         if let Some(callback) = PROPS
@@ -194,19 +178,112 @@ impl Interpreter {
     }
   }
 
-  /// Verifies if a member is accessible based on its visibility and the current execution context.
+  pub async fn eval_index_expression(
+    &self,
+    mut object: ObjectKind,
+    index: ObjectKind,
+    span: Span,
+  ) -> ObjectResult {
+    match &mut object {
+      ObjectKind::Array { elements, .. } => {
+        let idx = self.ensure_int_index(&index, span)?;
+        Ok(self.get_by_index(&elements.read(), idx))
+      }
+      ObjectKind::Tuple(elements) => {
+        let idx = self.ensure_int_index(&index, span)?;
+        Ok(self.get_by_index(elements.as_ref(), idx))
+      }
+      ObjectKind::String(s) => {
+        let idx = self.ensure_int_index(&index, span)?;
+        let real_idx = self.resolve_index(idx, s.len());
+
+        Ok(if let Some(i) = real_idx {
+          ObjectKind::String(s.chars().nth(i).unwrap().to_string().into())
+        } else {
+          ObjectKind::Void
+        })
+      }
+      ObjectKind::Object { properties, .. } => {
+        let key = if let ObjectKind::String(s) = index {
+          s
+        } else {
+          return Err(Error::new(
+            ErrorKind::TypeError(format!(
+              "object keys must be strings, not {}",
+              index.type_name()
+            )),
+            span,
+          ));
+        };
+
+        Ok(
+          properties
+            .read()
+            .get(&key)
+            .cloned()
+            .unwrap_or(ObjectKind::Void),
+        )
+      }
+      _ => Err(Error::new(
+        ErrorKind::TypeError(format!(
+          "{} does not support indexing",
+          object.type_name()
+        )),
+        span,
+      )),
+    }
+  }
+
+  #[inline]
+  pub fn ensure_int_index(
+    &self,
+    index: &ObjectKind,
+    span: Span,
+  ) -> crate::ErrorResult<i64> {
+    if let ObjectKind::Integer(i) = index {
+      Ok(*i)
+    } else {
+      Err(Error::new(
+        ErrorKind::TypeError(format!(
+          "indices must be integers, not {}",
+          index.type_name()
+        )),
+        span,
+      ))
+    }
+  }
+
+  #[inline]
+  pub fn resolve_index(&self, idx: i64, len: usize) -> Option<usize> {
+    let real_idx = if idx < 0 { len as i64 + idx } else { idx };
+
+    if real_idx >= 0 && (real_idx as usize) < len {
+      Some(real_idx as usize)
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  pub fn get_by_index(&self, elements: &[ObjectKind], idx: i64) -> ObjectKind {
+    if let Some(i) = self.resolve_index(idx, elements.len()) {
+      elements[i].clone()
+    } else {
+      ObjectKind::Void
+    }
+  }
+
   fn ensure_accessible(
     &self,
     public: bool,
     member_name: &str,
     struct_name: &str,
     span: Span,
-  ) -> ErrorResult {
+  ) -> crate::ErrorResult {
     if public {
       return Ok(());
     }
 
-    // Check if the current scope is within the same struct definition.
     let stack = self.stack.read();
     let current_struct = stack.get("__current_struct__");
     let allowed = if let Some(ObjectKind::String(name)) = current_struct {
@@ -222,31 +299,5 @@ impl Interpreter {
       ));
     }
     Ok(())
-  }
-
-  /// Allocates a new UserFunction from a StructMethod.
-  fn from_method(method: &StructMethod) -> ObjectKind {
-    ObjectKind::Function(FunctionKind::User {
-      func: Arc::new(UserFunction {
-        parameters: method.parameters.clone(),
-        body: method.body.clone(),
-        kind: method.kind.clone(),
-      }),
-      env: None,
-      this: None,
-    })
-  }
-
-  /// Binds a method to an instance.
-  fn bind_method(method: &StructMethod, instance: ObjectKind) -> ObjectKind {
-    ObjectKind::Function(FunctionKind::User {
-      func: Arc::new(UserFunction {
-        parameters: method.parameters.clone(),
-        body: method.body.clone(),
-        kind: method.kind.clone(),
-      }),
-      env: None,
-      this: Some(Arc::new(instance)),
-    })
   }
 }

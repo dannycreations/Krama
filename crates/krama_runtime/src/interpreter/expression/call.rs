@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use futures::future::try_join_all;
 use krama_core::{
-  EnumInstance, Error, ErrorKind, Expression, ExpressionKind, FunctionBody,
-  FunctionKind, ObjectKind, ObjectResult, Span, UserFunction,
+  Error, ErrorKind, Expression, ExpressionKind, FunctionBody, FunctionKind,
+  ObjectKind, ObjectResult, Parameter, Span, StructMethod, Type, UserFunction,
 };
 
-use crate::{check_type, Interpreter};
+use crate::interpreter::{types::check_type, Interpreter};
 
 impl Interpreter {
-  /// Evaluates a function call, handling both direct calls and method calls.
   pub async fn eval_call(
     &self,
     function: &Expression,
@@ -23,8 +22,6 @@ impl Interpreter {
           .eval_member_expression(obj_val.clone(), property, span)
           .await?;
 
-        // If the function already has 'this' bound (from eval_member_expression), use it.
-        // Otherwise, fall back to obj_val (for backward compatibility or other types).
         let bound_this = if let ObjectKind::Function(FunctionKind::User {
           this: Some(ref t),
           ..
@@ -57,7 +54,6 @@ impl Interpreter {
       .await
   }
 
-  /// Evaluates a function call with a specific 'this' binding.
   pub async fn eval_call_expression_with_this(
     &self,
     function: ObjectKind,
@@ -102,11 +98,10 @@ impl Interpreter {
               span,
             ));
           }
-          // Enum values store fields as Arc<[ObjectKind]> for efficient sharing and size predictability.
-          Ok(ObjectKind::Enum(Box::new(EnumInstance {
+          Ok(ObjectKind::Enum(Box::new(krama_core::EnumInstance {
             name: constructor.name.clone(),
             variant: constructor.variant.clone(),
-            fields: Some(arguments.into()),
+            fields: Some(Arc::from(arguments)),
           })))
         }
       },
@@ -120,8 +115,7 @@ impl Interpreter {
     }
   }
 
-  /// Internal helper to execute a user-defined function.
-  async fn eval_user_function_call_with_this(
+  pub async fn eval_user_function_call_with_this(
     &self,
     user_fn: &UserFunction,
     closure_env: Option<Arc<parking_lot::RwLock<krama_core::Scope>>>,
@@ -140,14 +134,11 @@ impl Interpreter {
       ));
     }
 
-    // Reuse the stack reference to avoid multiple Arc clones.
     let stack_ref = &self.stack;
 
-    // Push a new scope onto the stack.
     stack_ref.write().push("function_call".into(), closure_env);
 
     if !matches!(this, ObjectKind::Void) {
-      // Lock stack once for multiple define calls.
       let mut stack = stack_ref.write();
       stack.define("this".into(), this.clone(), false, true);
 
@@ -201,10 +192,56 @@ impl Interpreter {
       FunctionBody::Expression(expr) => self.eval_expression(expr, None).await,
     };
 
-    // Pop the stack frame (which is the current scope)
     stack_ref.write().pop();
 
-    // Functions always unwrap Return signals to return the underlying value.
     Ok(result?.unwrap_return().clone())
+  }
+
+  pub fn alloc_user_function(
+    &self,
+    parameters: Vec<Parameter>,
+    body: FunctionBody,
+    kind: Option<Type>,
+  ) -> ObjectKind {
+    let user_fn = Arc::new(UserFunction {
+      parameters,
+      body,
+      kind,
+    });
+
+    let env = Some(self.stack.read().current());
+
+    ObjectKind::Function(FunctionKind::User {
+      func: user_fn,
+      env,
+      this: None,
+    })
+  }
+
+  pub fn from_method(method: &StructMethod) -> ObjectKind {
+    ObjectKind::Function(FunctionKind::User {
+      func: Arc::new(UserFunction {
+        parameters: method.parameters.clone(),
+        body: method.body.clone(),
+        kind: method.kind.clone(),
+      }),
+      env: None,
+      this: None,
+    })
+  }
+
+  pub fn bind_method(
+    method: &StructMethod,
+    instance: ObjectKind,
+  ) -> ObjectKind {
+    ObjectKind::Function(FunctionKind::User {
+      func: Arc::new(UserFunction {
+        parameters: method.parameters.clone(),
+        body: method.body.clone(),
+        kind: method.kind.clone(),
+      }),
+      env: None,
+      this: Some(Arc::new(instance)),
+    })
   }
 }

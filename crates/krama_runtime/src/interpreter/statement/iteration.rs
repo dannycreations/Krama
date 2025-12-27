@@ -1,90 +1,75 @@
-use krama_core::{Error, ErrorKind, ErrorResult, ForBinding, ObjectKind, Span};
+use krama_core::{
+  AssignmentOperator, Expression, ExpressionKind, ObjectKind, ObjectResult,
+  Span, StatementBlock,
+};
 
 use crate::interpreter::Interpreter;
 
 impl Interpreter {
-  /// Collects elements from an iterable for a for-loop.
-  pub fn collect_iterable_elements(
+  pub async fn eval_while_statement(
     &self,
-    iterable: &ObjectKind,
-    binding: &ForBinding,
-    span: Span,
-  ) -> ErrorResult<Vec<ObjectKind>> {
-    match iterable {
-      ObjectKind::Array { elements, .. } => Ok(elements.read().to_vec()),
-      ObjectKind::Tuple(elements) => Ok(elements.as_ref().to_vec()),
-      ObjectKind::String(s) => Ok(
-        s.chars()
-          .map(|c| ObjectKind::String(c.to_string().into()))
-          .collect(),
-      ),
-      ObjectKind::Object { properties, .. } => {
-        let props = properties.read();
-        let mut yields = Vec::with_capacity(props.len());
-
-        match binding {
-          // If destructuring key-value pairs: [k, v] in obj
-          ForBinding::Array(bindings) if bindings.len() == 2 => {
-            for (k, v) in props.iter() {
-              let elements = vec![ObjectKind::String(k.clone()), v.clone()];
-              yields.push(self.heap.write().alloc_tuple(elements));
-            }
-          }
-          // Default to iterating over keys.
-          _ => {
-            for k in props.keys() {
-              yields.push(ObjectKind::String(k.clone()));
+    condition: &Expression,
+    body: &StatementBlock,
+  ) -> ObjectResult {
+    loop {
+      if let Some(bindings) = self.try_match_assignment(condition).await? {
+        for (name, val) in bindings {
+          self.stack.write().define(name.clone(), val, false, false);
+        }
+      } else {
+        if let ExpressionKind::Assignment {
+          left,
+          operator: AssignmentOperator::Assign,
+          ..
+        } = &condition.kind
+        {
+          if let ExpressionKind::Call { function, .. } = &left.kind {
+            if let ExpressionKind::Identifier(name) = &function.kind {
+              if name.as_ref() == "Ok" || name.as_ref() == "Err" {
+                break;
+              }
             }
           }
         }
-        Ok(yields)
+        if !self.eval_expression(condition, None).await?.is_truthy() {
+          break;
+        }
       }
-      _ => Err(Error::new(
-        ErrorKind::TypeError(format!(
-          "Expected array, tuple, string or object for for..in loop, found {}",
-          iterable.type_name()
-        )),
-        span,
-      )),
+
+      let result = self.eval_block_statement(body).await?;
+      if let Some(ctrl) = self.handle_loop_control(result) {
+        return Ok(ctrl);
+      }
     }
+    Ok(ObjectKind::Void)
   }
 
-  /// Assigns a loop element to the loop binding.
-  pub fn assign_for_binding(
+  pub async fn eval_for_statement(
     &self,
-    binding: &ForBinding,
-    value: ObjectKind,
+    binding: &krama_core::ForBinding,
+    iterable: &Expression,
+    body: &StatementBlock,
     span: Span,
-  ) -> ErrorResult {
-    match binding {
-      ForBinding::Identifier(name) => {
-        self
-          .stack
-          .write()
-          .define(name.clone(), value.clone(), false, false);
-        Ok(())
+  ) -> ObjectResult {
+    let iterable_val = self.eval_expression(iterable, None).await?;
+    let elements =
+      self.collect_iterable_elements(&iterable_val, binding, span)?;
+    for element in elements {
+      {
+        let mut stack = self.stack.write();
+        stack.push("for_loop_iter".into(), None);
       }
-      ForBinding::Array(bindings) => {
-        let elements = match &value {
-          ObjectKind::Array { elements, .. } => elements.read().to_vec(),
-          ObjectKind::Tuple(elements) => elements.as_ref().to_vec(),
-          _ => {
-            return Err(Error::new(
-              ErrorKind::TypeError(format!(
-                "Expected array or tuple for destructuring, found {}",
-                value.type_name()
-              )),
-              span,
-            ));
-          }
-        };
 
-        for (i, binding) in bindings.iter().enumerate() {
-          let val = elements.get(i).cloned().unwrap_or(ObjectKind::Void);
-          self.assign_for_binding(binding, val, span)?;
-        }
-        Ok(())
+      self.assign_for_binding(binding, element, span)?;
+      let result = self.eval_block_statement(body).await;
+
+      self.stack.write().pop();
+
+      let result = result?;
+      if let Some(ctrl) = self.handle_loop_control(result) {
+        return Ok(ctrl);
       }
     }
+    Ok(ObjectKind::Void)
   }
 }

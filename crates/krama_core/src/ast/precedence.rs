@@ -1,4 +1,4 @@
-use crate::{Token, TokenKind};
+use crate::TokenKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PrecedenceKind {
@@ -25,7 +25,7 @@ pub enum PrecedenceKind {
 }
 
 impl PrecedenceKind {
-  pub fn from_token(token: &Token) -> PrecedenceKind {
+  pub fn from_token(token: &crate::Token) -> PrecedenceKind {
     match token.kind {
       TokenKind::Equal
       | TokenKind::PlusEqual

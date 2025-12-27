@@ -4,13 +4,11 @@ use indexmap::IndexMap;
 use krama_core::{
   AssignmentOperator, Error, ErrorKind, ErrorResult, Expression,
   ExpressionKind, LiteralKind, ObjectKind, ObjectResult, Span, TypeKind,
-  UpdateOperator,
 };
 use parking_lot::RwLock;
 
-use crate::Interpreter;
+use crate::interpreter::Interpreter;
 
-/// Represents a target that can be assigned to (L-Value).
 pub enum LValue {
   Variable {
     name: Arc<str>,
@@ -28,7 +26,6 @@ pub enum LValue {
 }
 
 impl Interpreter {
-  /// Evaluates an assignment expression.
   pub async fn eval_assignment_expression(
     &self,
     left: &Expression,
@@ -60,10 +57,9 @@ impl Interpreter {
     Ok(final_val)
   }
 
-  /// Evaluates an update expression (++x, --x, x++, x--).
   pub async fn eval_update_expression(
     &self,
-    operator: UpdateOperator,
+    operator: krama_core::UpdateOperator,
     argument: &Expression,
     prefix: bool,
     span: Span,
@@ -82,7 +78,6 @@ impl Interpreter {
     Ok(if prefix { new_value } else { original_value })
   }
 
-  /// Resolves an expression into an LValue target.
   pub async fn resolve_lvalue(
     &self,
     expr: &Expression,
@@ -93,12 +88,10 @@ impl Interpreter {
         name: name.clone(),
         distance: self.get_resolved_distance(expr),
       }),
-
       ExpressionKind::Member { object, property } => {
         let obj_val = self.eval_expression(object, None).await?;
         self.resolve_member_lvalue(obj_val, property, span)
       }
-
       ExpressionKind::Index { object, index } => {
         let obj_val = self.eval_expression(object, None).await?;
         let index_val = self.eval_expression(index, None).await?;
@@ -110,7 +103,6 @@ impl Interpreter {
     }
   }
 
-  /// Retrieves the current value of an LValue.
   pub async fn get_lvalue_value(
     &self,
     target: &LValue,
@@ -134,7 +126,6 @@ impl Interpreter {
     }
   }
 
-  /// Updates the value of an LValue target.
   pub fn set_lvalue_value(
     &self,
     target: LValue,
@@ -179,7 +170,6 @@ impl Interpreter {
           elements[i] = value;
         } else if index >= 0 {
           let u_idx = index as usize;
-          // Avoid resize if possible, or use a more efficient way to extend.
           if u_idx >= elements.len() {
             elements.resize(u_idx + 1, ObjectKind::Void);
           }
@@ -190,7 +180,6 @@ impl Interpreter {
     }
   }
 
-  /// Helper to resolve member access into an LValue.
   fn resolve_member_lvalue(
     &self,
     obj_val: ObjectKind,
@@ -242,7 +231,6 @@ impl Interpreter {
     }
   }
 
-  /// Helper to resolve indexing into an LValue.
   fn resolve_index_lvalue(
     &self,
     obj_val: ObjectKind,

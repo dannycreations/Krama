@@ -2,7 +2,7 @@ use krama_core::{
   ErrorKindResult, PrecedenceKind, Statement, StatementKind, TokenKind,
 };
 
-use super::Parser;
+use crate::Parser;
 
 impl<'a> Parser<'a> {
   pub fn parse_return_statement(&mut self) -> ErrorKindResult<Statement> {

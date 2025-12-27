@@ -1,7 +1,3 @@
-mod expression;
-mod statement;
-mod types;
-
 use std::iter::Peekable;
 
 use krama_core::{
@@ -11,10 +7,13 @@ pub use krama_core::{ErrorKindResult, ErrorResult};
 
 use crate::Lexer;
 
+mod expression;
+mod statement;
+mod types;
+
 pub type ParseResult = ErrorKindResult<Expression>;
 
 /// Recursive descent parser for the language.
-/// Uses a Bump arena for efficient AST allocation.
 #[derive(Clone)]
 pub struct Parser<'a> {
   lexer: Peekable<Lexer<'a>>,
@@ -22,7 +21,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-  /// Initializes a new parser with a lexer and an allocation arena.
+  /// Initializes a new parser with a lexer.
   pub fn new(lexer: Lexer<'a>) -> Self {
     let mut lexer = lexer.peekable();
     let current_token = lexer.next().unwrap_or_else(|| {

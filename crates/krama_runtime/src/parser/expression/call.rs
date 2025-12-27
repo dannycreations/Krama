@@ -1,8 +1,8 @@
 use krama_core::{
-  ErrorKindResult, Expression, ExpressionKind, PrecedenceKind, TokenKind,
+  ErrorKind, Expression, ExpressionKind, PrecedenceKind, TokenKind,
 };
 
-use super::{ParseResult, Parser};
+use crate::{ParseResult, Parser};
 
 impl<'a> Parser<'a> {
   pub fn parse_call_expression(&mut self, function: Expression) -> ParseResult {
@@ -23,30 +23,36 @@ impl<'a> Parser<'a> {
     ))
   }
 
-  pub fn parse_comma_separated_expressions(
-    &mut self,
-    end_token: TokenKind,
-  ) -> ErrorKindResult<Vec<Expression>> {
-    let mut expressions = Vec::new();
-
-    if self.current_token.kind == end_token {
-      return Ok(expressions);
+  pub fn parse_import_expression(&mut self) -> ParseResult {
+    let start_span = self.current_token.span;
+    self.advance();
+    if self.current_token.kind != TokenKind::LParen {
+      return Err(ErrorKind::SyntaxError(
+        "Expected '(' after 'import'".to_string(),
+      ));
     }
-
-    loop {
-      expressions.push(self.parse_expression(PrecedenceKind::Lowest)?);
-
-      if self.current_token.kind == end_token {
-        break;
+    self.advance();
+    let path = match self.current_token.clone() {
+      krama_core::Token {
+        kind: TokenKind::String(path),
+        ..
+      } => path.clone(),
+      _ => {
+        return Err(ErrorKind::SyntaxError(
+          "Expected a string literal for the import path".to_string(),
+        ))
       }
-
-      self.consume(TokenKind::Comma)?;
-
-      if self.current_token.kind == end_token {
-        break;
-      }
+    };
+    self.advance();
+    if self.current_token.kind != TokenKind::RParen {
+      return Err(ErrorKind::SyntaxError(
+        "Expected ')' after import path".to_string(),
+      ));
     }
-
-    Ok(expressions)
+    self.advance();
+    Ok(Expression::new(
+      ExpressionKind::Import { path, items: None },
+      start_span,
+    ))
   }
 }
