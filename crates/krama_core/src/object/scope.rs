@@ -61,18 +61,13 @@ impl Scope {
     public: bool,
     constant: bool,
   ) {
-    self
-      .bindings
-      .entry(name)
-      .and_modify(|b| {
-        b.value = value.clone();
-        b.public = public;
-        b.constant = constant;
-      })
-      .or_insert(Binding {
+    self.bindings.insert(
+      name,
+      Binding {
         value,
         public,
         constant,
-      });
+      },
+    );
   }
 }

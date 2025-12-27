@@ -93,14 +93,11 @@ impl<'a> Parser<'a> {
         self.advance();
         Ok(name)
       }
-      kind => {
-        let message = if kind.is_keyword() {
-          format!("Unexpected keyword `{}`, expected an identifier", kind)
-        } else {
-          "Expected an identifier".to_string()
-        };
-        Err(ErrorKind::SyntaxError(message))
-      }
+      kind if kind.is_keyword() => Err(ErrorKind::SyntaxError(format!(
+        "Unexpected keyword `{}`, expected an identifier",
+        kind
+      ))),
+      _ => Err(ErrorKind::SyntaxError("Expected an identifier".to_string())),
     }
   }
 

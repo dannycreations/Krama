@@ -132,16 +132,7 @@ impl ObjectKind {
       BinaryOperator::LeftShift => Ok(Self::Integer(l.shl(r as u32))),
       BinaryOperator::RightShift => Ok(Self::Integer(l.shr(r as u32))),
       BinaryOperator::Range => {
-        let elements = if r < l {
-          Vec::new()
-        } else {
-          let count = (r - l + 1) as usize;
-          let mut vec = Vec::with_capacity(count);
-          for i in l..=r {
-            vec.push(Self::Integer(i));
-          }
-          vec
-        };
+        let elements: Vec<_> = (l..=r).map(Self::Integer).collect();
         Ok(Self::Tuple(elements.into()))
       }
       _ => Err(self.unsupported_bin_op(&Self::Integer(r), op)),

@@ -245,16 +245,16 @@ impl<'a> Parser<'a> {
 
   fn parse_struct_method(
     &mut self,
-    is_public: bool,
+    public: bool,
   ) -> ErrorKindResult<StructMethod> {
     let start_span = self.current_token.span;
     self.consume(TokenKind::Fn)?;
     let name = self.parse_identifier()?.into();
     self.consume(TokenKind::LParen)?;
-    let mut is_static = true;
+    let mut instance = false;
     let mut parameters = Vec::new();
     if self.current_token.kind == TokenKind::This {
-      is_static = false;
+      instance = true;
       self.advance();
       if self.current_token.kind == TokenKind::Comma {
         self.advance();
@@ -268,8 +268,8 @@ impl<'a> Parser<'a> {
       FunctionBody::Expression(e) => e.span,
     };
     Ok(StructMethod {
-      is_public,
-      is_static,
+      public,
+      instance,
       name,
       parameters,
       body,

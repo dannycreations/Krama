@@ -47,15 +47,15 @@ impl Interpreter {
           if let Some(&index) = definition.method_map.get(property_name) {
             let method = &definition.methods[index];
             self.ensure_accessible(
-              method.is_public,
+              method.public,
               property_name,
               &definition.name,
               span,
             )?;
-            return if method.is_static {
-              Ok(Self::from_method(method))
-            } else {
+            return if method.instance {
               Ok(Self::bind_method(method, object.clone()))
+            } else {
+              Ok(Self::from_method(method))
             };
           }
         }
@@ -77,21 +77,21 @@ impl Interpreter {
         if let Some(&index) = definition.method_map.get(property_name) {
           let method = &definition.methods[index];
           self.ensure_accessible(
-            method.is_public,
+            method.public,
             property_name,
             &definition.name,
             span,
           )?;
-          return if method.is_static {
-            Ok(Self::from_method(method))
-          } else {
+          return if method.instance {
             Err(Error::new(
-                            ErrorKind::TypeError(format!(
-                                "Method '{}' in struct '{}' is an instance method and requires an instance",
-                                property_name, definition.name
-                            )),
-                            span,
-                        ))
+              ErrorKind::TypeError(format!(
+                "Method '{}' in struct '{}' is an instance method and requires an instance",
+                property_name, definition.name
+              )),
+              span,
+            ))
+          } else {
+            Ok(Self::from_method(method))
           };
         }
 

@@ -13,13 +13,13 @@ impl Display for ObjectKind {
       Self::Float(fl) => write!(f, "{}", fl),
       Self::String(s) => write!(f, "{}", s),
       Self::Array { elements, .. } => {
-        write!(f, "[")?;
         let elements = elements.read();
+        write!(f, "[")?;
         for (i, el) in elements.iter().enumerate() {
           if i > 0 {
             write!(f, ", ")?;
           }
-          write!(f, "{}", el)?;
+          write!(f, "{el}")?;
         }
         write!(f, "]")
       }
@@ -29,7 +29,7 @@ impl Display for ObjectKind {
           if i > 0 {
             write!(f, ", ")?;
           }
-          write!(f, "{}", el)?;
+          write!(f, "{el}")?;
         }
         write!(f, ")")
       }
@@ -48,7 +48,7 @@ impl Display for ObjectKind {
           if i > 0 {
             write!(f, ", ")?;
           }
-          write!(f, "{}: {}", key, value)?;
+          write!(f, "{key}: {value}")?;
         }
         write!(f, "}}")
       }
@@ -77,7 +77,7 @@ impl Display for ObjectKind {
             if i > 0 {
               write!(f, ", ")?;
             }
-            write!(f, "{}", field)?;
+            write!(f, "{field}")?;
           }
           write!(f, ")")?;
         }

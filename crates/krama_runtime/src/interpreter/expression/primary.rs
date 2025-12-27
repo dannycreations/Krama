@@ -94,20 +94,19 @@ impl Interpreter {
   ) -> crate::ErrorResult<IndexMap<Arc<str>, ObjectKind>> {
     let mut fields = IndexMap::with_capacity(properties.len());
     for (key_expr, value_expr) in properties {
-      let key_str = if let ExpressionKind::Identifier(name) = &key_expr.kind {
-        name.clone()
-      } else {
-        let key_obj = self.eval_expression(key_expr, None).await?;
-        if let ObjectKind::String(s) = key_obj {
-          s
-        } else {
-          return Err(Error::new(
-            ErrorKind::TypeError(
-              "Expected string key or identifier for property".into(),
-            ),
-            key_expr.span,
-          ));
-        }
+      let key_str = match &key_expr.kind {
+        ExpressionKind::Identifier(name) => name.clone(),
+        _ => match self.eval_expression(key_expr, None).await? {
+          ObjectKind::String(s) => s,
+          _ => {
+            return Err(Error::new(
+              ErrorKind::TypeError(
+                "Expected string key or identifier for property".into(),
+              ),
+              key_expr.span,
+            ))
+          }
+        },
       };
       fields.insert(key_str, self.eval_expression(value_expr, None).await?);
     }

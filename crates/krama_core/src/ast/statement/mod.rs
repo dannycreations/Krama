@@ -55,8 +55,8 @@ pub struct StructField {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructMethod {
-  pub is_public: bool,
-  pub is_static: bool,
+  pub public: bool,
+  pub instance: bool,
   pub name: Arc<str>,
   pub parameters: Vec<Parameter>,
   pub body: crate::FunctionBody,

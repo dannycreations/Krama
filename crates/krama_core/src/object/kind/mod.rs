@@ -75,21 +75,18 @@ impl ObjectKind {
 
   #[inline(always)]
   pub fn unwrap_return(&self) -> &Self {
-    if let Self::Return(v) = self {
-      v.as_ref()
-    } else {
-      self
+    match self {
+      Self::Return(v) => v.as_ref(),
+      _ => self,
     }
   }
 
   #[inline(always)]
   pub fn unwrap_return_err(&self) -> &Self {
-    if let Self::Return(v) = self {
-      if v.is_result_err() {
-        return v.as_ref();
-      }
+    match self {
+      Self::Return(v) if v.is_result_err() => v.as_ref(),
+      _ => self,
     }
-    self
   }
 
   #[inline(always)]
