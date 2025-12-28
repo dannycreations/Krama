@@ -1,6 +1,5 @@
 use krama_core::{
-  Error, ErrorKind, Expression, ForBinding, ObjectKind, ObjectResult, Span,
-  Type,
+  Error, ErrorKind, Expression, Iteration, Object, ObjectResult, Span, Type,
 };
 
 use crate::interpreter::{
@@ -12,44 +11,44 @@ impl Interpreter {
   pub async fn eval_and_check_type(
     &self,
     expr: &Expression,
-    kind_hint: Option<&Type>,
+    ty: Option<&Type>,
   ) -> ObjectResult {
-    let resolved = kind_hint.map(|k| resolve_type(self, k)).transpose()?;
+    let resolved = ty.map(|k| resolve_type(self, k)).transpose()?;
     let value = self.eval_expression(expr, resolved.as_ref()).await?;
-    if let Some(kind) = &resolved {
-      check_type(kind, &value)?;
+    if let Some(ty) = &resolved {
+      check_type(ty, &value)?;
     }
     Ok(value)
   }
 
   pub fn collect_iterable_elements(
     &self,
-    iterable: &ObjectKind,
-    binding: &ForBinding,
+    iterable: &Object,
+    binding: &Iteration,
     span: Span,
-  ) -> Result<Vec<ObjectKind>, Error> {
+  ) -> Result<Vec<Object>, Error> {
     match iterable {
-      ObjectKind::Array { elements, .. } => Ok(elements.read().to_vec()),
-      ObjectKind::Tuple(elements) => Ok(elements.as_ref().to_vec()),
-      ObjectKind::String(s) => Ok(
+      Object::Array { elements, .. } => Ok(elements.read().to_vec()),
+      Object::Tuple(elements) => Ok(elements.as_ref().to_vec()),
+      Object::String(s) => Ok(
         s.chars()
-          .map(|c| ObjectKind::String(c.to_string().into()))
+          .map(|c| Object::String(c.to_string().into()))
           .collect(),
       ),
-      ObjectKind::Object { properties, .. } => {
+      Object::Object { properties, .. } => {
         let props = properties.read();
         let mut yields = Vec::with_capacity(props.len());
 
         match binding {
-          ForBinding::Array(bindings) if bindings.len() == 2 => {
+          Iteration::Array(bindings) if bindings.len() == 2 => {
             for (k, v) in props.iter() {
-              let elements = vec![ObjectKind::String(k.clone()), v.clone()];
+              let elements = vec![Object::String(k.clone()), v.clone()];
               yields.push(self.heap.write().alloc_tuple(elements));
             }
           }
           _ => {
             for k in props.keys() {
-              yields.push(ObjectKind::String(k.clone()));
+              yields.push(Object::String(k.clone()));
             }
           }
         }

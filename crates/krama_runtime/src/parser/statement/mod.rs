@@ -1,5 +1,5 @@
 use krama_core::{
-  ErrorKind, ErrorKindResult, PrecedenceKind, Statement, StatementBlock,
+  ErrorKind, ErrorKindResult, Precedence, Statement, StatementBlock,
   StatementKind, TokenKind,
 };
 
@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
       TokenKind::While => self.parse_while_statement(),
       TokenKind::For => self.parse_for_statement(),
       _ => {
-        let expression = self.parse_expression(PrecedenceKind::Lowest)?;
+        let expression = self.parse_expression(Precedence::Lowest)?;
         let span = expression.span;
         let statement_kind = StatementKind::Expression {
           expression: Box::new(expression),

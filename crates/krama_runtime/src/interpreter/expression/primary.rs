@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use futures::future::try_join_all;
+use futures::{future::try_join_all, try_join};
 use indexmap::IndexMap;
 use krama_core::{
-  BinaryOperator, Error, ErrorKind, Expression, ExpressionKind, ObjectKind,
-  ObjectResult, Span, Type, TypeKind,
+  BinaryOperator, Error, ErrorKind, Expression, ExpressionKind, Object,
+  ObjectResult, Span, Type, TypeKind, UnaryOperator,
 };
 
 use crate::interpreter::Interpreter;
@@ -40,13 +40,13 @@ impl Interpreter {
     })
   }
 
-  pub async fn eval_collection(
+  pub async fn eval_array(
     &self,
     elements: &[Expression],
-    kind_hint: Option<&Type>,
+    meta_hint: Option<&Type>,
     span: Span,
   ) -> ObjectResult {
-    let el_hint = kind_hint.and_then(|hint| {
+    let el_hint = meta_hint.and_then(|hint| {
       if let TypeKind::Array { element, .. } = &hint.kind {
         Some(element.as_ref())
       } else {
@@ -58,10 +58,10 @@ impl Interpreter {
       try_join_all(elements.iter().map(|e| self.eval_expression(e, el_hint)))
         .await?;
 
-    Ok(match kind_hint.map(|h| &h.kind) {
+    Ok(match meta_hint.map(|h| &h.kind) {
       Some(TypeKind::Array { .. }) => self.heap.write().alloc_array(
         results,
-        kind_hint.unwrap().clone(),
+        meta_hint.unwrap().clone(),
         false,
       ),
       Some(TypeKind::Tuple(_)) => self.heap.write().alloc_tuple(results),
@@ -80,7 +80,7 @@ impl Interpreter {
     })
   }
 
-  pub async fn eval_object_literal(
+  pub async fn eval_object_expression(
     &self,
     properties: &[(Expression, Expression)],
   ) -> ObjectResult {
@@ -91,13 +91,13 @@ impl Interpreter {
   pub async fn eval_properties(
     &self,
     properties: &[(Expression, Expression)],
-  ) -> crate::ErrorResult<IndexMap<Arc<str>, ObjectKind>> {
+  ) -> crate::ErrorResult<IndexMap<Arc<str>, Object>> {
     let mut fields = IndexMap::with_capacity(properties.len());
     for (key_expr, value_expr) in properties {
       let key_str = match &key_expr.kind {
         ExpressionKind::Identifier(name) => name.clone(),
         _ => match self.eval_expression(key_expr, None).await? {
-          ObjectKind::String(s) => s,
+          Object::String(s) => s,
           _ => {
             return Err(Error::new(
               ErrorKind::TypeError(
@@ -115,8 +115,8 @@ impl Interpreter {
 
   pub fn eval_unary_expression(
     &self,
-    operator: krama_core::UnaryOperator,
-    right: ObjectKind,
+    operator: UnaryOperator,
+    right: Object,
     span: Span,
   ) -> ObjectResult {
     right.unary_op(operator).map_err(|k| k.at(span))
@@ -143,7 +143,7 @@ impl Interpreter {
       return self.eval_expression(right, None).await;
     }
 
-    let (l, r) = futures::try_join!(
+    let (l, r) = try_join!(
       self.eval_expression(left, None),
       self.eval_expression(right, None)
     )?;

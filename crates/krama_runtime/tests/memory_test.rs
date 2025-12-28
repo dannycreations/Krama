@@ -1,4 +1,4 @@
-use krama_core::ObjectKind;
+use krama_core::Object;
 use krama_runtime::Interpreter;
 
 #[tokio::test]
@@ -38,7 +38,7 @@ async fn memory_nested_closure_capture_behavior() {
   let interpreter = Interpreter::new(None);
   let result = interpreter.eval(source).await.unwrap();
 
-  assert_eq!(result, ObjectKind::Integer(13));
+  assert_eq!(result, Object::Integer(13));
   assert_eq!(interpreter.stack.read().depth(), 0, "Stack should be empty");
 }
 
@@ -76,7 +76,7 @@ async fn memory_variable_shadowing_and_stack_integrity() {
   let interpreter = Interpreter::new(None);
   let result = interpreter.eval(source).await.unwrap();
 
-  assert_eq!(result, ObjectKind::Integer(10));
+  assert_eq!(result, Object::Integer(10));
   assert_eq!(
     interpreter.stack.read().depth(),
     0,
@@ -98,6 +98,6 @@ async fn memory_deep_recursion_stack_integrity() {
   let result = interpreter.eval(source).await.unwrap();
 
   // sum of 1..20 = (20 * 21) / 2 = 210
-  assert_eq!(result, ObjectKind::Integer(210));
+  assert_eq!(result, Object::Integer(210));
   assert_eq!(interpreter.stack.read().depth(), 0);
 }

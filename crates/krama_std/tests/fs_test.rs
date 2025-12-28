@@ -1,4 +1,4 @@
-use krama_core::ObjectKind;
+use krama_core::Object;
 use krama_runtime::test_eval_ok;
 
 test_eval_ok!(
@@ -22,7 +22,7 @@ test_eval_ok!(
 
     assertEqual(content, fileContent)
   "#,
-  ObjectKind::Void
+  Object::Void
 );
 
 test_eval_ok!(
@@ -41,7 +41,7 @@ test_eval_ok!(
     fs.rmdir(dirPath)
     assert(!fs.exists(dirPath))
   "#,
-  ObjectKind::Void
+  Object::Void
 );
 
 test_eval_ok!(
@@ -71,5 +71,5 @@ test_eval_ok!(
     fs.rmdir(dirPath)
     assert(!fs.exists(dirPath))
   "#,
-  ObjectKind::Void
+  Object::Void
 );

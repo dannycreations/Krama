@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use ahash::AHashMap;
-use krama_core::{Error, ErrorKind, ErrorResult, ObjectKind, Scope, Span};
+use krama_core::{Error, ErrorKind, ErrorResult, Object, Scope, Span};
 use parking_lot::RwLock;
 
 /// The Call Stack, managing the execution context history.
@@ -56,18 +56,13 @@ impl Stack {
   }
 
   /// Searches for a variable starting from the current scope up the chain.
-  pub fn get(&self, name: &str) -> Option<ObjectKind> {
+  pub fn get(&self, name: &str) -> Option<Object> {
     self.current().read().get(name)
   }
 
   /// Sets a variable's value.
   /// Searches up the scope chain to update the nearest binding.
-  pub fn set(
-    &mut self,
-    name: &str,
-    value: ObjectKind,
-    span: Span,
-  ) -> ErrorResult {
+  pub fn set(&mut self, name: &str, value: Object, span: Span) -> ErrorResult {
     let mut current_scope = self.current();
 
     loop {
@@ -107,7 +102,7 @@ impl Stack {
   pub fn define(
     &mut self,
     name: Arc<str>,
-    value: ObjectKind,
+    value: Object,
     public: bool,
     constant: bool,
   ) {
@@ -115,7 +110,7 @@ impl Stack {
   }
 
   /// Returns all public bindings from the current scope.
-  pub fn get_public_bindings(&self) -> AHashMap<Arc<str>, ObjectKind> {
+  pub fn get_public_bindings(&self) -> AHashMap<Arc<str>, Object> {
     self
       .current()
       .read()

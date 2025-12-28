@@ -1,31 +1,31 @@
-use crate::TokenKind;
+use crate::{Token, TokenKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum PrecedenceKind {
+pub enum Precedence {
   Lowest = 0,
-  Assignment,  // =
-  Range,       // ..
-  LogicalOr,   // ||
-  LogicalAnd,  // &&
-  Equals,      // ==
-  LessGreater, // < or >
-  BitwiseOr,   // |
-  BitwiseXor,  // ^
-  BitwiseAnd,  // &
-  Shift,       // << or >>
-  Sum,         // +
-  Product,     // *
-  Exponent,    // **
-  Prefix,      // -X or !X
-  Postfix,     // X++
-  Call,        // myFunction(X)
-  Member,      // myObject.property
-  Index,       // myArray[0]
-  Colon,       // :
+  Assignment,     // =
+  Range,          // ..
+  LogicalOr,      // ||
+  LogicalAnd,     // &&
+  Equality,       // ==
+  Comparison,     // < or >
+  BitwiseOr,      // |
+  BitwiseXor,     // ^
+  BitwiseAnd,     // &
+  Shift,          // << or >>
+  Additive,       // +
+  Multiplicative, // *
+  Exponent,       // **
+  Prefix,         // -X or !X
+  Postfix,        // X++
+  Call,           // myFunction(X)
+  Member,         // myObject.property
+  Index,          // myArray[0]
+  Colon,          // :
 }
 
-impl PrecedenceKind {
-  pub fn from_token(token: &crate::Token) -> PrecedenceKind {
+impl Precedence {
+  pub fn from_token(token: &Token) -> Precedence {
     match token.kind {
       TokenKind::Equal
       | TokenKind::PlusEqual
@@ -37,33 +37,33 @@ impl PrecedenceKind {
       | TokenKind::PipeEqual
       | TokenKind::CaretEqual
       | TokenKind::LessLessEqual
-      | TokenKind::GreaterGreaterEqual => PrecedenceKind::Assignment,
-      TokenKind::DotDot => PrecedenceKind::Range,
-      TokenKind::PipePipe => PrecedenceKind::LogicalOr,
-      TokenKind::AmpersandAmpersand => PrecedenceKind::LogicalAnd,
-      TokenKind::EqualEqual | TokenKind::BangEqual => PrecedenceKind::Equals,
+      | TokenKind::GreaterGreaterEqual => Precedence::Assignment,
+      TokenKind::DotDot => Precedence::Range,
+      TokenKind::PipePipe => Precedence::LogicalOr,
+      TokenKind::AmpersandAmpersand => Precedence::LogicalAnd,
+      TokenKind::EqualEqual | TokenKind::BangEqual => Precedence::Equality,
       TokenKind::LessThan
       | TokenKind::LessThanEqual
       | TokenKind::GreaterThan
       | TokenKind::GreaterThanEqual
-      | TokenKind::In => PrecedenceKind::LessGreater,
-      TokenKind::Pipe => PrecedenceKind::BitwiseOr,
-      TokenKind::Caret => PrecedenceKind::BitwiseXor,
-      TokenKind::Ampersand => PrecedenceKind::BitwiseAnd,
-      TokenKind::LessLess | TokenKind::GreaterGreater => PrecedenceKind::Shift,
-      TokenKind::Plus | TokenKind::Minus => PrecedenceKind::Sum,
+      | TokenKind::In => Precedence::Comparison,
+      TokenKind::Pipe => Precedence::BitwiseOr,
+      TokenKind::Caret => Precedence::BitwiseXor,
+      TokenKind::Ampersand => Precedence::BitwiseAnd,
+      TokenKind::LessLess | TokenKind::GreaterGreater => Precedence::Shift,
+      TokenKind::Plus | TokenKind::Minus => Precedence::Additive,
       TokenKind::Star | TokenKind::Slash | TokenKind::Percent => {
-        PrecedenceKind::Product
+        Precedence::Multiplicative
       }
-      TokenKind::StarStar => PrecedenceKind::Exponent,
+      TokenKind::StarStar => Precedence::Exponent,
       TokenKind::PlusPlus | TokenKind::MinusMinus | TokenKind::Question => {
-        PrecedenceKind::Postfix
+        Precedence::Postfix
       }
-      TokenKind::LParen => PrecedenceKind::Call,
-      TokenKind::Dot => PrecedenceKind::Member,
-      TokenKind::LBracket => PrecedenceKind::Index,
-      TokenKind::Colon => PrecedenceKind::Colon,
-      _ => PrecedenceKind::Lowest,
+      TokenKind::LParen => Precedence::Call,
+      TokenKind::Dot => Precedence::Member,
+      TokenKind::LBracket => Precedence::Index,
+      TokenKind::Colon => Precedence::Colon,
+      _ => Precedence::Lowest,
     }
   }
 }

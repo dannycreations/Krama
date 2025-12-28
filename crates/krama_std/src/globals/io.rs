@@ -1,18 +1,18 @@
-use krama_core::{ErrorKindResult, ObjectKind};
+use krama_core::{ErrorKind, ErrorKindResult, Object};
 use krama_macro::register_global;
-use tokio::io::{self, AsyncWrite, AsyncWriteExt};
+use tokio::io::{stderr, stdout, AsyncWrite, AsyncWriteExt};
 
 macro_rules! io_try {
   ($expr:expr) => {
     $expr
       .await
-      .map_err(|e| krama_core::ErrorKind::RuntimeError(e.to_string()))?
+      .map_err(|e| ErrorKind::RuntimeError(e.to_string()))?
   };
 }
 
 async fn write_objects<W>(
   mut writer: W,
-  objects: &[ObjectKind],
+  objects: &[Object],
 ) -> ErrorKindResult<()>
 where
   W: AsyncWrite + Unpin,
@@ -29,13 +29,13 @@ where
 }
 
 #[register_global("print")]
-pub async fn print(objects: &[ObjectKind]) -> ObjectResult {
-  write_objects(io::stdout(), &objects).await?;
-  Ok(ObjectKind::Void)
+pub async fn print(objects: &[Object]) -> ObjectResult {
+  write_objects(stdout(), &objects).await?;
+  Ok(Object::Void)
 }
 
 #[register_global("eprint")]
-pub async fn eprint(objects: &[ObjectKind]) -> ObjectResult {
-  write_objects(io::stderr(), &objects).await?;
-  Ok(ObjectKind::Void)
+pub async fn eprint(objects: &[Object]) -> ObjectResult {
+  write_objects(stderr(), &objects).await?;
+  Ok(Object::Void)
 }

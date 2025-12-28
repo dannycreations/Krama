@@ -3,12 +3,12 @@ use std::sync::Arc;
 use ahash::AHashMap;
 use parking_lot::RwLock;
 
-use super::kind::ObjectKind;
+use super::kind::Object;
 
 /// Represents a variable binding with its metadata.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Binding {
-  pub value: ObjectKind,
+pub struct ObjectBinding {
+  pub value: Object,
   pub public: bool,
   pub constant: bool,
 }
@@ -17,7 +17,7 @@ pub struct Binding {
 #[derive(Debug, Clone)]
 pub struct Scope {
   pub name: Option<Arc<str>>,
-  pub bindings: AHashMap<Arc<str>, Binding>,
+  pub bindings: AHashMap<Arc<str>, ObjectBinding>,
   pub parent: Option<Arc<RwLock<Scope>>>,
 }
 
@@ -34,11 +34,11 @@ impl Scope {
   }
 
   #[inline(always)]
-  pub fn get_local(&self, name: &str) -> Option<&Binding> {
+  pub fn get_local(&self, name: &str) -> Option<&ObjectBinding> {
     self.bindings.get(name)
   }
 
-  pub fn get(&self, name: &str) -> Option<ObjectKind> {
+  pub fn get(&self, name: &str) -> Option<Object> {
     if let Some(binding) = self.get_local(name) {
       return Some(binding.value.clone());
     }
@@ -57,13 +57,13 @@ impl Scope {
   pub fn set(
     &mut self,
     name: Arc<str>,
-    value: ObjectKind,
+    value: Object,
     public: bool,
     constant: bool,
   ) {
     self.bindings.insert(
       name,
-      Binding {
+      ObjectBinding {
         value,
         public,
         constant,

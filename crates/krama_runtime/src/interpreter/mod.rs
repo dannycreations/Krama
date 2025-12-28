@@ -7,7 +7,7 @@ mod types;
 use std::sync::Arc;
 
 use ahash::AHashMap;
-use krama_core::{FunctionKind, ObjectKind, Span};
+use krama_core::{Function, Object, Span};
 use krama_std::GLOBALS;
 use parking_lot::RwLock;
 pub use types::*;
@@ -21,7 +21,7 @@ pub struct Interpreter {
   /// Path to the file being executed, if any.
   pub path: Option<String>,
   /// Loaded modules in the current session.
-  modules: Arc<RwLock<AHashMap<String, ObjectKind>>>,
+  modules: Arc<RwLock<AHashMap<String, Object>>>,
   /// The call stack for the current execution thread.
   pub stack: Arc<RwLock<Stack>>,
   /// The heap allocator for complex objects.
@@ -41,7 +41,7 @@ impl Interpreter {
       let mut scope = current.write();
       scope.bindings.reserve(GLOBALS.len());
       for (name, native_fn) in GLOBALS.iter() {
-        let function = ObjectKind::Function(FunctionKind::Native(*native_fn));
+        let function = Object::Function(Function::Native(*native_fn));
         scope.set(Arc::from(*name), function, true, true);
       }
     }

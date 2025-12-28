@@ -1,5 +1,5 @@
 use krama_core::{
-  ErrorKindResult, PrecedenceKind, Statement, StatementKind, TokenKind,
+  ErrorKindResult, Precedence, Statement, StatementKind, TokenKind,
 };
 
 use crate::Parser;
@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
       self.current_token.kind,
       TokenKind::Semicolon | TokenKind::RBrace | TokenKind::Eof
     ) {
-      Some(self.parse_expression(PrecedenceKind::Lowest)?)
+      Some(self.parse_expression(Precedence::Lowest)?)
     } else {
       None
     };

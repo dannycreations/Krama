@@ -3,7 +3,7 @@ use std::sync::Arc;
 use futures::future::LocalBoxFuture;
 use parking_lot::RwLock;
 
-use super::kind::ObjectKind;
+use super::kind::Object;
 use crate::{
   object::{scope::Scope, types::Enum},
   ErrorKindResult, FunctionBody, Parameter, Type,
@@ -11,11 +11,11 @@ use crate::{
 
 /// Callback type for native functions implemented in Rust.
 pub type NativeFnCb =
-  fn(&[ObjectKind]) -> LocalBoxFuture<'static, ErrorKindResult<ObjectKind>>;
+  fn(&[Object]) -> LocalBoxFuture<'static, ErrorKindResult<Object>>;
 
 /// Callback type for properties that return a value based on the object instance.
 pub type PropertyFnCb =
-  fn(ObjectKind) -> LocalBoxFuture<'static, ErrorKindResult<ObjectKind>>;
+  fn(Object) -> LocalBoxFuture<'static, ErrorKindResult<Object>>;
 
 /// Represents a function implemented in native Rust code.
 #[derive(Debug, Clone, Copy)]
@@ -35,30 +35,29 @@ impl PartialEq for NativeFunction {
 pub struct UserFunction {
   pub parameters: Vec<Parameter>,
   pub body: FunctionBody,
-  pub kind: Option<Type>,
+  pub ty: Option<Type>,
 }
 
 /// Categorizes the different types of callable objects.
 #[derive(Debug, Clone)]
-pub enum FunctionKind {
+pub enum Function {
   Native(NativeFunction),
   User {
     func: Arc<UserFunction>,
     env: Option<Arc<RwLock<Scope>>>,
-    this: Option<Arc<ObjectKind>>,
+    this: Option<Arc<Object>>,
   },
   Enum(Arc<Enum>),
 }
 
-impl PartialEq for FunctionKind {
+impl PartialEq for Function {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
-      (FunctionKind::Native(a), FunctionKind::Native(b)) => a == b,
-      (
-        FunctionKind::User { func: a, .. },
-        FunctionKind::User { func: b, .. },
-      ) => Arc::ptr_eq(a, b),
-      (FunctionKind::Enum(a), FunctionKind::Enum(b)) => Arc::ptr_eq(a, b),
+      (Function::Native(a), Function::Native(b)) => a == b,
+      (Function::User { func: a, .. }, Function::User { func: b, .. }) => {
+        Arc::ptr_eq(a, b)
+      }
+      (Function::Enum(a), Function::Enum(b)) => Arc::ptr_eq(a, b),
       _ => false,
     }
   }

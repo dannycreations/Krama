@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use ahash::AHashMap;
 use krama_core::{
-  Enum, EnumInstance, EnumVariant, FunctionKind, ObjectKind, ObjectResult,
-  Struct, StructField, StructMethod, Type,
+  Binding, Enum, EnumInstance, EnumVariant, Expression, Function, FunctionBody,
+  Object, ObjectResult, Parameter, Span, Struct, StructField, StructMethod,
+  Type,
 };
 
 use crate::interpreter::{types::resolve_type, Interpreter};
@@ -11,49 +12,46 @@ use crate::interpreter::{types::resolve_type, Interpreter};
 impl Interpreter {
   pub async fn eval_let_statement(
     &self,
-    name: &Arc<str>,
-    value_expr: &krama_core::Expression,
-    kind: Option<&Type>,
+    binding: &Binding,
+    value_expr: &Expression,
+    ty: Option<&Type>,
   ) -> ObjectResult {
-    let mut value = self.eval_and_check_type(value_expr, kind).await?;
+    let mut value = self.eval_and_check_type(value_expr, ty).await?;
     value.set_constant(false);
-    self.stack.write().define(name.clone(), value, false, false);
-    Ok(ObjectKind::Void)
+    self.apply_binding(binding, value, false, value_expr.span, false)?;
+    Ok(Object::Void)
   }
 
   pub async fn eval_const_statement(
     &self,
-    binding: &krama_core::ConstBinding,
-    value_expr: &krama_core::Expression,
+    binding: &Binding,
+    value_expr: &Expression,
     public: bool,
-    kind: Option<&Type>,
-    span: krama_core::Span,
+    ty: Option<&Type>,
+    span: Span,
   ) -> ObjectResult {
-    let mut value = self.eval_and_check_type(value_expr, kind).await?;
+    let mut value = self.eval_and_check_type(value_expr, ty).await?;
     value.set_constant(true);
-    self.apply_binding(binding, value, public, span)?;
-    Ok(ObjectKind::Void)
+    self.apply_binding(binding, value, public, span, true)?;
+    Ok(Object::Void)
   }
 
-  pub async fn eval_fn_statement(
+  pub async fn eval_function_statement(
     &self,
     name: &Arc<str>,
-    parameters: &[krama_core::Parameter],
-    body: &krama_core::FunctionBody,
+    parameters: &[Parameter],
+    body: &FunctionBody,
     public: bool,
-    kind: Option<&Type>,
+    ty: Option<&Type>,
   ) -> ObjectResult {
-    let resolved_kind = kind.map(|k| resolve_type(self, k)).transpose()?;
-    let function = self.alloc_user_function(
-      parameters.to_vec(),
-      body.clone(),
-      resolved_kind,
-    );
+    let resolved_ty = ty.map(|k| resolve_type(self, k)).transpose()?;
+    let function =
+      self.alloc_user_function(parameters.to_vec(), body.clone(), resolved_ty);
     self
       .stack
       .write()
       .define(name.clone(), function, public, true);
-    Ok(ObjectKind::Void)
+    Ok(Object::Void)
   }
 
   pub async fn eval_enum_statement(
@@ -67,13 +65,13 @@ impl Interpreter {
     for variant in variants {
       let variant_name_arc = variant.name.clone();
       let obj = if let Some(fields) = &variant.fields {
-        ObjectKind::Function(FunctionKind::Enum(Arc::new(Enum {
+        Object::Function(Function::Enum(Arc::new(Enum {
           name: name_arc.clone(),
           variant: variant_name_arc.clone(),
           field_count: fields.len(),
         })))
       } else {
-        ObjectKind::Enum(Box::new(EnumInstance {
+        Object::Enum(Box::new(EnumInstance {
           name: name_arc.clone(),
           variant: variant_name_arc.clone(),
           fields: None,
@@ -90,7 +88,7 @@ impl Interpreter {
       .stack
       .write()
       .define(name.clone(), enum_obj, public, true);
-    Ok(ObjectKind::Void)
+    Ok(Object::Void)
   }
 
   pub async fn eval_struct_statement(
@@ -122,26 +120,26 @@ impl Interpreter {
     });
     self.stack.write().define(
       name.clone(),
-      ObjectKind::Struct(struct_def),
+      Object::Struct(struct_def),
       public,
       true,
     );
-    Ok(ObjectKind::Void)
+    Ok(Object::Void)
   }
 
   pub async fn eval_type_statement(
     &self,
     name: &Arc<str>,
-    kind: &Type,
+    ty: &Type,
     public: bool,
   ) -> ObjectResult {
-    let resolved = resolve_type(self, kind)?;
+    let resolved = resolve_type(self, ty)?;
     self.stack.write().define(
       name.clone(),
-      ObjectKind::Type(resolved),
+      Object::Type(resolved),
       public,
       true,
     );
-    Ok(ObjectKind::Void)
+    Ok(Object::Void)
   }
 }

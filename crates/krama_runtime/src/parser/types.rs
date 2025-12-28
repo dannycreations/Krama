@@ -1,7 +1,6 @@
 use indexmap::IndexMap;
 use krama_core::{
-  ErrorKind, ErrorKindResult, LiteralKind, ObjectProperty, TokenKind, Type,
-  TypeKind,
+  ErrorKind, ErrorKindResult, Literal, TokenKind, Type, TypeKind, TypeProperty,
 };
 
 use crate::Parser;
@@ -78,8 +77,8 @@ impl<'a> Parser<'a> {
         };
 
         self.consume(TokenKind::Colon)?;
-        let kind = self.parse_type()?;
-        properties.insert(name.into(), ObjectProperty { kind, optional });
+        let ty = self.parse_type()?;
+        properties.insert(name.into(), TypeProperty { ty, optional });
 
         if self.current_token.kind == TokenKind::RBrace {
           break;
@@ -114,7 +113,7 @@ impl<'a> Parser<'a> {
           val
         ))
       })?;
-      Some(LiteralKind::Integer(parsed_val))
+      Some(Literal::Integer(parsed_val))
     } else {
       return Err(ErrorKind::SyntaxError(
         "Expected integer literal for array size".to_string(),

@@ -1,9 +1,9 @@
 use krama_core::{Span, Token, TokenKind};
-use logos::Logos;
+use logos::{Lexer as LogosLexer, Logos};
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
-  logos: logos::Lexer<'a, TokenKind>,
+  logos: LogosLexer<'a, TokenKind>,
   file: Option<String>,
 }
 

@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
-use futures::future::{FutureExt, LocalBoxFuture};
-use krama_core::{Expression, ExpressionKind, ObjectKind, ObjectResult, Type};
+use futures::{
+  future::{FutureExt, LocalBoxFuture},
+  try_join,
+};
+use krama_core::{Expression, ExpressionKind, Object, ObjectResult, Type};
 
 use crate::interpreter::Interpreter;
 
@@ -17,7 +20,7 @@ impl Interpreter {
   pub fn eval_expression<'s>(
     &'s self,
     expression: &'s Expression,
-    kind: Option<&'s Type>,
+    ty: Option<&'s Type>,
   ) -> LocalBoxFuture<'s, ObjectResult> {
     async move {
       let span = expression.span;
@@ -27,14 +30,14 @@ impl Interpreter {
           self.eval_identifier(expression, name, span).await
         }
         ExpressionKind::This => self.get_this(span),
-        ExpressionKind::StructConstruction { properties } => {
-          self.eval_struct_construction(properties, span).await
+        ExpressionKind::Struct { properties } => {
+          self.eval_struct_expression(properties, span).await
         }
         ExpressionKind::Object { properties } => {
-          self.eval_object_literal(properties).await
+          self.eval_object_expression(properties).await
         }
-        ExpressionKind::Collection { elements } => {
-          self.eval_collection(elements, kind, span).await
+        ExpressionKind::Array { elements } => {
+          self.eval_array(elements, ty, span).await
         }
         ExpressionKind::Unary { operator, right } => {
           let right = self.eval_expression(right, None).await?;
@@ -69,10 +72,10 @@ impl Interpreter {
         }
         ExpressionKind::Member { object, property } => {
           let object = self.eval_expression(object, None).await?;
-          self.eval_member_expression(object, property, span).await
+          self.eval_access_expression(object, property, span).await
         }
         ExpressionKind::Index { object, index } => {
-          let (object, index) = futures::try_join!(
+          let (object, index) = try_join!(
             self.eval_expression(object, None),
             self.eval_expression(index, None)
           )?;
@@ -92,7 +95,7 @@ impl Interpreter {
               condition,
               then_branch,
               else_branch.as_deref(),
-              kind,
+              ty,
             )
             .await
         }
@@ -102,20 +105,20 @@ impl Interpreter {
         ExpressionKind::Block(block) => {
           self.eval_block_statement_with_new_scope(block).await
         }
-        ExpressionKind::Fn {
+        ExpressionKind::Function {
           parameters,
           body,
-          kind,
+          ty,
         } => Ok(self.alloc_user_function(
           parameters.clone(),
           body.clone(),
-          kind.clone(),
+          ty.clone(),
         )),
         ExpressionKind::Import { path, .. } => {
-          self.eval_import(path, span).await
+          self.eval_import_expression(path, span).await
         }
-        ExpressionKind::Typed { expr, kind } => {
-          self.eval_and_check_type(expr, Some(kind)).await
+        ExpressionKind::Cast { expr, ty } => {
+          self.eval_and_check_type(expr, Some(ty)).await
         }
         ExpressionKind::Try(expr) => self.eval_result(expr, span).await,
       }?;
@@ -123,7 +126,7 @@ impl Interpreter {
       if !matches!(expression.kind, ExpressionKind::Try(_))
         && result.is_result_err()
       {
-        Ok(ObjectKind::Return(Arc::new(result)))
+        Ok(Object::Return(Arc::new(result)))
       } else {
         Ok(result)
       }

@@ -1,4 +1,4 @@
-use krama_core::{ErrorKind, ObjectKind};
+use krama_core::{ErrorKind, Object};
 use krama_runtime::{test_eval_err, test_eval_ok};
 
 // --- Struct Initialization ---
@@ -18,7 +18,7 @@ test_eval_ok! {
     const p = Point.new(1.0, 2.0)
     p.x
   "#,
-  ObjectKind::Float(1.0)
+  Object::Float(1.0)
 }
 
 // --- Struct Methods & "this" Context ---
@@ -43,7 +43,7 @@ test_eval_ok! {
     const v = Vec3.new(1.0, 2.0, 3.0)
     v.sum()
   "#,
-  ObjectKind::Float(6.0)
+  Object::Float(6.0)
 }
 
 // --- Default Field Values ---
@@ -63,7 +63,7 @@ test_eval_ok! {
     const c = Config.new()
     c.port
   "#,
-  ObjectKind::Integer(8080)
+  Object::Integer(8080)
 }
 
 // --- Visibility Control ---
@@ -96,7 +96,7 @@ test_eval_ok! {
     const b = Box.new(42)
     b.get()
   "#,
-  ObjectKind::Integer(42)
+  Object::Integer(42)
 }
 
 // --- Recursion & Self-Reference ---
@@ -112,5 +112,5 @@ test_eval_ok! {
     const f = Factorial {}
     f.calc(5)
   "#,
-  ObjectKind::Integer(120)
+  Object::Integer(120)
 }

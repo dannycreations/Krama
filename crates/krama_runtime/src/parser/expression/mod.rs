@@ -1,4 +1,4 @@
-use krama_core::{ErrorKind, PrecedenceKind, TokenKind};
+use krama_core::{ErrorKind, Precedence, TokenKind};
 
 use crate::{ParseResult, Parser};
 
@@ -10,10 +10,7 @@ mod update;
 
 impl<'a> Parser<'a> {
   /// Central entry point for parsing expressions with precedence.
-  pub fn parse_expression(
-    &mut self,
-    precedence: PrecedenceKind,
-  ) -> ParseResult {
+  pub fn parse_expression(&mut self, precedence: Precedence) -> ParseResult {
     let mut left = self.parse_pratt()?;
 
     while precedence < self.current_precedence() {
@@ -53,7 +50,7 @@ impl<'a> Parser<'a> {
         self.parse_prefix_update_expression()
       }
       TokenKind::LParen => self.parse_paren_expression(),
-      TokenKind::LBracket => self.parse_collection_expression(),
+      TokenKind::LBracket => self.parse_array_expression(),
       TokenKind::LBrace => self.parse_block_or_object_expression(),
       TokenKind::Import => self.parse_import_expression(),
       TokenKind::If => self.parse_if_expression(),

@@ -1,26 +1,26 @@
-use krama_core::{ErrorKind, ObjectKind};
+use krama_core::{ErrorKind, Object};
 use krama_runtime::{test_eval_err, test_eval_match, test_eval_ok};
 
 // --- Array Creation & Typing ---
 
-test_eval_match!(array_empty, "const a = []; a", ObjectKind::Array { .. });
+test_eval_match!(array_empty, "const a = []; a", Object::Array { .. });
 
 test_eval_match!(
   array_value,
   "const a: i32[] = [1, 2, 3]; a",
-  ObjectKind::Array { .. }
+  Object::Array { .. }
 );
 
 test_eval_match!(
   array_fixed,
   "const a: i32[3] = [1, 2, 3]; a",
-  ObjectKind::Array { .. }
+  Object::Array { .. }
 );
 
 test_eval_match!(
   array_fixed_with_less_elements,
   "const a: i32[3] = [1, 2]; a",
-  ObjectKind::Array { .. }
+  Object::Array { .. }
 );
 
 test_eval_err!(
@@ -40,19 +40,19 @@ test_eval_err!(
 test_eval_ok!(
   array_mutate_value,
   "let a: i32[] = [1]; a[0] = 2; a[0]",
-  ObjectKind::Integer(2)
+  Object::Integer(2)
 );
 
 test_eval_ok!(
   array_mutate_length,
   "let a: i32[] = [1]; a[1] = 2; a[1]",
-  ObjectKind::Integer(2)
+  Object::Integer(2)
 );
 
 test_eval_ok!(
   array_fixed_mutate_value,
   "let a: i32[1] = [1]; a[0] = 2; a[0]",
-  ObjectKind::Integer(2)
+  Object::Integer(2)
 );
 
 test_eval_err!(
@@ -70,7 +70,7 @@ test_eval_ok!(
     a[0][1] = 10
     a[0][1]
   "#,
-  ObjectKind::Integer(10)
+  Object::Integer(10)
 );
 
 test_eval_ok!(
@@ -81,7 +81,7 @@ test_eval_ok!(
     b[0][0] = 10
     b[1][0]
   "#,
-  ObjectKind::Integer(10)
+  Object::Integer(10)
 );
 
 // --- Array Immutability ---
@@ -103,19 +103,19 @@ test_eval_err!(
 test_eval_ok!(
   array_index_access,
   "const a: i64[3] = [1, 2, 3]; a[0]",
-  ObjectKind::Integer(1)
+  Object::Integer(1)
 );
 
 test_eval_ok!(
   array_index_negative,
   "const a: i64[3] = [1, 2, 3]; a[-1]",
-  ObjectKind::Integer(3)
+  Object::Integer(3)
 );
 
 test_eval_ok!(
   array_index_out_of_bounds,
   "const a: i64[3] = [1, 2, 3]; a[3]",
-  ObjectKind::Void
+  Object::Void
 );
 
 // --- Tuple Creation & Typing ---
@@ -123,19 +123,19 @@ test_eval_ok!(
 test_eval_match!(
   tuple_value,
   "const a = [1, true, \"hello\"]; a",
-  ObjectKind::Tuple { .. }
+  Object::Tuple { .. }
 );
 
 test_eval_match!(
   tuple_nested,
   "const a = [1, [true, \"hello\"]]; a",
-  ObjectKind::Tuple { .. }
+  Object::Tuple { .. }
 );
 
 test_eval_match!(
   tuple_with_type,
   "const a: [i32, bool] = [1, true]; a",
-  ObjectKind::Tuple { .. }
+  Object::Tuple { .. }
 );
 
 test_eval_err!(
@@ -155,19 +155,19 @@ test_eval_err!(
 test_eval_ok!(
   tuple_index_access,
   "const a = [1, \"hello\", 3]; a[0]",
-  ObjectKind::Integer(1)
+  Object::Integer(1)
 );
 
 test_eval_ok!(
   tuple_index_negative,
   "const a = [1, \"hello\", 3]; a[-1]",
-  ObjectKind::Integer(3)
+  Object::Integer(3)
 );
 
 test_eval_ok!(
   tuple_index_out_of_bounds,
   "const a = [1, \"hello\", 3]; a[3]",
-  ObjectKind::Void
+  Object::Void
 );
 
 // --- Tuple Immutability ---

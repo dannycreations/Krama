@@ -1,9 +1,9 @@
-use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Shl, Shr, Sub};
 
-use super::ObjectKind;
+use super::Object;
 use crate::{BinaryOperator, ErrorKind, ErrorKindResult};
 
-impl ObjectKind {
+impl Object {
   pub fn binary_op(
     &self,
     operator: BinaryOperator,
@@ -40,20 +40,20 @@ impl ObjectKind {
       }
       (Self::String(l), Self::String(r)) => {
         Self::compare_numbers(l, r, operator)
-          .map(Self::Boolean)
+          .map(Self::Bool)
           .ok_or_else(|| self.unsupported_bin_op(other, operator))
       }
-      (Self::Boolean(l), Self::Boolean(r)) => match operator {
-        BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
-        BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
+      (Self::Bool(l), Self::Bool(r)) => match operator {
+        BinaryOperator::Equal => Ok(Self::Bool(l == r)),
+        BinaryOperator::NotEqual => Ok(Self::Bool(l != r)),
         _ => Err(self.unsupported_bin_op(other, operator)),
       },
       (l, r) => match operator {
-        BinaryOperator::Equal => Ok(Self::Boolean(l == r)),
-        BinaryOperator::NotEqual => Ok(Self::Boolean(l != r)),
+        BinaryOperator::Equal => Ok(Self::Bool(l == r)),
+        BinaryOperator::NotEqual => Ok(Self::Bool(l != r)),
         BinaryOperator::In => {
           if let (Self::String(l), Self::Object { properties, .. }) = (l, r) {
-            return Ok(Self::Boolean(properties.read().contains_key(l)));
+            return Ok(Self::Bool(properties.read().contains_key(l)));
           }
           Err(ErrorKind::TypeError(format!(
             "Unsupported types for 'in' operation: {} and {}",
@@ -104,7 +104,7 @@ impl ObjectKind {
     r: i64,
   ) -> ErrorKindResult<Self> {
     if let Some(res) = Self::compare_numbers(l, r, op) {
-      return Ok(Self::Boolean(res));
+      return Ok(Self::Bool(res));
     }
 
     match op {
@@ -145,9 +145,8 @@ impl ObjectKind {
     l: f64,
     r: f64,
   ) -> ErrorKindResult<Self> {
-    use std::ops::{Add, Div, Mul, Rem, Sub};
     if let Some(res) = Self::compare_numbers(l, r, op) {
-      return Ok(Self::Boolean(res));
+      return Ok(Self::Bool(res));
     }
 
     match op {

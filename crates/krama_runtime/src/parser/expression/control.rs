@@ -1,6 +1,6 @@
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, FunctionBody, Match, MatchPattern,
-  Parameter, PrecedenceKind, TokenKind,
+  ErrorKind, Expression, ExpressionKind, FunctionBody, Match, Parameter,
+  Pattern, Precedence, TokenKind, Type,
 };
 
 use crate::{ErrorKindResult, ParseResult, Parser};
@@ -10,7 +10,7 @@ impl<'a> Parser<'a> {
     let start_span = self.current_token.span;
     self.advance();
     self.consume(TokenKind::LParen)?;
-    let condition = self.parse_expression(PrecedenceKind::Lowest)?;
+    let condition = self.parse_expression(Precedence::Lowest)?;
     self.consume(TokenKind::RParen)?;
     let then_branch = Box::new(self.parse_block_statement()?);
     let then_span = then_branch.span;
@@ -44,7 +44,7 @@ impl<'a> Parser<'a> {
     let start_span = self.current_token.span;
     self.advance();
     self.consume(TokenKind::LParen)?;
-    let subject = self.parse_expression(PrecedenceKind::Lowest)?;
+    let subject = self.parse_expression(Precedence::Lowest)?;
     self.consume(TokenKind::RParen)?;
     self.consume(TokenKind::LBrace)?;
     let mut arms = Vec::new();
@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
     }
     let body = if self.current_token.kind == TokenKind::Arrow {
       self.advance();
-      let expr = self.parse_expression(PrecedenceKind::Lowest)?;
+      let expr = self.parse_expression(Precedence::Lowest)?;
       FunctionBody::Expression(Box::new(expr))
     } else if self.current_token.kind == TokenKind::LBrace {
       let block = Box::new(self.parse_block_statement()?);
@@ -101,18 +101,18 @@ impl<'a> Parser<'a> {
     Ok(Match { patterns, body })
   }
 
-  fn parse_match_pattern(&mut self) -> ErrorKindResult<MatchPattern> {
+  fn parse_match_pattern(&mut self) -> ErrorKindResult<Pattern> {
     if self.current_token.kind == TokenKind::Else {
       self.advance();
-      return Ok(MatchPattern::Else);
+      return Ok(Pattern::Else);
     }
-    let left = self.parse_expression(PrecedenceKind::LessGreater)?;
+    let left = self.parse_expression(Precedence::Comparison)?;
     if self.current_token.kind == TokenKind::DotDot {
       self.advance();
-      let right = self.parse_expression(PrecedenceKind::LessGreater)?;
-      Ok(MatchPattern::Range(left, right))
+      let right = self.parse_expression(Precedence::Comparison)?;
+      Ok(Pattern::Range(left, right))
     } else {
-      Ok(MatchPattern::Expression(left))
+      Ok(Pattern::Expression(left))
     }
   }
 
@@ -122,12 +122,12 @@ impl<'a> Parser<'a> {
     self.consume(TokenKind::LParen)?;
     let parameters = self.parse_fn_parameters()?;
     self.consume(TokenKind::RParen)?;
-    let (body, kind) = self.parse_classic_fn_body_and_return_type()?;
+    let (body, ty) = self.parse_classic_fn_body_and_meta()?;
     Ok(Expression::new(
-      ExpressionKind::Fn {
+      ExpressionKind::Function {
         parameters,
         body,
-        kind,
+        ty,
       },
       start_span,
     ))
@@ -144,13 +144,13 @@ impl<'a> Parser<'a> {
       let kind = self.parse_optional_type()?;
       let default = if self.current_token.kind == TokenKind::Equal {
         self.advance();
-        Some(Box::new(self.parse_expression(PrecedenceKind::Lowest)?))
+        Some(Box::new(self.parse_expression(Precedence::Lowest)?))
       } else {
         None
       };
       parameters.push(Parameter {
         name,
-        kind,
+        ty: kind,
         default,
         span: param_span_start,
       });
@@ -162,25 +162,25 @@ impl<'a> Parser<'a> {
     Ok(parameters)
   }
 
-  pub fn parse_arrow_fn_body_and_return_type(
+  pub fn parse_arrow_fn_body_and_meta(
     &mut self,
-  ) -> ErrorKindResult<(FunctionBody, Option<krama_core::Type>)> {
-    let kind = self.parse_optional_type()?;
+  ) -> ErrorKindResult<(FunctionBody, Option<Type>)> {
+    let ty = self.parse_optional_type()?;
     self.consume(TokenKind::Arrow)?;
     if self.current_token.kind == TokenKind::LBrace {
       return Err(ErrorKind::SyntaxError(
         "Arrow functions cannot have a block body.".to_string(),
       ));
     }
-    let body_expr = self.parse_expression(PrecedenceKind::Lowest)?;
+    let body_expr = self.parse_expression(Precedence::Lowest)?;
     let body = FunctionBody::Expression(Box::new(body_expr));
-    Ok((body, kind))
+    Ok((body, ty))
   }
 
-  pub fn parse_classic_fn_body_and_return_type(
+  pub fn parse_classic_fn_body_and_meta(
     &mut self,
-  ) -> ErrorKindResult<(FunctionBody, Option<krama_core::Type>)> {
-    let kind = self.parse_optional_type()?;
+  ) -> ErrorKindResult<(FunctionBody, Option<Type>)> {
+    let ty = self.parse_optional_type()?;
     if self.current_token.kind == TokenKind::Arrow {
       return Err(
         ErrorKind::SyntaxError(
@@ -190,6 +190,6 @@ impl<'a> Parser<'a> {
     }
     let body_block = Box::new(self.parse_block_statement()?);
     let body = FunctionBody::Block(body_block);
-    Ok((body, kind))
+    Ok((body, ty))
   }
 }

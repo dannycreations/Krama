@@ -1,6 +1,6 @@
 use krama_core::{
-  AssignmentOperator, Expression, ExpressionKind, ObjectKind, ObjectResult,
-  Span, StatementBlock,
+  AssignmentOperator, Expression, ExpressionKind, Iteration, Object,
+  ObjectResult, Span, StatementBlock,
 };
 
 use crate::interpreter::Interpreter;
@@ -41,12 +41,12 @@ impl Interpreter {
         return Ok(ctrl);
       }
     }
-    Ok(ObjectKind::Void)
+    Ok(Object::Void)
   }
 
   pub async fn eval_for_statement(
     &self,
-    binding: &krama_core::ForBinding,
+    binding: &Iteration,
     iterable: &Expression,
     body: &StatementBlock,
     span: Span,
@@ -70,6 +70,6 @@ impl Interpreter {
         return Ok(ctrl);
       }
     }
-    Ok(ObjectKind::Void)
+    Ok(Object::Void)
   }
 }

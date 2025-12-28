@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use futures::try_join;
 use krama_core::{
   AssignmentOperator, ErrorKind, ErrorResult, Expression, ExpressionKind,
-  FunctionBody, Match, MatchPattern, ObjectKind, ObjectResult, Span, Type,
+  FunctionBody, Match, Object, ObjectResult, Pattern, Span, Type,
 };
 
 use crate::interpreter::Interpreter;
@@ -13,7 +14,7 @@ impl Interpreter {
     condition: &Expression,
     then_branch: &Expression,
     else_branch: Option<&Expression>,
-    kind: Option<&Type>,
+    ty: Option<&Type>,
   ) -> ObjectResult {
     if let Some(bindings) = self.try_match_assignment(condition).await? {
       let stack = self.stack.clone();
@@ -21,18 +22,18 @@ impl Interpreter {
       for (name, val) in bindings {
         stack.write().define(name, val, false, false);
       }
-      let result = self.eval_expression(then_branch, kind).await;
+      let result = self.eval_expression(then_branch, ty).await;
       stack.write().pop();
       return result;
     }
 
     let condition_val = self.eval_expression(condition, None).await?;
     if condition_val.is_truthy() {
-      self.eval_expression(then_branch, kind).await
+      self.eval_expression(then_branch, ty).await
     } else if let Some(else_branch) = else_branch {
-      self.eval_expression(else_branch, kind).await
+      self.eval_expression(else_branch, ty).await
     } else {
-      Ok(ObjectKind::Void)
+      Ok(Object::Void)
     }
   }
 
@@ -78,34 +79,34 @@ impl Interpreter {
 
           let result = result?;
           if result.is_control_signal() {
-            if let ObjectKind::Return(_) = &result {
+            if let Object::Return(_) = &result {
               return Ok(result);
             }
-            return Ok(ObjectKind::Void);
+            return Ok(Object::Void);
           }
           return Ok(result);
         }
       }
     }
-    Ok(ObjectKind::Void)
+    Ok(Object::Void)
   }
 
   async fn eval_match_pattern<'s>(
     &'s self,
-    subject: &'s ObjectKind,
-    pattern: &'s MatchPattern,
+    subject: &'s Object,
+    pattern: &'s Pattern,
     span: Span,
-  ) -> ErrorResult<Option<Vec<(Arc<str>, ObjectKind)>>> {
+  ) -> ErrorResult<Option<Vec<(Arc<str>, Object)>>> {
     match (pattern, subject) {
-      (MatchPattern::Expression(expression), _) => {
+      (Pattern::Expression(expression), _) => {
         self.match_pattern_internal(subject, expression, span).await
       }
-      (MatchPattern::Range(start, end), ObjectKind::Integer(i)) => {
-        let (start_val, end_val) = tokio::try_join!(
+      (Pattern::Range(start, end), Object::Integer(i)) => {
+        let (start_val, end_val) = try_join!(
           self.eval_expression(start, None),
           self.eval_expression(end, None)
         )?;
-        if let (ObjectKind::Integer(start), ObjectKind::Integer(end)) =
+        if let (Object::Integer(start), Object::Integer(end)) =
           (start_val, end_val)
         {
           if i >= &start && i <= &end {
@@ -121,12 +122,12 @@ impl Interpreter {
           )
         }
       }
-      (MatchPattern::Range(start, end), ObjectKind::String(s)) => {
-        let (start_obj, end_obj) = tokio::try_join!(
+      (Pattern::Range(start, end), Object::String(s)) => {
+        let (start_obj, end_obj) = try_join!(
           self.eval_expression(start, None),
           self.eval_expression(end, None)
         )?;
-        if let (ObjectKind::String(start_str), ObjectKind::String(end_str)) =
+        if let (Object::String(start_str), Object::String(end_str)) =
           (start_obj, end_obj)
         {
           if s.as_ref() >= start_str.as_ref() && s.as_ref() <= end_str.as_ref()
@@ -143,7 +144,7 @@ impl Interpreter {
           )
         }
       }
-      (MatchPattern::Else, _) => Ok(Some(Vec::new())),
+      (Pattern::Else, _) => Ok(Some(Vec::new())),
       _ => Ok(None),
     }
   }
@@ -154,7 +155,7 @@ impl Interpreter {
     _span: Span,
   ) -> ObjectResult {
     let val = self.eval_expression(expr, None).await?;
-    if let ObjectKind::Return(inner) = &val {
+    if let Object::Return(inner) = &val {
       if inner.is_result_err() {
         return Ok(inner.as_ref().clone());
       }
@@ -165,7 +166,7 @@ impl Interpreter {
   pub async fn try_match_assignment(
     &self,
     expression: &Expression,
-  ) -> ErrorResult<Option<Vec<(Arc<str>, ObjectKind)>>> {
+  ) -> ErrorResult<Option<Vec<(Arc<str>, Object)>>> {
     if let ExpressionKind::Assignment {
       left,
       operator: AssignmentOperator::Assign,
@@ -184,10 +185,10 @@ impl Interpreter {
 
   pub async fn match_pattern_internal(
     &self,
-    subject: &ObjectKind,
+    subject: &Object,
     pattern_expr: &Expression,
     _span: Span,
-  ) -> ErrorResult<Option<Vec<(Arc<str>, ObjectKind)>>> {
+  ) -> ErrorResult<Option<Vec<(Arc<str>, Object)>>> {
     if let ExpressionKind::Call {
       function,
       arguments,
@@ -199,12 +200,12 @@ impl Interpreter {
         {
           let is_match = matches!(
             (name.as_ref(), subject),
-            ("Ok", ObjectKind::Ok(_)) | ("Err", ObjectKind::Err(_))
+            ("Ok", Object::Ok(_)) | ("Err", Object::Err(_))
           );
 
           if is_match {
             let inner_val = match subject {
-              ObjectKind::Ok(v) | ObjectKind::Err(v) => v,
+              Object::Ok(v) | Object::Err(v) => v,
               _ => unreachable!("is_match guaranteed this variant"),
             };
 
@@ -235,12 +236,12 @@ impl Interpreter {
   }
 
   #[inline(always)]
-  pub fn handle_loop_control(&self, result: ObjectKind) -> Option<ObjectKind> {
+  pub fn handle_loop_control(&self, result: Object) -> Option<Object> {
     if result.is_control_signal() {
       match result {
-        ObjectKind::Break => Some(ObjectKind::Void),
-        ObjectKind::Continue => None,
-        ObjectKind::Return(inner) if inner.is_result_err() => None,
+        Object::Break => Some(Object::Void),
+        Object::Continue => None,
+        Object::Return(inner) if inner.is_result_err() => None,
         _ => Some(result),
       }
     } else {

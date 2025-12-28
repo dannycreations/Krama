@@ -4,22 +4,22 @@ use std::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LiteralKind {
+pub enum Literal {
   Integer(i64),
   Float(f64),
   String(Arc<str>),
-  Boolean(bool),
+  Bool(bool),
   Null,
 }
 
-impl Display for LiteralKind {
+impl Display for Literal {
   fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
-      LiteralKind::Integer(i) => write!(f, "{}", i),
-      LiteralKind::Float(fl) => write!(f, "{}", fl),
-      LiteralKind::String(s) => write!(f, "{}", s),
-      LiteralKind::Boolean(b) => write!(f, "{}", b),
-      LiteralKind::Null => write!(f, "null"),
+      Literal::Integer(i) => write!(f, "{}", i),
+      Literal::Float(fl) => write!(f, "{}", fl),
+      Literal::String(s) => write!(f, "{}", s),
+      Literal::Bool(b) => write!(f, "{}", b),
+      Literal::Null => write!(f, "null"),
     }
   }
 }

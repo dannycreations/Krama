@@ -6,12 +6,12 @@ use std::{
 
 use anyhow::{Context, Result};
 use clap::{Parser as ClapParser, Subcommand};
-use krama_core::{ErrorKind, ObjectKind};
+use krama_core::{ErrorKind, Object};
 use krama_runtime::{Interpreter, TestResult};
 use tokio::{
-  fs,
-  io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader},
-  signal,
+  fs::read_to_string as tokio_read_to_string,
+  io::{stdin, stdout, AsyncBufReadExt, AsyncWriteExt, BufReader},
+  select, signal,
 };
 use walkdir::WalkDir;
 
@@ -57,7 +57,7 @@ pub struct Run {
 impl Run {
   pub async fn execute(&self, eval: bool) -> Result<()> {
     let interpreter = Interpreter::new(Some(self.file.clone()));
-    let content = fs::read_to_string(&self.file)
+    let content = tokio_read_to_string(&self.file)
       .await
       .with_context(|| format!("Failed to read file: {}", &self.file))?;
 
@@ -123,7 +123,7 @@ impl Test {
     let mut passed = 0;
     let mut failed = 0;
 
-    let content = fs::read_to_string(path).await?;
+    let content = tokio_read_to_string(path).await?;
     let path_str = path.to_str().context("path is not valid UTF-8")?;
 
     let interpreter = Interpreter::new(Some(path_str.to_string()));
@@ -161,8 +161,8 @@ pub struct Repl;
 impl Repl {
   pub async fn execute(&self) -> Result<()> {
     let interpreter = Interpreter::new(Some("repl".to_string()));
-    let mut reader = BufReader::new(io::stdin());
-    let mut stdout = io::stdout();
+    let mut reader = BufReader::new(stdin());
+    let mut stdout = stdout();
     let mut line = String::new();
     let mut history = String::new();
 
@@ -172,7 +172,7 @@ impl Repl {
       stdout.flush().await?;
       line.clear();
 
-      tokio::select! {
+      select! {
           _ = signal::ctrl_c() => {
               process::exit(0);
           }
@@ -216,7 +216,7 @@ impl Repl {
       history.clear();
     } else {
       match interpreter.eval(source).await {
-        Ok(object) if !matches!(object, ObjectKind::Void) => {
+        Ok(object) if !matches!(object, Object::Void) => {
           println!("{}", object)
         }
         Err(error) => error.report(),

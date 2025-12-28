@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use super::Expression;
 use crate::{
-  AssignmentOperator, BinaryOperator, LiteralKind, Parameter, StatementBlock,
-  Type, UnaryOperator, UpdateOperator,
+  AssignmentOperator, BinaryOperator, Literal, Parameter, StatementBlock, Type,
+  UnaryOperator, UpdateOperator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,13 +15,13 @@ pub enum FunctionBody {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExpressionKind {
   Identifier(Arc<str>),
-  Literal(LiteralKind),
+  Literal(Literal),
   This,
-  StructConstruction {
+  Struct {
     properties: Vec<(Expression, Expression)>,
   },
   Block(Box<StatementBlock>),
-  Collection {
+  Array {
     elements: Vec<Expression>,
   },
   Object {
@@ -63,10 +63,10 @@ pub enum ExpressionKind {
     function: Box<Expression>,
     arguments: Vec<Expression>,
   },
-  Fn {
+  Function {
     parameters: Vec<Parameter>,
     body: FunctionBody,
-    kind: Option<Type>,
+    ty: Option<Type>,
   },
   Member {
     object: Box<Expression>,
@@ -76,21 +76,21 @@ pub enum ExpressionKind {
     object: Box<Expression>,
     index: Box<Expression>,
   },
-  Typed {
+  Cast {
     expr: Box<Expression>,
-    kind: Type,
+    ty: Type,
   },
   Try(Box<Expression>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Match {
-  pub patterns: Vec<MatchPattern>,
+  pub patterns: Vec<Pattern>,
   pub body: FunctionBody,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum MatchPattern {
+pub enum Pattern {
   Expression(Expression),
   Range(Expression, Expression),
   Else,

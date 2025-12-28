@@ -7,9 +7,10 @@ macro_rules! count_args {
 
 macro_rules! parse_args {
   ($objects:expr, $fn_name:expr; $($arg:ident: $type:pat),*) => {
+    use krama_core::ErrorKind;
     const EXPECTED_ARGS: usize = count_args!($($arg),*);
     if $objects.len() < EXPECTED_ARGS {
-      return Err(krama_core::ErrorKind::ArgumentError(format!(
+      return Err(ErrorKind::ArgumentError(format!(
         "{} expected at least {} arguments, but got {}",
         $fn_name, EXPECTED_ARGS, $objects.len()
       )));
@@ -20,7 +21,7 @@ macro_rules! parse_args {
         Some($type) => $arg,
         #[allow(unreachable_patterns)]
         Some(other) => {
-          return Err(krama_core::ErrorKind::ArgumentError(format!(
+          return Err(ErrorKind::ArgumentError(format!(
             "Expected argument '{}' for function '{}' to be of type '{}', but got '{}'",
             stringify!($arg), $fn_name, stringify!($type), other.type_name()
           )));
@@ -33,6 +34,7 @@ macro_rules! parse_args {
 
 macro_rules! parse_path_arg {
   ($objects:expr, $fn_name:expr; $arg:ident) => {
-    parse_args!($objects, $fn_name; $arg: krama_core::ObjectKind::String($arg));
+    use krama_core::Object;
+    parse_args!($objects, $fn_name; $arg: Object::String($arg));
   };
 }

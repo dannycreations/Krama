@@ -5,7 +5,7 @@ use std::{
 
 use indexmap::IndexMap;
 
-use crate::{ErrorKind, ErrorKindResult, LiteralKind, Node, ObjectKind};
+use crate::{ErrorKind, ErrorKindResult, Literal, Node, Object};
 
 pub type Type = Node<TypeKind>;
 
@@ -32,15 +32,15 @@ pub enum TypeKind {
   Identifier(Arc<str>),
   Array {
     element: Box<Type>,
-    size: Option<LiteralKind>,
+    size: Option<Literal>,
   },
   Tuple(Vec<Type>),
-  Object(IndexMap<Arc<str>, ObjectProperty>),
+  Object(IndexMap<Arc<str>, TypeProperty>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ObjectProperty {
-  pub kind: Type,
+pub struct TypeProperty {
+  pub ty: Type,
   pub optional: bool,
 }
 
@@ -74,19 +74,19 @@ impl TypeKind {
 
 impl Type {
   /// Validates that an object matches this type.
-  pub fn check(&self, object: &ObjectKind) -> ErrorKindResult<()> {
+  pub fn check(&self, object: &Object) -> ErrorKindResult<()> {
     match (&self.kind, object) {
       // Integer types - Simplified using helper method.
-      (k, ObjectKind::Integer(_)) if k.is_integer() => Ok(()),
+      (k, Object::Integer(_)) if k.is_integer() => Ok(()),
 
       // Float types - Simplified using helper method.
-      (k, ObjectKind::Float(_)) if k.is_float() => Ok(()),
+      (k, Object::Float(_)) if k.is_float() => Ok(()),
 
       // Primitives
-      (TypeKind::Bool, ObjectKind::Boolean(_)) => Ok(()),
-      (TypeKind::Str, ObjectKind::String(_)) => Ok(()),
-      (TypeKind::Void, ObjectKind::Void) => Ok(()),
-      (TypeKind::Null, ObjectKind::Null) => Ok(()),
+      (TypeKind::Bool, Object::Bool(_)) => Ok(()),
+      (TypeKind::Str, Object::String(_)) => Ok(()),
+      (TypeKind::Void, Object::Void) => Ok(()),
+      (TypeKind::Null, Object::Null) => Ok(()),
 
       // Custom types / Identifiers
       (TypeKind::Identifier(name), _)
@@ -101,10 +101,10 @@ impl Type {
           element: element_type,
           size,
         },
-        ObjectKind::Array { elements, .. },
+        Object::Array { elements, .. },
       ) => {
         let elements = elements.read();
-        if let Some(LiteralKind::Integer(max_size)) = size {
+        if let Some(Literal::Integer(max_size)) = size {
           if elements.len() > *max_size as usize {
             return Err(ErrorKind::TypeError(format!(
               "Expected an array of size {}, but got {}",
@@ -120,7 +120,7 @@ impl Type {
       }
 
       // Tuples
-      (TypeKind::Tuple(types), ObjectKind::Tuple(elements)) => {
+      (TypeKind::Tuple(types), Object::Tuple(elements)) => {
         if types.len() != elements.len() {
           return Err(ErrorKind::TypeError(format!(
             "Expected a tuple of {} elements, but got {}",
@@ -138,7 +138,7 @@ impl Type {
       // Objects
       (
         TypeKind::Object(properties),
-        ObjectKind::Object {
+        Object::Object {
           properties: obj_props,
           ..
         },
@@ -146,7 +146,7 @@ impl Type {
         let obj_props = obj_props.read();
         for (name, prop) in properties {
           if let Some(val) = obj_props.get(name) {
-            prop.kind.check(val)?;
+            prop.ty.check(val)?;
           } else if !prop.optional {
             return Err(ErrorKind::TypeError(format!(
               "Missing property '{}'",
@@ -158,7 +158,7 @@ impl Type {
       }
 
       _ => Err(ErrorKind::TypeError(format!(
-        "Expected type {}, but got {}",
+        "Expected type '{}', but got '{}'",
         self.kind,
         object.type_name()
       ))),
@@ -183,8 +183,8 @@ impl Display for TypeKind {
       Self::Usize => write!(f, "usize"),
       Self::F32 => write!(f, "f32"),
       Self::F64 => write!(f, "f64"),
-      Self::Bool => write!(f, "boolean"),
-      Self::Str => write!(f, "string"),
+      Self::Bool => write!(f, "bool"),
+      Self::Str => write!(f, "str"),
       Self::Null => write!(f, "null"),
       Self::Void => write!(f, "void"),
       Self::Identifier(name) => write!(f, "{}", name),
@@ -216,7 +216,7 @@ impl Display for TypeKind {
             "{}{}: {}",
             name,
             if prop.optional { "?" } else { "" },
-            prop.kind
+            prop.ty
           )?;
         }
         write!(f, "}}")

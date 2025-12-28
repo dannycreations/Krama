@@ -6,11 +6,11 @@ use strum::EnumProperty;
 use strum_macros::EnumProperty as EnumPropertyMacro;
 
 use super::{
-  function::FunctionKind,
+  function::Function,
   scope::Scope,
   types::{EnumInstance, Struct},
 };
-use crate::{LiteralKind, Type};
+use crate::{Literal, Type};
 
 mod binary;
 mod display;
@@ -19,46 +19,46 @@ mod unary;
 /// The fundamental value type in the language.
 #[derive(Debug, Clone, EnumPropertyMacro)]
 #[repr(C, u8)]
-pub enum ObjectKind {
+pub enum Object {
   #[strum(props(name = "null"))]
   Null,
   #[strum(props(name = "void"))]
   Void,
-  #[strum(props(name = "boolean"))]
-  Boolean(bool),
+  #[strum(props(name = "bool"))]
+  Bool(bool),
   #[strum(props(name = "integer"))]
   Integer(i64),
   #[strum(props(name = "float"))]
   Float(f64),
-  #[strum(props(name = "string"))]
+  #[strum(props(name = "str"))]
   String(Arc<str>),
   #[strum(props(name = "array"))]
   Array {
-    elements: Arc<RwLock<Vec<ObjectKind>>>,
-    kind: Type,
+    elements: Arc<RwLock<Vec<Object>>>,
+    ty: Type,
     constant: bool,
   },
   #[strum(props(name = "tuple"))]
-  Tuple(Arc<[ObjectKind]>),
+  Tuple(Arc<[Object]>),
   #[strum(props(name = "object"))]
   Object {
-    properties: Arc<RwLock<IndexMap<Arc<str>, ObjectKind>>>,
+    properties: Arc<RwLock<IndexMap<Arc<str>, Object>>>,
     definition: Option<Arc<Struct>>,
     constant: bool,
   },
   Scope(Arc<RwLock<Scope>>),
   #[strum(props(name = "function"))]
-  Function(FunctionKind),
+  Function(Function),
   #[strum(props(name = "return"))]
-  Return(Arc<ObjectKind>),
+  Return(Arc<Object>),
   #[strum(props(name = "break"))]
   Break,
   #[strum(props(name = "continue"))]
   Continue,
   #[strum(props(name = "ok"))]
-  Ok(Arc<ObjectKind>),
+  Ok(Arc<Object>),
   #[strum(props(name = "err"))]
-  Err(Arc<ObjectKind>),
+  Err(Arc<Object>),
   #[strum(props(name = "enum"))]
   Enum(Box<EnumInstance>),
   #[strum(props(name = "struct"))]
@@ -67,7 +67,7 @@ pub enum ObjectKind {
   Type(Type),
 }
 
-impl ObjectKind {
+impl Object {
   #[inline(always)]
   pub fn is_control_signal(&self) -> bool {
     matches!(self, Self::Return(_) | Self::Break | Self::Continue)
@@ -92,7 +92,7 @@ impl ObjectKind {
   #[inline(always)]
   pub fn is_truthy(&self) -> bool {
     match self {
-      Self::Boolean(b) => *b,
+      Self::Bool(b) => *b,
       Self::Null | Self::Void | Self::Err(_) => false,
       Self::Integer(i) => *i != 0,
       Self::Float(f) => *f != 0.0 && !f.is_nan(),
@@ -114,7 +114,10 @@ impl ObjectKind {
       } => &def.name,
       Self::Scope(s) if s.read().name.is_some() => "module",
       Self::Scope(_) => "global",
-      _ => self.get_str("name").unwrap_or("unknown"),
+      _ => self
+        .get_str("name")
+        .or_else(|| self.get_str("variant"))
+        .unwrap_or("unknown"),
     }
   }
 
@@ -133,13 +136,13 @@ impl ObjectKind {
   }
 }
 
-impl PartialEq for ObjectKind {
+impl PartialEq for Object {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (Self::Integer(l), Self::Integer(r)) => l == r,
       (Self::Float(l), Self::Float(r)) => l == r,
-      (Self::Boolean(l), Self::Boolean(r)) => l == r,
+      (Self::Bool(l), Self::Bool(r)) => l == r,
       (Self::String(l), Self::String(r)) => Arc::ptr_eq(l, r) || *l == *r,
       (Self::Array { elements: l, .. }, Self::Array { elements: r, .. }) => {
         Arc::ptr_eq(l, r)
@@ -165,27 +168,27 @@ impl PartialEq for ObjectKind {
   }
 }
 
-impl From<EnumInstance> for ObjectKind {
+impl From<EnumInstance> for Object {
   fn from(instance: EnumInstance) -> Self {
     Self::Enum(Box::new(instance))
   }
 }
 
-impl From<LiteralKind> for ObjectKind {
-  fn from(literal: LiteralKind) -> Self {
+impl From<Literal> for Object {
+  fn from(literal: Literal) -> Self {
     match literal {
-      LiteralKind::Integer(i) => Self::Integer(i),
-      LiteralKind::Float(f) => Self::Float(f),
-      LiteralKind::String(s) => Self::String(s),
-      LiteralKind::Boolean(b) => Self::Boolean(b),
-      LiteralKind::Null => Self::Null,
+      Literal::Integer(i) => Self::Integer(i),
+      Literal::Float(f) => Self::Float(f),
+      Literal::String(s) => Self::String(s),
+      Literal::Bool(b) => Self::Bool(b),
+      Literal::Null => Self::Null,
     }
   }
 }
 
-impl From<&ObjectKind> for bool {
+impl From<&Object> for bool {
   #[inline]
-  fn from(obj: &ObjectKind) -> bool {
+  fn from(obj: &Object) -> bool {
     obj.is_truthy()
   }
 }

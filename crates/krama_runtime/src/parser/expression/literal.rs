@@ -1,6 +1,4 @@
-use krama_core::{
-  ErrorKind, Expression, ExpressionKind, LiteralKind, TokenKind,
-};
+use krama_core::{ErrorKind, Expression, ExpressionKind, Literal, TokenKind};
 
 use crate::{ParseResult, Parser};
 
@@ -12,19 +10,19 @@ impl<'a> Parser<'a> {
 
     let literal = match token.kind {
       TokenKind::Integer(value) => {
-        LiteralKind::Integer(value.replace('_', "").parse().map_err(|_| {
+        Literal::Integer(value.replace('_', "").parse().map_err(|_| {
           ErrorKind::SyntaxError("Invalid integer literal".to_string())
         })?)
       }
       TokenKind::Float(value) => {
-        LiteralKind::Float(value.replace('_', "").parse().map_err(|_| {
+        Literal::Float(value.replace('_', "").parse().map_err(|_| {
           ErrorKind::SyntaxError("Invalid float literal".to_string())
         })?)
       }
-      TokenKind::String(value) => LiteralKind::String(value.clone()),
-      TokenKind::True => LiteralKind::Boolean(true),
-      TokenKind::False => LiteralKind::Boolean(false),
-      TokenKind::Null => LiteralKind::Null,
+      TokenKind::String(value) => Literal::String(value.clone()),
+      TokenKind::True => Literal::Bool(true),
+      TokenKind::False => Literal::Bool(false),
+      TokenKind::Null => Literal::Null,
       _ => {
         return Err(ErrorKind::SyntaxError(format!(
           "Unexpected token for literal: {}",

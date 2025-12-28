@@ -1,6 +1,6 @@
 use krama_core::{
-  ErrorKind, ErrorKindResult, ForBinding, PrecedenceKind, Statement,
-  StatementKind, TokenKind,
+  ErrorKind, ErrorKindResult, Iteration, Precedence, Statement, StatementKind,
+  TokenKind,
 };
 
 use crate::Parser;
@@ -10,7 +10,7 @@ impl<'a> Parser<'a> {
     let start_span = self.current_token.span;
     self.advance();
     self.consume(TokenKind::LParen)?;
-    let condition = self.parse_expression(PrecedenceKind::Lowest)?;
+    let condition = self.parse_expression(Precedence::Lowest)?;
     self.consume(TokenKind::RParen)?;
     let body = self.parse_block_statement()?;
     Ok(Statement::new(
@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
     self.consume(TokenKind::LParen)?;
     let binding = self.parse_for_binding()?;
     self.consume(TokenKind::In)?;
-    let iterable = self.parse_expression(PrecedenceKind::Lowest)?;
+    let iterable = self.parse_expression(Precedence::Lowest)?;
     self.consume(TokenKind::RParen)?;
     let body = self.parse_block_statement()?;
     Ok(Statement::new(
@@ -41,12 +41,12 @@ impl<'a> Parser<'a> {
     ))
   }
 
-  fn parse_for_binding(&mut self) -> ErrorKindResult<ForBinding> {
+  fn parse_for_binding(&mut self) -> ErrorKindResult<Iteration> {
     match &self.current_token.kind {
       TokenKind::Identifier(name) => {
         let name = name.clone();
         self.advance();
-        Ok(ForBinding::Identifier(name))
+        Ok(Iteration::Identifier(name))
       }
       TokenKind::LBracket => {
         self.advance();
@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
           }
         }
         self.consume(TokenKind::RBracket)?;
-        Ok(ForBinding::Array(elements))
+        Ok(Iteration::Array(elements))
       }
       _ => Err(ErrorKind::SyntaxError(format!(
         "Expected identifier or '[', but got {}",

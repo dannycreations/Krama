@@ -3,7 +3,8 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 use krama_core::{
   AssignmentOperator, Error, ErrorKind, ErrorResult, Expression,
-  ExpressionKind, LiteralKind, ObjectKind, ObjectResult, Span, TypeKind,
+  ExpressionKind, Literal, Object, ObjectResult, Span, TypeKind,
+  UpdateOperator,
 };
 use parking_lot::RwLock;
 
@@ -15,11 +16,11 @@ pub enum LValue {
     distance: Option<usize>,
   },
   Property {
-    properties: Arc<RwLock<IndexMap<Arc<str>, ObjectKind>>>,
+    properties: Arc<RwLock<IndexMap<Arc<str>, Object>>>,
     name: Arc<str>,
   },
   Index {
-    elements: Arc<RwLock<Vec<ObjectKind>>>,
+    elements: Arc<RwLock<Vec<Object>>>,
     index: i64,
     fixed_size: Option<i64>,
   },
@@ -59,7 +60,7 @@ impl Interpreter {
 
   pub async fn eval_update_expression(
     &self,
-    operator: krama_core::UpdateOperator,
+    operator: UpdateOperator,
     argument: &Expression,
     prefix: bool,
     span: Span,
@@ -71,7 +72,7 @@ impl Interpreter {
     }
 
     let new_value = original_value
-      .binary_op(operator.into(), &ObjectKind::Integer(1))
+      .binary_op(operator.into(), &Object::Integer(1))
       .map_err(|k| k.at(span))?;
 
     self.set_lvalue_value(target, new_value.clone(), span)?;
@@ -118,7 +119,7 @@ impl Interpreter {
           .read()
           .get(name.as_ref())
           .cloned()
-          .unwrap_or(ObjectKind::Void),
+          .unwrap_or(Object::Void),
       ),
       LValue::Index {
         elements, index, ..
@@ -129,7 +130,7 @@ impl Interpreter {
   pub fn set_lvalue_value(
     &self,
     target: LValue,
-    value: ObjectKind,
+    value: Object,
     span: Span,
   ) -> ErrorResult {
     match target {
@@ -171,7 +172,7 @@ impl Interpreter {
         } else if index >= 0 {
           let u_idx = index as usize;
           if u_idx >= elements.len() {
-            elements.resize(u_idx + 1, ObjectKind::Void);
+            elements.resize(u_idx + 1, Object::Void);
           }
           elements[u_idx] = value;
         }
@@ -182,7 +183,7 @@ impl Interpreter {
 
   fn resolve_member_lvalue(
     &self,
-    obj_val: ObjectKind,
+    obj_val: Object,
     property: &Expression,
     span: Span,
   ) -> ErrorResult<LValue> {
@@ -203,7 +204,7 @@ impl Interpreter {
     };
 
     match obj_val {
-      ObjectKind::Object {
+      Object::Object {
         properties,
         constant,
         ..
@@ -233,8 +234,8 @@ impl Interpreter {
 
   fn resolve_index_lvalue(
     &self,
-    obj_val: ObjectKind,
-    index_val: ObjectKind,
+    obj_val: Object,
+    index_val: Object,
     span: Span,
   ) -> ErrorResult<LValue> {
     if obj_val.is_control_signal() || index_val.is_control_signal() {
@@ -245,7 +246,7 @@ impl Interpreter {
     }
 
     match obj_val {
-      ObjectKind::Object {
+      Object::Object {
         properties,
         constant,
         ..
@@ -259,7 +260,7 @@ impl Interpreter {
           );
         }
         let key = match index_val {
-          ObjectKind::String(s) => s,
+          Object::String(s) => s,
           _ => {
             return Err(
               ErrorKind::TypeError("Object index must be a string".into())
@@ -272,10 +273,10 @@ impl Interpreter {
           name: key,
         })
       }
-      ObjectKind::Array {
+      Object::Array {
         elements,
         constant,
-        kind,
+        ty,
         ..
       } => {
         if constant {
@@ -288,9 +289,9 @@ impl Interpreter {
         }
         let index = self.ensure_int_index(&index_val, span)?;
         let fixed_size = if let TypeKind::Array {
-          size: Some(LiteralKind::Integer(size)),
+          size: Some(Literal::Integer(size)),
           ..
-        } = &kind.kind
+        } = &ty.kind
         {
           Some(*size)
         } else {

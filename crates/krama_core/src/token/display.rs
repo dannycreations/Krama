@@ -1,9 +1,9 @@
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use super::kind::TokenKind;
 
 impl Display for TokenKind {
-  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+  fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
       Self::Plus => write!(f, "+"),
       Self::PlusPlus => write!(f, "++"),

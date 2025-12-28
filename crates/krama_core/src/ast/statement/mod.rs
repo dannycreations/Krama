@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 pub use kind::*;
 
-use crate::{Expression, Node, Span, Type};
+use crate::{Expression, FunctionBody, Node, Span, Type};
 
 pub type Statement = Node<StatementKind>;
 
@@ -14,25 +14,25 @@ pub struct StatementBlock {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Destructure {
+pub struct DestructureBlock {
   pub name: Arc<str>,
   pub alias: Option<Arc<str>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ConstBinding {
+pub enum Binding {
   Identifier(Arc<str>),
-  Destructure(Vec<Destructure>),
+  Destructure(Vec<DestructureBlock>),
   ModuleAndDestructure {
     alias: Arc<str>,
-    items: Vec<Destructure>,
+    items: Vec<DestructureBlock>,
   },
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
   pub name: Arc<str>,
-  pub kind: Option<Type>,
+  pub ty: Option<Type>,
   pub default: Option<Box<Expression>>,
   pub span: Span,
 }
@@ -48,7 +48,7 @@ pub struct EnumVariant {
 pub struct StructField {
   pub public: bool,
   pub name: Arc<str>,
-  pub kind: Type,
+  pub ty: Type,
   pub default: Option<Box<Expression>>,
   pub span: Span,
 }
@@ -59,13 +59,13 @@ pub struct StructMethod {
   pub instance: bool,
   pub name: Arc<str>,
   pub parameters: Vec<Parameter>,
-  pub body: crate::FunctionBody,
-  pub kind: Option<Type>,
+  pub body: FunctionBody,
+  pub ty: Option<Type>,
   pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ForBinding {
+pub enum Iteration {
   Identifier(Arc<str>),
-  Array(Vec<ForBinding>),
+  Array(Vec<Iteration>),
 }

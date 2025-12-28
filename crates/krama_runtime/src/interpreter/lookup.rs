@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use krama_core::{Error, ErrorKind, ErrorResult, Expression, ObjectKind, Span};
+use krama_core::{Error, ErrorKind, ErrorResult, Expression, Object, Span};
 
 use super::Interpreter;
 
 impl Interpreter {
   /// Retrieves a variable value from a specific scope distance.
-  pub fn get_at(&self, distance: usize, name: &str) -> Option<ObjectKind> {
+  pub fn get_at(&self, distance: usize, name: &str) -> Option<Object> {
     let stack = self.stack.read();
     let mut current_scope = stack.current();
 
@@ -24,7 +24,7 @@ impl Interpreter {
     &self,
     distance: usize,
     name: &str,
-    value: ObjectKind,
+    value: Object,
     span: Span,
   ) -> ErrorResult {
     let stack = self.stack.read();

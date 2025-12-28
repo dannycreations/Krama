@@ -48,14 +48,10 @@ macro_rules! test_eval_is_native_function {
   ($name:ident, $source:expr) => {
     #[tokio::test]
     async fn $name() {
+      use krama_core::{Function, Object};
       let interpreter = $crate::Interpreter::new(None);
       let result = interpreter.eval($source).await.unwrap();
-      assert!(matches!(
-        result,
-        ::krama_core::ObjectKind::Function(::krama_core::FunctionKind::Native(
-          _
-        ))
-      ));
+      assert!(matches!(result, Object::Function(Function::Native(_))));
     }
   };
 }
@@ -65,9 +61,10 @@ macro_rules! test_eval_is_module {
   ($name:ident, $source:expr, $expected:expr) => {
     #[tokio::test]
     async fn $name() {
+      use krama_core::Object;
       let interpreter = $crate::Interpreter::new(None);
       let result = interpreter.eval($source).await.unwrap();
-      if let ::krama_core::ObjectKind::Scope(module) = result {
+      if let Object::Scope(module) = result {
         assert_eq!(module.read().name.as_deref(), $expected);
       } else {
         panic!("Expected a module object, but got {:?}", result);
@@ -81,12 +78,11 @@ macro_rules! test_eval_with_file {
   ($name:ident, $filename:expr, $file_content:expr, $source:expr, $expected:expr) => {
     #[tokio::test]
     async fn $name() {
+      use tokio::fs;
       let interpreter = $crate::Interpreter::new(Some("".to_string()));
-
-      ::tokio::fs::write($filename, $file_content).await.unwrap();
+      fs::write($filename, $file_content).await.unwrap();
       let evaluated = interpreter.eval($source).await.unwrap();
-      ::tokio::fs::remove_file($filename).await.unwrap();
-
+      fs::remove_file($filename).await.unwrap();
       assert_eq!(evaluated, $expected);
     }
   };

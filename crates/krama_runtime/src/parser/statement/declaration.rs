@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use krama_core::{
-  ConstBinding, Destructure, EnumVariant, ErrorKind, ErrorKindResult,
-  FunctionBody, PrecedenceKind, Span, Statement, StatementKind, StructField,
+  Binding, DestructureBlock, EnumVariant, ErrorKind, ErrorKindResult,
+  FunctionBody, Precedence, Span, Statement, StatementKind, StructField,
   StructMethod, TokenKind,
 };
 
@@ -25,14 +25,14 @@ impl<'a> Parser<'a> {
 
   pub fn parse_let_statement(&mut self) -> ErrorKindResult<Statement> {
     let start_span = self.consume(TokenKind::Let)?.span;
-    let name = self.parse_identifier()?;
-    let kind = self.parse_optional_type()?;
+    let binding = self.parse_binding()?;
+    let ty = self.parse_optional_type()?;
     self.consume(TokenKind::Equal)?;
-    let value = self.parse_expression(PrecedenceKind::Lowest)?;
+    let value = self.parse_expression(Precedence::Lowest)?;
     Ok(Statement::new(
       StatementKind::Let {
-        name: name.into(),
-        kind,
+        binding,
+        ty,
         value: Box::new(value),
       },
       start_span,
@@ -46,26 +46,26 @@ impl<'a> Parser<'a> {
   ) -> ErrorKindResult<Statement> {
     self.consume(TokenKind::Const)?;
     let binding = self.parse_binding()?;
-    let kind = self.parse_optional_type()?;
+    let ty = self.parse_optional_type()?;
     self.consume(TokenKind::Equal)?;
-    let value = self.parse_expression(PrecedenceKind::Lowest)?;
+    let value = self.parse_expression(Precedence::Lowest)?;
     Ok(Statement::new(
       StatementKind::Const {
         public,
         binding,
-        kind,
+        ty,
         value: Box::new(value),
       },
       start_span,
     ))
   }
 
-  fn parse_binding(&mut self) -> ErrorKindResult<ConstBinding> {
+  fn parse_binding(&mut self) -> ErrorKindResult<Binding> {
     if self.current_token.kind == TokenKind::LBrace {
       self.consume(TokenKind::LBrace)?;
       let items = self.parse_destructured_items()?;
       self.consume(TokenKind::RBrace)?;
-      Ok(ConstBinding::Destructure(items))
+      Ok(Binding::Destructure(items))
     } else {
       let alias: Arc<str> = self.parse_identifier()?.into();
       if self.current_token.kind == TokenKind::Comma {
@@ -73,14 +73,16 @@ impl<'a> Parser<'a> {
         self.consume(TokenKind::LBrace)?;
         let items = self.parse_destructured_items()?;
         self.consume(TokenKind::RBrace)?;
-        Ok(ConstBinding::ModuleAndDestructure { alias, items })
+        Ok(Binding::ModuleAndDestructure { alias, items })
       } else {
-        Ok(ConstBinding::Identifier(alias))
+        Ok(Binding::Identifier(alias))
       }
     }
   }
 
-  fn parse_destructured_items(&mut self) -> ErrorKindResult<Vec<Destructure>> {
+  fn parse_destructured_items(
+    &mut self,
+  ) -> ErrorKindResult<Vec<DestructureBlock>> {
     let mut items = Vec::new();
     if self.current_token.kind == TokenKind::RBrace {
       return Ok(items);
@@ -93,7 +95,7 @@ impl<'a> Parser<'a> {
       } else {
         None
       };
-      items.push(Destructure { name, alias });
+      items.push(DestructureBlock { name, alias });
       if self.current_token.kind != TokenKind::Comma {
         break;
       }
@@ -162,14 +164,14 @@ impl<'a> Parser<'a> {
     self.consume(TokenKind::LParen)?;
     let parameters = self.parse_fn_parameters()?;
     self.consume(TokenKind::RParen)?;
-    let (body, kind) = self.parse_classic_fn_body_and_return_type()?;
+    let (body, ty) = self.parse_classic_fn_body_and_meta()?;
     Ok(Statement::new(
-      StatementKind::Fn {
+      StatementKind::Function {
         public,
         name,
         parameters,
         body,
-        kind,
+        ty,
       },
       start_span,
     ))
@@ -220,14 +222,14 @@ impl<'a> Parser<'a> {
     let start_span = self.current_token.span;
     let name = self.parse_identifier()?.into();
     self.consume(TokenKind::Colon)?;
-    let kind = self.parse_type()?;
+    let ty = self.parse_type()?;
     let default = if self.current_token.kind == TokenKind::Equal {
       self.advance();
-      Some(Box::new(self.parse_expression(PrecedenceKind::Lowest)?))
+      Some(Box::new(self.parse_expression(Precedence::Lowest)?))
     } else {
       None
     };
-    let mut end_span = kind.span;
+    let mut end_span = ty.span;
     if let Some(default_val) = &default {
       end_span = default_val.span;
     }
@@ -237,7 +239,7 @@ impl<'a> Parser<'a> {
     Ok(StructField {
       public,
       name,
-      kind,
+      ty,
       default,
       span: start_span.merge(&end_span),
     })
@@ -262,7 +264,7 @@ impl<'a> Parser<'a> {
     }
     parameters.extend(self.parse_fn_parameters()?);
     self.consume(TokenKind::RParen)?;
-    let (body, kind) = self.parse_classic_fn_body_and_return_type()?;
+    let (body, ty) = self.parse_classic_fn_body_and_meta()?;
     let end_span = match &body {
       FunctionBody::Block(b) => b.span,
       FunctionBody::Expression(e) => e.span,
@@ -273,7 +275,7 @@ impl<'a> Parser<'a> {
       name,
       parameters,
       body,
-      kind,
+      ty,
       span: start_span.merge(&end_span),
     })
   }
@@ -286,10 +288,10 @@ impl<'a> Parser<'a> {
     self.consume(TokenKind::Type)?;
     let name = self.parse_identifier()?.into();
     self.consume(TokenKind::Equal)?;
-    let kind = self.parse_type()?;
-    let end_span = kind.span;
+    let ty = self.parse_type()?;
+    let end_span = ty.span;
     Ok(Statement::new(
-      StatementKind::Type { public, name, kind },
+      StatementKind::Type { public, name, ty },
       start_span.merge(&end_span),
     ))
   }

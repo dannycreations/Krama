@@ -1,14 +1,14 @@
 use krama_core::{
-  Error, ErrorKind, Expression, ExpressionKind, ObjectKind, ObjectResult, Span,
+  Error, ErrorKind, Expression, ExpressionKind, Object, ObjectResult, Span,
 };
 use krama_std::PROPS;
 
 use crate::interpreter::Interpreter;
 
 impl Interpreter {
-  pub async fn eval_member_expression(
+  pub async fn eval_access_expression(
     &self,
-    object: ObjectKind,
+    object: Object,
     property: &Expression,
     span: Span,
   ) -> ObjectResult {
@@ -23,7 +23,7 @@ impl Interpreter {
     };
 
     match &object {
-      ObjectKind::Object {
+      Object::Object {
         properties,
         definition,
         ..
@@ -69,11 +69,11 @@ impl Interpreter {
             span,
           ))
         } else {
-          Ok(ObjectKind::Void)
+          Ok(Object::Void)
         }
       }
 
-      ObjectKind::Struct(definition) => {
+      Object::Struct(definition) => {
         if let Some(&index) = definition.method_map.get(property_name) {
           let method = &definition.methods[index];
           self.ensure_accessible(
@@ -104,7 +104,7 @@ impl Interpreter {
         ))
       }
 
-      ObjectKind::Scope(scope) => {
+      Object::Scope(scope) => {
         let scope = scope.read();
         if let Some(binding) = scope.get_local(property_name) {
           if binding.public {
@@ -129,12 +129,12 @@ impl Interpreter {
         }
       }
 
-      ObjectKind::Enum(instance) => {
+      Object::Enum(instance) => {
         if property_name.as_ref() == "variant" {
-          return Ok(ObjectKind::String(instance.variant.clone()));
+          return Ok(Object::String(instance.variant.clone()));
         }
         if property_name.as_ref() == "name" {
-          return Ok(ObjectKind::String(instance.name.clone()));
+          return Ok(Object::String(instance.name.clone()));
         }
 
         let type_name = object.type_name();
@@ -180,31 +180,31 @@ impl Interpreter {
 
   pub async fn eval_index_expression(
     &self,
-    mut object: ObjectKind,
-    index: ObjectKind,
+    mut object: Object,
+    index: Object,
     span: Span,
   ) -> ObjectResult {
     match &mut object {
-      ObjectKind::Array { elements, .. } => {
+      Object::Array { elements, .. } => {
         let idx = self.ensure_int_index(&index, span)?;
         Ok(self.get_by_index(&elements.read(), idx))
       }
-      ObjectKind::Tuple(elements) => {
+      Object::Tuple(elements) => {
         let idx = self.ensure_int_index(&index, span)?;
         Ok(self.get_by_index(elements.as_ref(), idx))
       }
-      ObjectKind::String(s) => {
+      Object::String(s) => {
         let idx = self.ensure_int_index(&index, span)?;
         let real_idx = self.resolve_index(idx, s.len());
 
         Ok(if let Some(i) = real_idx {
-          ObjectKind::String(s.chars().nth(i).unwrap().to_string().into())
+          Object::String(s.chars().nth(i).unwrap().to_string().into())
         } else {
-          ObjectKind::Void
+          Object::Void
         })
       }
-      ObjectKind::Object { properties, .. } => {
-        let key = if let ObjectKind::String(s) = index {
+      Object::Object { properties, .. } => {
+        let key = if let Object::String(s) = index {
           s
         } else {
           return Err(Error::new(
@@ -216,13 +216,7 @@ impl Interpreter {
           ));
         };
 
-        Ok(
-          properties
-            .read()
-            .get(&key)
-            .cloned()
-            .unwrap_or(ObjectKind::Void),
-        )
+        Ok(properties.read().get(&key).cloned().unwrap_or(Object::Void))
       }
       _ => Err(Error::new(
         ErrorKind::TypeError(format!(
@@ -237,10 +231,10 @@ impl Interpreter {
   #[inline]
   pub fn ensure_int_index(
     &self,
-    index: &ObjectKind,
+    index: &Object,
     span: Span,
   ) -> crate::ErrorResult<i64> {
-    if let ObjectKind::Integer(i) = index {
+    if let Object::Integer(i) = index {
       Ok(*i)
     } else {
       Err(Error::new(
@@ -265,11 +259,11 @@ impl Interpreter {
   }
 
   #[inline]
-  pub fn get_by_index(&self, elements: &[ObjectKind], idx: i64) -> ObjectKind {
+  pub fn get_by_index(&self, elements: &[Object], idx: i64) -> Object {
     if let Some(i) = self.resolve_index(idx, elements.len()) {
       elements[i].clone()
     } else {
-      ObjectKind::Void
+      Object::Void
     }
   }
 
@@ -286,7 +280,7 @@ impl Interpreter {
 
     let stack = self.stack.read();
     let current_struct = stack.get("__current_struct__");
-    let allowed = if let Some(ObjectKind::String(name)) = current_struct {
+    let allowed = if let Some(Object::String(name)) = current_struct {
       name.as_ref() == struct_name
     } else {
       false

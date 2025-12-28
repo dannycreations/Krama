@@ -1,5 +1,7 @@
 use futures::future::{FutureExt, LocalBoxFuture};
-use krama_core::{ObjectKind, ObjectResult, Statement, StatementKind};
+use krama_core::{
+  Object, ObjectResult, Statement, StatementBlock, StatementKind,
+};
 
 use crate::interpreter::Interpreter;
 
@@ -21,28 +23,34 @@ impl Interpreter {
         StatementKind::Expression { expression } => {
           self.eval_expression(expression, None).await
         }
-        StatementKind::Let { name, value, kind } => {
-          self.eval_let_statement(name, value, kind.as_ref()).await
+        StatementKind::Let { binding, value, ty } => {
+          self.eval_let_statement(binding, value, ty.as_ref()).await
         }
         StatementKind::Const {
           binding,
           value,
           public,
-          kind,
+          ty,
         } => {
           self
-            .eval_const_statement(binding, value, *public, kind.as_ref(), span)
+            .eval_const_statement(binding, value, *public, ty.as_ref(), span)
             .await
         }
-        StatementKind::Fn {
+        StatementKind::Function {
           name,
           parameters,
           body,
           public,
-          kind,
+          ty,
         } => {
           self
-            .eval_fn_statement(name, parameters, body, *public, kind.as_ref())
+            .eval_function_statement(
+              name,
+              parameters,
+              body,
+              *public,
+              ty.as_ref(),
+            )
             .await
         }
         StatementKind::Enum {
@@ -60,14 +68,14 @@ impl Interpreter {
             .eval_struct_statement(name, fields, methods, *public)
             .await
         }
-        StatementKind::Type { public, name, kind } => {
-          self.eval_type_statement(name, kind, *public).await
+        StatementKind::Type { public, name, ty } => {
+          self.eval_type_statement(name, ty, *public).await
         }
         StatementKind::Return { value } => {
           self.eval_return_statement(value.as_deref()).await
         }
-        StatementKind::Break => Ok(ObjectKind::Break),
-        StatementKind::Continue => Ok(ObjectKind::Continue),
+        StatementKind::Break => Ok(Object::Break),
+        StatementKind::Continue => Ok(Object::Continue),
         StatementKind::While { condition, body } => {
           self.eval_while_statement(condition, body).await
         }
@@ -88,7 +96,7 @@ impl Interpreter {
     &'s self,
     statements: &'s [Statement],
   ) -> ObjectResult {
-    let mut result = ObjectKind::Void;
+    let mut result = Object::Void;
     for statement in statements {
       result = self.eval_statement(statement).await?;
       if result.is_control_signal() {
@@ -100,14 +108,14 @@ impl Interpreter {
 
   pub async fn eval_block_statement(
     &self,
-    block: &krama_core::StatementBlock,
+    block: &StatementBlock,
   ) -> ObjectResult {
     self.eval_statements(&block.statements).await
   }
 
   pub async fn eval_block_statement_with_new_scope(
     &self,
-    block: &krama_core::StatementBlock,
+    block: &StatementBlock,
   ) -> ObjectResult {
     self.stack.write().push("block".into(), None);
     let result = self.eval_statements(&block.statements).await;

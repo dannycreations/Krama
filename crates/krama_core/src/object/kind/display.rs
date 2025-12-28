@@ -1,14 +1,14 @@
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use super::ObjectKind;
-use crate::object::function::FunctionKind;
+use super::Object;
+use crate::object::function::Function;
 
-impl Display for ObjectKind {
-  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl Display for Object {
+  fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
     match self {
       Self::Null => write!(f, "null"),
       Self::Void => write!(f, "void"),
-      Self::Boolean(b) => write!(f, "{}", b),
+      Self::Bool(b) => write!(f, "{}", b),
       Self::Integer(i) => write!(f, "{}", i),
       Self::Float(fl) => write!(f, "{}", fl),
       Self::String(s) => write!(f, "{}", s),
@@ -58,9 +58,9 @@ impl Display for ObjectKind {
         s.read().name.as_deref().unwrap_or("anonymous")
       ),
       Self::Function(kind) => match kind {
-        FunctionKind::Native(n) => write!(f, "fn {}() [native]", n.name),
-        FunctionKind::User { .. } => write!(f, "fn() [user]"),
-        FunctionKind::Enum(e) => {
+        Function::Native(n) => write!(f, "fn {}() [native]", n.name),
+        Function::User { .. } => write!(f, "fn() [user]"),
+        Function::Enum(e) => {
           write!(f, "fn {}.{}() [enum]", e.name, e.variant)
         }
       },

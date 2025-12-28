@@ -1,5 +1,5 @@
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, PrecedenceKind, TokenKind,
+  ErrorKind, Expression, ExpressionKind, Precedence, Token, TokenKind,
 };
 
 use crate::{ParseResult, Parser};
@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
       TokenKind::LParen,
       TokenKind::RParen,
       TokenKind::Comma,
-      |p| p.parse_expression(PrecedenceKind::Lowest),
+      |p| p.parse_expression(Precedence::Lowest),
     )?;
     let span = start_span.merge(&self.current_token.span);
     Ok(Expression::new(
@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
     }
     self.advance();
     let path = match self.current_token.clone() {
-      krama_core::Token {
+      Token {
         kind: TokenKind::String(path),
         ..
       } => path.clone(),

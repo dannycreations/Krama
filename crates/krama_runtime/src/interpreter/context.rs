@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use krama_core::{
-  Error, ErrorKind, ErrorResult, ObjectKind, ObjectResult, Scope, Span,
-  Statement,
+  Error, ErrorKind, ErrorResult, Object, ObjectResult, Scope, Span, Statement,
 };
 use parking_lot::RwLock;
 
@@ -22,7 +21,7 @@ impl Interpreter {
 
     // Handle both explicit Return(Err) and direct Err results.
     let effective_result = result.unwrap_return_err();
-    if let ObjectKind::Err(e) = effective_result {
+    if let Object::Err(e) = effective_result {
       return Err(self.ensure_error_context(
         ErrorKind::RuntimeError(e.to_string()).at(Span::empty()),
         source,

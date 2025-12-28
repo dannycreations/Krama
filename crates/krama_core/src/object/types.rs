@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ahash::AHashMap;
 
-use super::kind::ObjectKind;
+use super::kind::Object;
 use crate::{StructField, StructMethod};
 
 /// Represents a structure definition.
@@ -28,5 +28,5 @@ pub struct Enum {
 pub struct EnumInstance {
   pub name: Arc<str>,
   pub variant: Arc<str>,
-  pub fields: Option<Arc<[ObjectKind]>>,
+  pub fields: Option<Arc<[Object]>>,
 }

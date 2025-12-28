@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use indexmap::IndexMap;
-use krama_core::{ObjectKind, Struct, Type};
+use krama_core::{Object, Struct, Type};
 use parking_lot::RwLock;
 
 /// The Heap Allocator.
@@ -17,12 +17,12 @@ impl Heap {
   /// Allocates a new, empty Object (map-like).
   pub fn alloc_object(
     &mut self,
-    properties: IndexMap<Arc<str>, ObjectKind>,
+    properties: IndexMap<Arc<str>, Object>,
     definition: Option<Arc<Struct>>,
     constant: bool,
-  ) -> ObjectKind {
+  ) -> Object {
     self.allocations += 1;
-    ObjectKind::Object {
+    Object::Object {
       properties: Arc::new(RwLock::new(properties)),
       definition,
       constant,
@@ -30,29 +30,29 @@ impl Heap {
   }
 
   /// Allocates a new Tuple.
-  pub fn alloc_tuple(&mut self, elements: Vec<ObjectKind>) -> ObjectKind {
+  pub fn alloc_tuple(&mut self, elements: Vec<Object>) -> Object {
     self.allocations += 1;
-    ObjectKind::Tuple(elements.into())
+    Object::Tuple(elements.into())
   }
 
   /// Allocates a new Array.
   pub fn alloc_array(
     &mut self,
-    elements: Vec<ObjectKind>,
-    kind: Type,
+    elements: Vec<Object>,
+    ty: Type,
     constant: bool,
-  ) -> ObjectKind {
+  ) -> Object {
     self.allocations += 1;
-    ObjectKind::Array {
+    Object::Array {
       elements: Arc::new(RwLock::new(elements)),
-      kind,
+      ty,
       constant,
     }
   }
 
-  /// Allocates a raw string (though strings are currently value types in ObjectKind,
+  /// Allocates a raw string (though strings are currently value types in Object,
   /// this is a placeholder if we move to heap-allocated strings).
-  pub fn alloc_string(&mut self, s: String) -> ObjectKind {
-    ObjectKind::String(s.into())
+  pub fn alloc_string(&mut self, s: String) -> Object {
+    Object::String(s.into())
   }
 }

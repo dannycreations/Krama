@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 
 use krama_core::{
-  ErrorKind, Expression, PrecedenceKind, Span, Statement, Token, TokenKind,
+  ErrorKind, Expression, Precedence, Span, Statement, Token, TokenKind,
 };
 pub use krama_core::{ErrorKindResult, ErrorResult};
 
@@ -45,18 +45,15 @@ impl<'a> Parser<'a> {
   }
 
   /// Checks if the current token matches the expected kind and advances if it does.
-  pub fn consume(
-    &mut self,
-    expected_kind: TokenKind,
-  ) -> ErrorKindResult<Token> {
-    if self.current_token.kind == expected_kind {
+  pub fn consume(&mut self, kind: TokenKind) -> ErrorKindResult<Token> {
+    if self.current_token.kind == kind {
       let token = self.current_token.clone();
       self.advance();
       Ok(token)
     } else {
       Err(self.error(format!(
         "Expected token {}, but got {}",
-        expected_kind, self.current_token.kind
+        kind, self.current_token.kind
       )))
     }
   }
@@ -102,8 +99,8 @@ impl<'a> Parser<'a> {
   }
 
   /// Returns the precedence of the current token.
-  pub fn current_precedence(&self) -> PrecedenceKind {
-    PrecedenceKind::from_token(&self.current_token)
+  pub fn current_precedence(&self) -> Precedence {
+    Precedence::from_token(&self.current_token)
   }
 
   /// Helper to generate a standardized syntax error at the current token.

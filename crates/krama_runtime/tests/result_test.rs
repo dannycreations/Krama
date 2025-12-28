@@ -1,4 +1,4 @@
-use krama_core::{ErrorKind, ObjectKind};
+use krama_core::{ErrorKind, Object};
 use krama_runtime::{test_eval_err, test_eval_match, test_eval_ok};
 
 // --- Basic Result Types ---
@@ -6,7 +6,7 @@ use krama_runtime::{test_eval_err, test_eval_match, test_eval_ok};
 test_eval_match!(
   result_ok,
   "Ok(\"value\")",
-  ObjectKind::Ok(val) if matches!(*val, ObjectKind::String(_))
+  Object::Ok(val) if matches!(*val, Object::String(_))
 );
 
 test_eval_err!(result_err, "Err(\"error\")", ErrorKind::RuntimeError(_));
@@ -16,7 +16,7 @@ test_eval_err!(result_err, "Err(\"error\")", ErrorKind::RuntimeError(_));
 test_eval_match!(
   result_ok_as_value,
   "Ok(\"value\")?",
-  ObjectKind::Ok(val) if matches!(*val, ObjectKind::String(_))
+  Object::Ok(val) if matches!(*val, Object::String(_))
 );
 
 test_eval_err!(
@@ -25,7 +25,7 @@ test_eval_err!(
   ErrorKind::RuntimeError(_)
 );
 
-test_eval_ok!(result_non_try, "42?", ObjectKind::Integer(42));
+test_eval_ok!(result_non_try, "42?", Object::Integer(42));
 
 // --- Error Propagation ---
 
@@ -42,7 +42,7 @@ test_eval_match!(
 
     main()
   "#,
-  ObjectKind::Ok(val) if matches!(*val, ObjectKind::String(_))
+  Object::Ok(val) if matches!(*val, Object::String(_))
 );
 
 test_eval_err!(
@@ -77,7 +77,7 @@ test_eval_ok!(
 
     main()
   "#,
-  ObjectKind::Void
+  Object::Void
 );
 
 // --- Advanced Chaining & Nested Try ---
@@ -97,7 +97,7 @@ test_eval_match!(
     }
     main()
   "#,
-  ObjectKind::Ok(val) if matches!(*val, ObjectKind::Integer(4))
+  Object::Ok(val) if matches!(*val, Object::Integer(4))
 );
 
 test_eval_err!(
@@ -129,7 +129,7 @@ test_eval_ok!(
       0
     }
   "#,
-  ObjectKind::Integer(42)
+  Object::Integer(42)
 );
 
 test_eval_ok!(
@@ -142,7 +142,7 @@ test_eval_ok!(
       "ok"
     }
   "#,
-  ObjectKind::String("error".into())
+  Object::String("error".into())
 );
 
 test_eval_ok!(
@@ -154,7 +154,7 @@ test_eval_ok!(
       Err(e) => 0,
     }
   "#,
-  ObjectKind::Integer(100)
+  Object::Integer(100)
 );
 
 test_eval_ok!(
@@ -166,7 +166,7 @@ test_eval_ok!(
       Err(e) => 0,
     }
   "#,
-  ObjectKind::Integer(0)
+  Object::Integer(0)
 );
 
 // --- Control Flow with Results ---
@@ -186,7 +186,7 @@ test_eval_ok!(
     }
     sum
   "#,
-  ObjectKind::Integer(5)
+  Object::Integer(5)
 );
 
 test_eval_ok!(
@@ -204,5 +204,5 @@ test_eval_ok!(
     }
     sum
   "#,
-  ObjectKind::Integer(5)
+  Object::Integer(5)
 );

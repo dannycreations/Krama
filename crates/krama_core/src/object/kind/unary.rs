@@ -1,12 +1,12 @@
 use std::ops::{Neg, Not};
 
-use super::ObjectKind;
+use super::Object;
 use crate::{ErrorKind, ErrorKindResult, UnaryOperator};
 
-impl ObjectKind {
+impl Object {
   pub fn unary_op(&self, operator: UnaryOperator) -> ErrorKindResult<Self> {
     match operator {
-      UnaryOperator::Not => Ok(Self::Boolean(!self.is_truthy())),
+      UnaryOperator::Not => Ok(Self::Bool(!self.is_truthy())),
       UnaryOperator::Negate => match self {
         Self::Integer(i) => Ok(Self::Integer(i.wrapping_neg())),
         Self::Float(f) => Ok(Self::Float(f.neg())),

@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use ahash::AHashMap;
 use krama_core::{
-  ConstBinding, Error, ErrorKind, ErrorResult, Expression, ExpressionKind,
-  ForBinding, FunctionBody, MatchPattern, Span, Statement, StatementKind,
+  Binding, Error, ErrorKind, ErrorResult, Expression, ExpressionKind,
+  FunctionBody, Iteration, Parameter, Pattern, Span, Statement, StatementBlock,
+  StatementKind,
 };
 
 pub struct Checker {
@@ -40,20 +41,16 @@ impl Checker {
       StatementKind::Expression { expression } => {
         self.check_expression(expression)?
       }
-      StatementKind::Let { name, value, .. } => {
-        self.check_expression(value)?;
-        self.define_var(name.clone());
-      }
-      StatementKind::Const { binding, value, .. } => {
+      StatementKind::Let { binding, value, .. } => {
         self.check_expression(value)?;
         match binding {
-          ConstBinding::Identifier(name) => self.define_var(name.clone()),
-          ConstBinding::Destructure(items) => {
+          Binding::Identifier(name) => self.define_var(name.clone()),
+          Binding::Destructure(items) => {
             for item in items {
               self.define_var(item.name.clone());
             }
           }
-          ConstBinding::ModuleAndDestructure { alias, items } => {
+          Binding::ModuleAndDestructure { alias, items } => {
             self.define_var(alias.clone());
             for item in items {
               self.define_var(item.name.clone());
@@ -61,7 +58,24 @@ impl Checker {
           }
         }
       }
-      StatementKind::Fn {
+      StatementKind::Const { binding, value, .. } => {
+        self.check_expression(value)?;
+        match binding {
+          Binding::Identifier(name) => self.define_var(name.clone()),
+          Binding::Destructure(items) => {
+            for item in items {
+              self.define_var(item.name.clone());
+            }
+          }
+          Binding::ModuleAndDestructure { alias, items } => {
+            self.define_var(alias.clone());
+            for item in items {
+              self.define_var(item.name.clone());
+            }
+          }
+        }
+      }
+      StatementKind::Function {
         name,
         parameters,
         body,
@@ -120,7 +134,7 @@ impl Checker {
 
   fn check_function(
     &mut self,
-    params: &[krama_core::Parameter],
+    params: &[Parameter],
     body: &FunctionBody,
   ) -> ErrorResult {
     self.with_scope(|this| {
@@ -138,24 +152,21 @@ impl Checker {
     }
   }
 
-  fn check_block(&mut self, block: &krama_core::StatementBlock) -> ErrorResult {
+  fn check_block(&mut self, block: &StatementBlock) -> ErrorResult {
     self.with_scope(|this| this.check_block_content(block))
   }
 
-  fn check_block_content(
-    &mut self,
-    block: &krama_core::StatementBlock,
-  ) -> ErrorResult {
+  fn check_block_content(&mut self, block: &StatementBlock) -> ErrorResult {
     for statement in &block.statements {
       self.check_statement(statement)?;
     }
     Ok(())
   }
 
-  fn declare_for_binding(&mut self, binding: &ForBinding) {
+  fn declare_for_binding(&mut self, binding: &Iteration) {
     match binding {
-      ForBinding::Identifier(name) => self.define_var(name.clone()),
-      ForBinding::Array(bindings) => {
+      Iteration::Identifier(name) => self.define_var(name.clone()),
+      Iteration::Array(bindings) => {
         for b in bindings {
           self.declare_for_binding(b);
         }
@@ -222,9 +233,9 @@ impl Checker {
         self.check_expression(subject)?;
         for arm in arms {
           for pattern in &arm.patterns {
-            if let MatchPattern::Expression(expr) = pattern {
+            if let Pattern::Expression(expr) = pattern {
               self.check_expression(expr)?
-            } else if let MatchPattern::Range(start, end) = pattern {
+            } else if let Pattern::Range(start, end) = pattern {
               self.check_expression(start)?;
               self.check_expression(end)?;
             }
@@ -233,17 +244,17 @@ impl Checker {
         }
       }
       ExpressionKind::Block(block) => self.check_block(block)?,
-      ExpressionKind::Fn {
+      ExpressionKind::Function {
         parameters, body, ..
       } => self.check_function(parameters, body)?,
-      ExpressionKind::Collection { elements } => {
+      ExpressionKind::Array { elements } => {
         for el in elements {
           self.check_expression(el)?;
         }
       }
-      ExpressionKind::Typed { expr, .. } => self.check_expression(expr)?,
+      ExpressionKind::Cast { expr, .. } => self.check_expression(expr)?,
       ExpressionKind::Object { properties }
-      | ExpressionKind::StructConstruction { properties } => {
+      | ExpressionKind::Struct { properties } => {
         for (key, value) in properties {
           self.check_expression(key)?;
           self.check_expression(value)?;

@@ -1,20 +1,20 @@
-use krama_core::{ErrorKind, ObjectKind};
+use krama_core::{ErrorKind, Object};
 use krama_runtime::{test_eval_err, test_eval_ok};
 
-// --- Basic Function Calls ---
+// --- Basic Function Invoke ---
 
-test_eval_ok!(function_call, "print(\"hello world\")", ObjectKind::Void);
+test_eval_ok!(function_invoke, "print(\"hello world\")", Object::Void);
 
 test_eval_ok!(
   function_with_statement,
   "fn a(x, y) { x + y }; a(5, 5)",
-  ObjectKind::Integer(10)
+  Object::Integer(10)
 );
 
 test_eval_ok!(
   function_with_return_statement,
   "fn a(x, y) { return x + y }; a(5, 5)",
-  ObjectKind::Integer(10)
+  Object::Integer(10)
 );
 
 // --- Anonymous Functions & Arrows ---
@@ -22,19 +22,19 @@ test_eval_ok!(
 test_eval_ok!(
   function_let_bound,
   "let a = fn(x) { x }; a = a(5)",
-  ObjectKind::Integer(5)
+  Object::Integer(5)
 );
 
 test_eval_ok!(
   function_const_bound,
   "const a = fn(x) { x }; a(5)",
-  ObjectKind::Integer(5)
+  Object::Integer(5)
 );
 
 test_eval_ok!(
   function_arrow,
   "const a = (x) => x; a(5)",
-  ObjectKind::Integer(5)
+  Object::Integer(5)
 );
 
 test_eval_err!(
@@ -54,31 +54,31 @@ test_eval_err!(
 test_eval_ok!(
   function_with_default_argument,
   "fn a(x = 0) { x }; a()",
-  ObjectKind::Integer(0)
+  Object::Integer(0)
 );
 
 test_eval_ok!(
   function_with_passed_argument,
   "fn a(x = 10) { x }; a(1)",
-  ObjectKind::Integer(1)
+  Object::Integer(1)
 );
 
 test_eval_ok!(
   function_arrow_with_default_argument,
   "const a = (x = 0) => x; a()",
-  ObjectKind::Integer(0)
+  Object::Integer(0)
 );
 
 test_eval_ok!(
   function_arrow_with_passed_argument,
   "const a = (x = 0) => x; a(1)",
-  ObjectKind::Integer(1)
+  Object::Integer(1)
 );
 
 test_eval_ok!(
   function_arrow_with_optional_argument,
   "const a = (x, y = 0) => x + 0; a(1)",
-  ObjectKind::Integer(1)
+  Object::Integer(1)
 );
 
 test_eval_err!(
@@ -102,7 +102,7 @@ test_eval_ok!(
     const add_x = (y) => x + y
     add_x(5)
   "#,
-  ObjectKind::Integer(15)
+  Object::Integer(15)
 );
 
 test_eval_ok!(
@@ -113,7 +113,7 @@ test_eval_ok!(
     inc()
     x
   "#,
-  ObjectKind::Integer(11)
+  Object::Integer(11)
 );
 
 // --- Recursion ---
@@ -126,5 +126,5 @@ test_eval_ok!(
     }
     fib(7)
   "#,
-  ObjectKind::Integer(13)
+  Object::Integer(13)
 );

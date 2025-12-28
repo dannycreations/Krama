@@ -6,17 +6,22 @@ use std::{
 use ahash::AHashMap;
 use indexmap::IndexMap;
 use krama_core::{
-  Binding, Error, ErrorKind, FunctionKind, ObjectKind, ObjectResult, Span,
+  Error, ErrorKind, ErrorResult, Expression, Function, Object, ObjectBinding,
+  ObjectResult, Scope, Span,
 };
 use krama_std::MODULES;
 use parking_lot::RwLock;
 use path_clean::PathClean;
-use tokio::fs;
+use tokio::fs::read_to_string;
 
 use crate::interpreter::{types, Interpreter};
 
 impl Interpreter {
-  pub async fn eval_import(&self, path: &str, span: Span) -> ObjectResult {
+  pub async fn eval_import_expression(
+    &self,
+    path: &str,
+    span: Span,
+  ) -> ObjectResult {
     if path.starts_with("std:") {
       self.eval_std_module(path, span)
     } else {
@@ -28,7 +33,7 @@ impl Interpreter {
     &self,
     path: &str,
     span: &Span,
-  ) -> crate::ErrorResult<(PathBuf, String)> {
+  ) -> ErrorResult<(PathBuf, String)> {
     let base_path = self
       .path
       .as_ref()
@@ -37,12 +42,12 @@ impl Interpreter {
 
     let path_buf = base_path.join(path).clean();
 
-    if let Ok(content) = fs::read_to_string(&path_buf).await {
+    if let Ok(content) = read_to_string(&path_buf).await {
       return Ok((path_buf, content));
     }
 
     let path_with_ext = path_buf.with_extension("km");
-    if let Ok(content) = fs::read_to_string(&path_with_ext).await {
+    if let Ok(content) = read_to_string(&path_with_ext).await {
       return Ok((path_with_ext, content));
     }
 
@@ -69,20 +74,20 @@ impl Interpreter {
         for (name, native_fn) in bindings {
           scope_bindings.insert(
             (*name).into(),
-            Binding {
-              value: ObjectKind::Function(FunctionKind::Native(*native_fn)),
+            ObjectBinding {
+              value: Object::Function(Function::Native(*native_fn)),
               public: true,
               constant: true,
             },
           );
         }
 
-        let module = krama_core::Scope {
+        let module = Scope {
           name: Some(module_name.clone().into()),
           bindings: scope_bindings,
           parent: None,
         };
-        let object = ObjectKind::Scope(Arc::new(RwLock::new(module)));
+        let object = Object::Scope(Arc::new(RwLock::new(module)));
         self
           .modules
           .write()
@@ -118,7 +123,7 @@ impl Interpreter {
     for (name, value) in public_values {
       bindings.insert(
         name,
-        Binding {
+        ObjectBinding {
           value,
           public: true,
           constant: true,
@@ -126,7 +131,7 @@ impl Interpreter {
       );
     }
 
-    let module = ObjectKind::Scope(Arc::new(RwLock::new(krama_core::Scope {
+    let module = Object::Scope(Arc::new(RwLock::new(Scope {
       name: Some(resolved_path_key.clone().into()),
       bindings,
       parent: None,
@@ -140,13 +145,13 @@ impl Interpreter {
     Ok(module)
   }
 
-  pub async fn eval_struct_construction(
+  pub async fn eval_struct_expression(
     &self,
-    properties: &[(krama_core::Expression, krama_core::Expression)],
+    properties: &[(Expression, Expression)],
     span: Span,
   ) -> ObjectResult {
     let this_obj = self.get_this(span)?;
-    let ObjectKind::Struct(definition) = this_obj else {
+    let Object::Struct(definition) = this_obj else {
       return Err(Error::new(
         ErrorKind::TypeError(format!(
           "'this' is not a struct definition, found {}",
@@ -171,7 +176,7 @@ impl Interpreter {
           }
         },
       };
-      types::check_type(&field.kind, &value)?;
+      types::check_type(&field.ty, &value)?;
       final_fields.insert(field.name.clone(), value);
     }
 

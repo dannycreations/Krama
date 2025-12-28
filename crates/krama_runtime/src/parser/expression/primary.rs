@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use krama_core::{
   AssignmentOperator, BinaryOperator, ErrorKind, Expression, ExpressionKind,
-  LiteralKind, PrecedenceKind, TokenKind,
+  Literal, Precedence, TokenKind,
 };
 
 use crate::{ParseResult, Parser};
@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
       if let Ok(expr) = self.try_parse(|p| p.parse_object_expression()) {
         if let ExpressionKind::Object { properties } = expr.kind {
           return Ok(Expression::new(
-            ExpressionKind::StructConstruction { properties },
+            ExpressionKind::Struct { properties },
             span.merge(&expr.span),
           ));
         }
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
 
   pub fn parse_member_expression(&mut self, object: Expression) -> ParseResult {
     self.advance();
-    let property = self.parse_expression(PrecedenceKind::Member)?;
+    let property = self.parse_expression(Precedence::Member)?;
     let span = object.span.merge(&property.span);
     Ok(Expression::new(
       ExpressionKind::Member {
@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
 
   pub fn parse_index_expression(&mut self, left: Expression) -> ParseResult {
     self.advance();
-    let index = self.parse_expression(PrecedenceKind::Lowest)?;
+    let index = self.parse_expression(Precedence::Lowest)?;
     self.consume(TokenKind::RBracket)?;
     let span = left.span.merge(&self.current_token.span);
     Ok(Expression::new(
@@ -63,12 +63,12 @@ impl<'a> Parser<'a> {
 
   pub fn parse_typed_expression(&mut self, expr: Expression) -> ParseResult {
     self.consume(TokenKind::Colon)?;
-    let kind = self.parse_type()?;
-    let span = expr.span.merge(&kind.span);
+    let ty = self.parse_type()?;
+    let span = expr.span.merge(&ty.span);
     Ok(Expression::new(
-      ExpressionKind::Typed {
+      ExpressionKind::Cast {
         expr: Box::new(expr),
-        kind,
+        ty,
       },
       span,
     ))
@@ -117,12 +117,12 @@ impl<'a> Parser<'a> {
     if self.current_token.kind == TokenKind::RParen {
       self.consume(TokenKind::RParen)?;
       if self.current_token.kind == TokenKind::Arrow {
-        let (body, kind) = self.parse_arrow_fn_body_and_return_type()?;
+        let (body, ty) = self.parse_arrow_fn_body_and_meta()?;
         return Ok(Expression::new(
-          ExpressionKind::Fn {
+          ExpressionKind::Function {
             parameters: Vec::new(),
             body,
-            kind,
+            ty,
           },
           start_span,
         ));
@@ -139,12 +139,12 @@ impl<'a> Parser<'a> {
           TokenKind::Arrow | TokenKind::Colon
         ) {
           *self = fn_parser;
-          let (body, kind) = self.parse_arrow_fn_body_and_return_type()?;
+          let (body, ty) = self.parse_arrow_fn_body_and_meta()?;
           return Ok(Expression::new(
-            ExpressionKind::Fn {
+            ExpressionKind::Function {
               parameters,
               body,
-              kind,
+              ty,
             },
             start_span,
           ));
@@ -152,24 +152,21 @@ impl<'a> Parser<'a> {
       }
     }
 
-    let expr = self.parse_expression(PrecedenceKind::Lowest)?;
+    let expr = self.parse_expression(Precedence::Lowest)?;
     self.consume(TokenKind::RParen)?;
     Ok(expr)
   }
 
-  pub fn parse_collection_expression(&mut self) -> ParseResult {
+  pub fn parse_array_expression(&mut self) -> ParseResult {
     let start_span = self.current_token.span;
     let elements = self.parse_delimited(
       TokenKind::LBracket,
       TokenKind::RBracket,
       TokenKind::Comma,
-      |p| p.parse_expression(PrecedenceKind::Lowest),
+      |p| p.parse_expression(Precedence::Lowest),
     )?;
     let span = start_span.merge(&self.current_token.span);
-    Ok(Expression::new(
-      ExpressionKind::Collection { elements },
-      span,
-    ))
+    Ok(Expression::new(ExpressionKind::Array { elements }, span))
   }
 
   pub fn parse_object_expression(&mut self) -> ParseResult {
@@ -189,12 +186,12 @@ impl<'a> Parser<'a> {
           let key_span = self.current_token.span;
           let key_ident: Arc<str> = self.parse_identifier()?.into();
           let key_expr = Expression::new(
-            ExpressionKind::Literal(LiteralKind::String(key_ident.clone())),
+            ExpressionKind::Literal(Literal::String(key_ident.clone())),
             key_span,
           );
           if self.current_token.kind == TokenKind::Colon {
             self.advance();
-            let value = self.parse_expression(PrecedenceKind::Lowest)?;
+            let value = self.parse_expression(Precedence::Lowest)?;
             (key_expr, value)
           } else {
             let value =
@@ -205,7 +202,7 @@ impl<'a> Parser<'a> {
         TokenKind::String(_) => {
           let key = self.parse_literal()?;
           self.consume(TokenKind::Colon)?;
-          let value = self.parse_expression(PrecedenceKind::Lowest)?;
+          let value = self.parse_expression(Precedence::Lowest)?;
           (key, value)
         }
         _ => {

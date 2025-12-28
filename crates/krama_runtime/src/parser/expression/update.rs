@@ -1,6 +1,6 @@
 use krama_core::{
-  ErrorKind, Expression, ExpressionKind, PrecedenceKind, TokenKind,
-  UnaryOperator, UpdateOperator,
+  ErrorKind, Expression, ExpressionKind, Precedence, TokenKind, UnaryOperator,
+  UpdateOperator,
 };
 
 use crate::{ParseResult, Parser};
@@ -10,11 +10,11 @@ impl<'a> Parser<'a> {
     let token = self.current_token.clone();
     if token.kind == TokenKind::Plus {
       self.advance();
-      return self.parse_expression(PrecedenceKind::Prefix);
+      return self.parse_expression(Precedence::Prefix);
     }
     if let Some(operator) = UnaryOperator::from_token(token.kind) {
       self.advance();
-      let right = self.parse_expression(PrecedenceKind::Prefix)?;
+      let right = self.parse_expression(Precedence::Prefix)?;
       return Ok(Expression::new(
         ExpressionKind::Unary {
           operator,
@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
     let token = self.current_token.clone();
     if let Some(operator) = UpdateOperator::from_token(token.kind) {
       self.advance();
-      let argument = self.parse_expression(PrecedenceKind::Prefix)?;
+      let argument = self.parse_expression(Precedence::Prefix)?;
       return Ok(Expression::new(
         ExpressionKind::Update {
           operator,

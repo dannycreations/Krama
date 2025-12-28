@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use super::{
-  ConstBinding, EnumVariant, ForBinding, Parameter, StatementBlock,
-  StructField, StructMethod,
+  Binding, EnumVariant, Iteration, Parameter, StatementBlock, StructField,
+  StructMethod,
 };
 use crate::{Expression, FunctionBody, Type};
 
@@ -14,21 +14,21 @@ pub enum StatementKind {
   },
   Const {
     public: bool,
-    binding: ConstBinding,
-    kind: Option<Type>,
+    binding: Binding,
+    ty: Option<Type>,
     value: Box<Expression>,
   },
   Let {
-    name: Arc<str>,
-    kind: Option<Type>,
+    binding: Binding,
+    ty: Option<Type>,
     value: Box<Expression>,
   },
-  Fn {
+  Function {
     public: bool,
     name: Arc<str>,
     parameters: Vec<Parameter>,
     body: FunctionBody,
-    kind: Option<Type>,
+    ty: Option<Type>,
   },
   Enum {
     public: bool,
@@ -44,7 +44,7 @@ pub enum StatementKind {
   Type {
     public: bool,
     name: Arc<str>,
-    kind: Type,
+    ty: Type,
   },
   Expression {
     expression: Box<Expression>,
@@ -57,7 +57,7 @@ pub enum StatementKind {
     body: Box<StatementBlock>,
   },
   For {
-    binding: ForBinding,
+    binding: Iteration,
     iterable: Box<Expression>,
     body: Box<StatementBlock>,
   },

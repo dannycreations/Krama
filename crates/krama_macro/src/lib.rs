@@ -1,11 +1,13 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
+  bracketed,
   parse::{Parse, ParseStream},
-  parse2,
+  parse2, parse_quote,
   punctuated::Punctuated,
-  Error as SynError, Ident, ItemFn, Lit, LitStr, Token,
+  Error as SynError, FnArg, Ident, ItemFn, Lit, LitStr, Result as SynResult,
+  Token, Type as SynType,
 };
 
 struct GlobalArgs {
@@ -13,7 +15,7 @@ struct GlobalArgs {
 }
 
 impl Parse for GlobalArgs {
-  fn parse(input: ParseStream) -> syn::Result<Self> {
+  fn parse(input: ParseStream) -> SynResult<Self> {
     let name = input.parse::<LitStr>()?;
     Ok(GlobalArgs { name })
   }
@@ -25,7 +27,7 @@ struct ModuleArgs {
 }
 
 impl Parse for ModuleArgs {
-  fn parse(input: ParseStream) -> syn::Result<Self> {
+  fn parse(input: ParseStream) -> SynResult<Self> {
     let mut name = None;
     let mut module = None;
 
@@ -59,7 +61,7 @@ struct PropertyArgs {
 }
 
 impl Parse for PropertyArgs {
-  fn parse(input: ParseStream) -> syn::Result<Self> {
+  fn parse(input: ParseStream) -> SynResult<Self> {
     let mut name = None;
     let mut types = None;
 
@@ -71,7 +73,7 @@ impl Parse for PropertyArgs {
         name = Some(input.parse::<LitStr>()?);
       } else if ident == "types" {
         let content;
-        syn::bracketed!(content in input);
+        bracketed!(content in input);
         types = Some(Punctuated::<Lit, Token![,]>::parse_terminated(&content)?);
       }
 
@@ -107,19 +109,19 @@ fn transform_fn(
   let mut new_sig = sig.clone();
   new_sig.asyncness = None;
 
-  new_sig.output = syn::parse_quote! {
-    -> futures::future::LocalBoxFuture<'static, krama_core::ErrorKindResult<krama_core::ObjectKind>>
+  new_sig.output = parse_quote! {
+    -> futures::future::LocalBoxFuture<'static, krama_core::ErrorKindResult<krama_core::Object>>
   };
 
   let mut pre_block = TokenStream2::new();
   for arg in &sig.inputs {
     match arg {
-      syn::FnArg::Typed(pat) => {
+      FnArg::Typed(pat) => {
         let pat_name = &pat.pat;
         let ty = &pat.ty;
 
         // Check if the type is a reference (starts with &)
-        if let syn::Type::Reference(_) = **ty {
+        if let SynType::Reference(_) = **ty {
           pre_block.extend(quote! {
               let #pat_name = #pat_name.to_vec();
           });
@@ -169,10 +171,8 @@ pub fn register_global(attr: TokenStream, item: TokenStream) -> TokenStream {
     "global",
     |args, fn_name| {
       let name = &args.name;
-      let static_name = quote::format_ident!(
-        "__KRAMA_GLOBAL_{}",
-        fn_name.to_string().to_uppercase()
-      );
+      let static_name =
+        format_ident!("__KRAMA_GLOBAL_{}", fn_name.to_string().to_uppercase());
       quote! {
         #[linkme::distributed_slice(krama_core::STANDARD_GLOBALS)]
         #[allow(non_upper_case_globals)]
@@ -195,10 +195,8 @@ pub fn register_module(attr: TokenStream, item: TokenStream) -> TokenStream {
     |args, fn_name| {
       let name = &args.name;
       let module = &args.module;
-      let static_name = quote::format_ident!(
-        "__KRAMA_MODULE_{}",
-        fn_name.to_string().to_uppercase()
-      );
+      let static_name =
+        format_ident!("__KRAMA_MODULE_{}", fn_name.to_string().to_uppercase());
       quote! {
         #[linkme::distributed_slice(krama_core::STANDARD_MODULES)]
         #[allow(non_upper_case_globals)]
@@ -222,7 +220,7 @@ pub fn register_property(attr: TokenStream, item: TokenStream) -> TokenStream {
     |args, fn_name| {
       let name = &args.name;
       let types = &args.types;
-      let static_name = quote::format_ident!(
+      let static_name = format_ident!(
         "__KRAMA_PROPERTY_{}",
         fn_name.to_string().to_uppercase()
       );

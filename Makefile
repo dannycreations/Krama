@@ -10,6 +10,9 @@ test: check
 bench: check
 	cargo bench
 
+upgrade:
+	cargo upgrade --incompatible && cargo sort -w
+
 machete:
 	cargo machete --with-metadata
 

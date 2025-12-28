@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use krama_core::{
-  ConstBinding, Destructure, Error, ErrorKind, ErrorResult, ForBinding,
-  ObjectKind, Span,
+  Binding, DestructureBlock, Error, ErrorKind, ErrorResult, Iteration, Object,
+  Span,
 };
 
 use crate::interpreter::Interpreter;
@@ -10,20 +10,31 @@ use crate::interpreter::Interpreter;
 impl Interpreter {
   pub fn apply_binding(
     &self,
-    binding: &ConstBinding,
-    value: ObjectKind,
+    binding: &Binding,
+    value: Object,
     public: bool,
     span: Span,
+    constant: bool,
   ) -> ErrorResult {
     match binding {
-      ConstBinding::Identifier(name) => {
-        self.stack.write().define(name.clone(), value, public, true);
+      Binding::Identifier(name) => {
+        self
+          .stack
+          .write()
+          .define(name.clone(), value, public, constant);
       }
-      ConstBinding::Destructure(items) => {
-        self.apply_destructuring(None, items, value, public, span)?;
+      Binding::Destructure(items) => {
+        self.apply_destructuring(None, items, value, public, span, constant)?;
       }
-      ConstBinding::ModuleAndDestructure { alias, items } => {
-        self.apply_destructuring(Some(alias), items, value, public, span)?;
+      Binding::ModuleAndDestructure { alias, items } => {
+        self.apply_destructuring(
+          Some(alias),
+          items,
+          value,
+          public,
+          span,
+          constant,
+        )?;
       }
     }
     Ok(())
@@ -32,18 +43,19 @@ impl Interpreter {
   pub fn apply_destructuring(
     &self,
     alias: Option<&Arc<str>>,
-    items: &[Destructure],
-    value: ObjectKind,
+    items: &[DestructureBlock],
+    value: Object,
     public: bool,
     span: Span,
+    constant: bool,
   ) -> ErrorResult {
-    if let ObjectKind::Scope(scope) = &value {
+    if let Object::Scope(scope) = &value {
       if let Some(alias_name) = alias {
         self.stack.write().define(
           alias_name.clone(),
           value.clone(),
           public,
-          true,
+          constant,
         );
       }
       for item in items {
@@ -51,7 +63,10 @@ impl Interpreter {
           scope.read().get_local(&item.name).map(|b| b.value.clone());
         if let Some(val) = export_value {
           let name = item.alias.as_ref().unwrap_or(&item.name);
-          self.stack.write().define(name.clone(), val, public, true);
+          self
+            .stack
+            .write()
+            .define(name.clone(), val, public, constant);
         } else {
           return Err(Error::new(
             ErrorKind::ReferenceError(format!(
@@ -76,22 +91,22 @@ impl Interpreter {
 
   pub fn assign_for_binding(
     &self,
-    binding: &ForBinding,
-    value: ObjectKind,
+    binding: &Iteration,
+    value: Object,
     span: Span,
   ) -> ErrorResult {
     match binding {
-      ForBinding::Identifier(name) => {
+      Iteration::Identifier(name) => {
         self
           .stack
           .write()
           .define(name.clone(), value.clone(), false, false);
         Ok(())
       }
-      ForBinding::Array(bindings) => {
+      Iteration::Array(bindings) => {
         let elements = match &value {
-          ObjectKind::Array { elements, .. } => elements.read().to_vec(),
-          ObjectKind::Tuple(elements) => elements.as_ref().to_vec(),
+          Object::Array { elements, .. } => elements.read().to_vec(),
+          Object::Tuple(elements) => elements.as_ref().to_vec(),
           _ => {
             return Err(Error::new(
               ErrorKind::TypeError(format!(
@@ -104,7 +119,7 @@ impl Interpreter {
         };
 
         for (i, binding) in bindings.iter().enumerate() {
-          let val = elements.get(i).cloned().unwrap_or(ObjectKind::Void);
+          let val = elements.get(i).cloned().unwrap_or(Object::Void);
           self.assign_for_binding(binding, val, span)?;
         }
         Ok(())

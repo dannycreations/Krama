@@ -2,9 +2,11 @@ use std::sync::Arc;
 
 use futures::future::try_join_all;
 use krama_core::{
-  Error, ErrorKind, Expression, ExpressionKind, FunctionBody, FunctionKind,
-  ObjectKind, ObjectResult, Parameter, Span, StructMethod, Type, UserFunction,
+  EnumInstance, Error, ErrorKind, Expression, ExpressionKind, Function,
+  FunctionBody, Object, ObjectResult, Parameter, Scope, Span, StructMethod,
+  Type, UserFunction,
 };
+use parking_lot::RwLock;
 
 use crate::interpreter::{types::check_type, Interpreter};
 
@@ -19,10 +21,10 @@ impl Interpreter {
       ExpressionKind::Member { object, property } => {
         let obj_val = self.eval_expression(object, None).await?;
         let func = self
-          .eval_member_expression(obj_val.clone(), property, span)
+          .eval_access_expression(obj_val.clone(), property, span)
           .await?;
 
-        let bound_this = if let ObjectKind::Function(FunctionKind::User {
+        let bound_this = if let Object::Function(Function::User {
           this: Some(ref t),
           ..
         }) = func
@@ -34,10 +36,7 @@ impl Interpreter {
 
         (func, bound_this)
       }
-      _ => (
-        self.eval_expression(function, None).await?,
-        ObjectKind::Void,
-      ),
+      _ => (self.eval_expression(function, None).await?, Object::Void),
     };
 
     let evaluated_args =
@@ -45,28 +44,23 @@ impl Interpreter {
         .await?;
 
     self
-      .eval_call_expression_with_this(
-        func_obj,
-        &evaluated_args,
-        this_binding,
-        span,
-      )
+      .eval_call_with_this(func_obj, &evaluated_args, this_binding, span)
       .await
   }
 
-  pub async fn eval_call_expression_with_this(
+  pub async fn eval_call_with_this(
     &self,
-    function: ObjectKind,
-    arguments: &[ObjectKind],
-    this: ObjectKind,
+    function: Object,
+    arguments: &[Object],
+    this: Object,
     span: Span,
   ) -> ObjectResult {
     match function {
-      ObjectKind::Function(function) => match function {
-        FunctionKind::Native(native_fn) => (native_fn.callback)(arguments)
+      Object::Function(function) => match function {
+        Function::Native(native_fn) => (native_fn.callback)(arguments)
           .await
           .map_err(|kind| Error::new(kind, span)),
-        FunctionKind::User {
+        Function::User {
           func,
           env,
           this: bound_this,
@@ -85,7 +79,7 @@ impl Interpreter {
             )
             .await
         }
-        FunctionKind::Enum(constructor) => {
+        Function::Enum(constructor) => {
           if arguments.len() != constructor.field_count {
             return Err(Error::new(
               ErrorKind::TypeError(format!(
@@ -98,7 +92,7 @@ impl Interpreter {
               span,
             ));
           }
-          Ok(ObjectKind::Enum(Box::new(krama_core::EnumInstance {
+          Ok(Object::Enum(Box::new(EnumInstance {
             name: constructor.name.clone(),
             variant: constructor.variant.clone(),
             fields: Some(Arc::from(arguments)),
@@ -118,9 +112,9 @@ impl Interpreter {
   pub async fn eval_user_function_call_with_this(
     &self,
     user_fn: &UserFunction,
-    closure_env: Option<Arc<parking_lot::RwLock<krama_core::Scope>>>,
-    arguments: &[ObjectKind],
-    this: ObjectKind,
+    closure_env: Option<Arc<RwLock<Scope>>>,
+    arguments: &[Object],
+    this: Object,
     span: Span,
   ) -> ObjectResult {
     if arguments.len() > user_fn.parameters.len() {
@@ -138,23 +132,23 @@ impl Interpreter {
 
     stack_ref.write().push("function_call".into(), closure_env);
 
-    if !matches!(this, ObjectKind::Void) {
+    if !matches!(this, Object::Void) {
       let mut stack = stack_ref.write();
       stack.define("this".into(), this.clone(), false, true);
 
       let struct_name = match &this {
-        ObjectKind::Object {
+        Object::Object {
           definition: Some(definition),
           ..
         } => Some(definition.name.clone()),
-        ObjectKind::Struct(definition) => Some(definition.name.clone()),
+        Object::Struct(definition) => Some(definition.name.clone()),
         _ => None,
       };
 
       if let Some(name) = struct_name {
         stack.define(
           "__current_struct__".into(),
-          ObjectKind::String(name),
+          Object::String(name),
           false,
           true,
         );
@@ -176,7 +170,7 @@ impl Interpreter {
         ));
       };
 
-      if let Some(param_type) = &param.kind {
+      if let Some(param_type) = &param.ty {
         check_type(param_type, &value)?;
       }
 
@@ -201,44 +195,41 @@ impl Interpreter {
     &self,
     parameters: Vec<Parameter>,
     body: FunctionBody,
-    kind: Option<Type>,
-  ) -> ObjectKind {
+    ty: Option<Type>,
+  ) -> Object {
     let user_fn = Arc::new(UserFunction {
       parameters,
       body,
-      kind,
+      ty,
     });
 
     let env = Some(self.stack.read().current());
 
-    ObjectKind::Function(FunctionKind::User {
+    Object::Function(Function::User {
       func: user_fn,
       env,
       this: None,
     })
   }
 
-  pub fn from_method(method: &StructMethod) -> ObjectKind {
-    ObjectKind::Function(FunctionKind::User {
+  pub fn from_method(method: &StructMethod) -> Object {
+    Object::Function(Function::User {
       func: Arc::new(UserFunction {
         parameters: method.parameters.clone(),
         body: method.body.clone(),
-        kind: method.kind.clone(),
+        ty: method.ty.clone(),
       }),
       env: None,
       this: None,
     })
   }
 
-  pub fn bind_method(
-    method: &StructMethod,
-    instance: ObjectKind,
-  ) -> ObjectKind {
-    ObjectKind::Function(FunctionKind::User {
+  pub fn bind_method(method: &StructMethod, instance: Object) -> Object {
+    Object::Function(Function::User {
       func: Arc::new(UserFunction {
         parameters: method.parameters.clone(),
         body: method.body.clone(),
-        kind: method.kind.clone(),
+        ty: method.ty.clone(),
       }),
       env: None,
       this: Some(Arc::new(instance)),
